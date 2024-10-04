@@ -1,9 +1,21 @@
-import { createGlobalStyle } from "styled-components";
+import { createGlobalStyle, styled } from "styled-components";
 import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
 import { ThemeProvider } from "styled-components";
 import { darkTheme } from "./theme";
-import ToDoList from "./components/ToDoList";
+import {
+	DragDropContext,
+	Draggable,
+	Droppable,
+	OnDragEndResponder,
+	OnDragStartResponder,
+	TypeId,
+} from "@hello-pangea/dnd";
+import { useCallback, useMemo, useState } from "react";
+import { useRecoilState } from "recoil";
+import { selectorOrderedListToDos, ToDoData } from "@/atoms";
+import { arrayMoveElement } from "@/utils";
+import DraggableCard from "@/components/DraggableCard";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -69,7 +81,7 @@ const GlobalStyle = createGlobalStyle`
     font-style: normal;
     
     background-color: ${({ theme }) => theme.bgColor};
-    color: ${({ theme }) => theme.textColor};
+    color: black;
   }
   a {
     text-decoration: none;
@@ -77,7 +89,62 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
+const Wrapper = styled.div`
+	display: flex;
+	max-width: 480px;
+	width: 100%;
+	margin: 0 auto;
+
+	justify-content: center;
+	align-items: center;
+	height: 100vh;
+`;
+
+const Boards = styled.div`
+	display: grid;
+	grid-template-columns: repeat(1, 1fr);
+	width: 100%;
+`;
+
+const Board = styled.div`
+	padding: 30px 10px 20px;
+	background-color: ${({ theme }) => theme.boardBgColor};
+	border-radius: 5px;
+	min-height: 200px;
+`;
+
 function App() {
+	// const [stateIsDragging, setStateIsDragging] = useState<boolean>(false);
+	const [stateOrderedListToDos, setStateOrderedListToDos] = useRecoilState(
+		selectorOrderedListToDos
+	);
+
+	// const dragStartHandler: OnDragStartResponder<TypeId> = useCallback(() => {
+	// 	setStateIsDragging(true);
+	// }, []);
+
+	const dragEndHandler: OnDragEndResponder<TypeId> = useCallback(
+		({ source, destination }) => {
+			// console.log(source, destination);
+			if (!destination) {
+				return;
+			}
+
+			// setStateIsDragging(false);
+
+			setStateOrderedListToDos((currentOrderedListToDos) => {
+				const newOrderedListToDos = [...currentOrderedListToDos];
+				arrayMoveElement({
+					arr: newOrderedListToDos,
+					idxFrom: source.index,
+					idxTo: destination.index,
+				});
+				return newOrderedListToDos;
+			});
+		},
+		[]
+	);
+
 	return (
 		<>
 			<ThemeProvider theme={darkTheme}>
@@ -88,7 +155,39 @@ function App() {
 					/>
 				</Helmet>
 				<GlobalStyle />
-				<ToDoList />
+				<DragDropContext
+					// onDragStart={dragStartHandler}
+					onDragEnd={dragEndHandler}
+				>
+					<Wrapper>
+						<Boards>
+							<Droppable droppableId="one">
+								{(droppableProvided) => (
+									<Board
+										ref={droppableProvided.innerRef}
+										{...droppableProvided.droppableProps}
+									>
+										{stateOrderedListToDos.map(({ id, text }, idx) => {
+											const toDo = useMemo<ToDoData>(
+												() => ({ id, text }),
+												[id, text]
+											);
+											return (
+												<DraggableCard
+													key={id}
+													toDo={toDo}
+													index={idx}
+													// isDragDisabled={stateIsDragging}
+												/>
+											);
+										})}
+										{droppableProvided.placeholder}
+									</Board>
+								)}
+							</Droppable>
+						</Boards>
+					</Wrapper>
+				</DragDropContext>
 				<ReactQueryDevtools initialIsOpen={true} />
 			</ThemeProvider>
 		</>

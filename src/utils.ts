@@ -78,3 +78,16 @@ export const generateUniqueRandomIds = function* ({
 		yield uuidv4();
 	}
 };
+
+export function arrayMoveElement({
+	arr,
+	idxFrom,
+	idxTo,
+}: {
+	arr: any[];
+	idxFrom: number;
+	idxTo: number;
+}) {
+	const [target] = arr.splice(idxFrom, 1);
+	arr.splice(idxTo, 0, target);
+}
