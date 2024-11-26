@@ -1,21 +1,20 @@
-import { createGlobalStyle, styled } from "styled-components";
+import { useCallback } from "react";
+import { ThemeProvider, createGlobalStyle, styled } from "styled-components";
 import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
-import { ThemeProvider } from "styled-components";
+import { DragDropContext, OnDragEndResponder, TypeId } from "@hello-pangea/dnd";
+import { useRecoilValue, useSetRecoilState } from "recoil";
 import { darkTheme } from "./theme";
 import {
-	DragDropContext,
-	Draggable,
-	Droppable,
-	OnDragEndResponder,
-	OnDragStartResponder,
-	TypeId,
-} from "@hello-pangea/dnd";
-import { useCallback, useMemo, useState } from "react";
-import { useRecoilState } from "recoil";
-import { selectorOrderedListToDos, ToDoData } from "@/atoms";
+  selectorOrderedTasks,
+  selectorOrderedTasksOfType,
+  selectorTaskOrder,
+  selectorTasks,
+  TasksId,
+  TaskTypeCamel,
+} from "@/atoms";
 import { arrayMoveElement } from "@/utils";
-import DraggableCard from "@/components/DraggableCard";
+import DroppableBoard from "@/components/DroppableBoard";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -90,108 +89,84 @@ const GlobalStyle = createGlobalStyle`
 `;
 
 const Wrapper = styled.div`
-	display: flex;
-	max-width: 480px;
-	width: 100%;
-	margin: 0 auto;
-
-	justify-content: center;
-	align-items: center;
-	height: 100vh;
+  margin: 0 auto;
+  display: flex;
+  max-width: 680px;
+  width: 100%;
+  height: 100vh;
+  justify-content: center;
+  align-items: center;
 `;
 
 const Boards = styled.div`
-	display: grid;
-	grid-template-columns: repeat(1, 1fr);
-	width: 100%;
-`;
-
-const Board = styled.div`
-	padding: 30px 10px 20px;
-	background-color: ${({ theme }) => theme.boardBgColor};
-	border-radius: 5px;
-	min-height: 200px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 100%;
+  gap: 10px;
 `;
 
 function App() {
-	// const [stateIsDragging, setStateIsDragging] = useState<boolean>(false);
-	const [stateOrderedListToDos, setStateOrderedListToDos] = useRecoilState(
-		selectorOrderedListToDos
-	);
+  // const [stateIsDragging, setStateIsDragging] = useState<boolean>(false);
+  const stateOrderedTasks = useRecoilValue(selectorOrderedTasks);
 
-	// const dragStartHandler: OnDragStartResponder<TypeId> = useCallback(() => {
-	// 	setStateIsDragging(true);
-	// }, []);
+  // const dragStartHandler: OnDragStartResponder<TypeId> = useCallback(() => {
+  // 	setStateIsDragging(true);
+  // }, []);
 
-	const dragEndHandler: OnDragEndResponder<TypeId> = useCallback(
-		({ source, destination }) => {
-			// console.log(source, destination);
-			if (!destination) {
-				return;
-			}
+  const dragEndHandler: OnDragEndResponder<TypeId> =
+    useCallback<OnDragEndResponder>(
+      ({ source, destination, draggableId, ...otherParams }, responderProvided) => {
+        // console.log(source, destination);
+        console.log(otherParams);
+        if (!destination) {
+          return;
+        }
 
-			// setStateIsDragging(false);
+        // setStateIsDragging(false);
 
-			setStateOrderedListToDos((currentOrderedListToDos) => {
-				const newOrderedListToDos = [...currentOrderedListToDos];
-				arrayMoveElement({
-					arr: newOrderedListToDos,
-					idxFrom: source.index,
-					idxTo: destination.index,
-				});
-				return newOrderedListToDos;
-			});
-		},
-		[]
-	);
+        // setStateOrderedListToDos((currentOrderedListToDos) => {
+        // 	const newOrderedListToDos = [...currentOrderedListToDos];
+        // 	arrayMoveElement({
+        // 		arr: newOrderedListToDos,
+        // 		idxFrom: source.index,
+        // 		idxTo: destination.index,
+        // 	});
+        // 	return newOrderedListToDos;
+        // });
+      },
+      [],
+    );
 
-	return (
-		<>
-			<ThemeProvider theme={darkTheme}>
-				<Helmet>
-					<link
-						href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap"
-						rel="stylesheet"
-					/>
-				</Helmet>
-				<GlobalStyle />
-				<DragDropContext
-					// onDragStart={dragStartHandler}
-					onDragEnd={dragEndHandler}
-				>
-					<Wrapper>
-						<Boards>
-							<Droppable droppableId="one">
-								{(droppableProvided) => (
-									<Board
-										ref={droppableProvided.innerRef}
-										{...droppableProvided.droppableProps}
-									>
-										{stateOrderedListToDos.map(({ id, text }, idx) => {
-											const toDo = useMemo<ToDoData>(
-												() => ({ id, text }),
-												[id, text]
-											);
-											return (
-												<DraggableCard
-													key={id}
-													toDo={toDo}
-													index={idx}
-													// isDragDisabled={stateIsDragging}
-												/>
-											);
-										})}
-										{droppableProvided.placeholder}
-									</Board>
-								)}
-							</Droppable>
-						</Boards>
-					</Wrapper>
-				</DragDropContext>
-				<ReactQueryDevtools initialIsOpen={true} />
-			</ThemeProvider>
-		</>
-	);
+  return (
+    <>
+      <ThemeProvider theme={darkTheme}>
+        <Helmet>
+          <link
+            href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap"
+            rel="stylesheet"
+          />
+        </Helmet>
+        <GlobalStyle />
+        <DragDropContext
+          // onDragStart={dragStartHandler}
+          onDragEnd={dragEndHandler}
+        >
+          <Wrapper>
+            <Boards>
+              {Object.keys(stateOrderedTasks).map((id) => (
+                <DroppableBoard
+                  key={id}
+                  id={id as TasksId}
+                  tasks={stateOrderedTasks[id as TasksId]}
+                />
+              ))}
+            </Boards>
+          </Wrapper>
+        </DragDropContext>
+        <ReactQueryDevtools initialIsOpen={true} />
+      </ThemeProvider>
+    </>
+  );
 }
 
 export default App;

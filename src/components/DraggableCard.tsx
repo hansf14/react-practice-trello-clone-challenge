@@ -1,7 +1,7 @@
-import { ToDoData } from "@/atoms";
-import { Draggable } from "@hello-pangea/dnd";
 import React from "react";
 import { styled } from "styled-components";
+import { Draggable } from "@hello-pangea/dnd";
+import { Task } from "@/atoms";
 
 const Card = styled.div`
 	margin-bottom: 5px;
@@ -11,18 +11,19 @@ const Card = styled.div`
 `;
 
 export interface DraggableCardProps {
-	toDo: ToDoData;
+	task: Task;
 	index: number;
 	// isDragDisabled?: boolean;
+	draggableId: string;
 }
 
-const DraggableCard = React.memo(({ toDo, index }: DraggableCardProps) => {
+const DraggableCard = React.memo(({ task, index }: DraggableCardProps) => {
 	// console.log(`index: [${index}] is rendered.`);
-	const { id, text } = toDo;
+	const { id, text } = task;
 
 	return (
 		<Draggable
-			key={id}
+			// key={id}
 			draggableId={id}
 			index={index}
 			// isDragDisabled={isDragDisabled}

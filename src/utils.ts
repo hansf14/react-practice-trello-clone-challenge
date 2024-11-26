@@ -61,6 +61,40 @@ export function createKeyValueMapping<K extends readonly string[]>({
 	return keyValueMapping;
 }
 
+export function convertKebabToCamelV2({ str }: { str: string }): string {
+	return str.trim().replace(/(-)([0-9]*)([a-z])/g, (x, ...args) => {
+		// console.group(x);
+		const capturedGroups = args.slice(0, 3);
+		// console.log(capturedGroups);
+		const res =
+			capturedGroups[1] +
+			(capturedGroups[2] === "" ? "" : capturedGroups[2][0].toUpperCase());
+		// console.log(res);
+		// console.groupEnd();
+		return res;
+	});
+}
+
+export type KebabToCamel<S extends string> = S extends `${infer F}-${infer R}`
+	? `${F}${Capitalize<KebabToCamel<R>>}`
+	: S;
+
+export type KebabToCamelMapping<U extends StringUnion<string>> = {
+	[K in U]: KebabToCamel<K>;
+};
+
+export function createKebabToCamelMapping<
+	K extends string[] | readonly string[]
+>({ arr }: { arr: K | readonly [...K] }) {
+	const keyValueArr = arr.map((item) => [
+		item,
+		convertKebabToCamelV2({ str: item }),
+	]);
+	const result: KebabToCamelMapping<K[number]> =
+		Object.fromEntries(keyValueArr);
+	return result;
+}
+
 export const generateUniqueRandomId = (): string => {
 	return uuidv4();
 };
