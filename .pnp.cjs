@@ -61,6 +61,7 @@ const RAW_RUNTIME_STATE =
           ["react-router-dom", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:5.3.4"],\
           ["react-scripts", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:5.0.1"],\
           ["recoil", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:0.7.7"],\
+          ["recoil-nexus", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:0.5.1"],\
           ["recoil-persist", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:5.1.0"],\
           ["styled-components", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:6.1.13"],\
           ["styled-reset", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:4.5.2"],\
@@ -18200,6 +18201,7 @@ const RAW_RUNTIME_STATE =
           ["react-router-dom", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:5.3.4"],\
           ["react-scripts", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:5.0.1"],\
           ["recoil", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:0.7.7"],\
+          ["recoil-nexus", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:0.5.1"],\
           ["recoil-persist", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:5.1.0"],\
           ["styled-components", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:6.1.13"],\
           ["styled-reset", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:4.5.2"],\
@@ -18516,6 +18518,40 @@ const RAW_RUNTIME_STATE =
           "react-dom",\
           "react-native",\
           "react"\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["recoil-nexus", [\
+      ["npm:0.5.1", {\
+        "packageLocation": "./.yarn/cache/recoil-nexus-npm-0.5.1-801cee2e45-0e7ed67eac.zip/node_modules/recoil-nexus/",\
+        "packageDependencies": [\
+          ["recoil-nexus", "npm:0.5.1"]\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:0.5.1", {\
+        "packageLocation": "./.yarn/__virtual__/recoil-nexus-virtual-7c0e1d4a28/0/cache/recoil-nexus-npm-0.5.1-801cee2e45-0e7ed67eac.zip/node_modules/recoil-nexus/",\
+        "packageDependencies": [\
+          ["recoil-nexus", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:0.5.1"],\
+          ["@types/react", "npm:18.3.11"],\
+          ["@types/react-dom", "npm:18.3.0"],\
+          ["@types/recoil", null],\
+          ["@types/typescript", null],\
+          ["react", "npm:18.3.1"],\
+          ["react-dom", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:18.3.1"],\
+          ["recoil", "virtual:2a60c93c8cfe39520d4eb3e29245d3475323d0be28339a45adf0fef7b81bd3d892fb5a62aa42761523895f04f4739b548b1c728a51f63887efff3eb8d0100726#npm:0.7.7"],\
+          ["typescript", "patch:typescript@npm%3A4.9.5#optional!builtin<compat/typescript>::version=4.9.5&hash=289587"]\
+        ],\
+        "packagePeers": [\
+          "@types/react-dom",\
+          "@types/react",\
+          "@types/recoil",\
+          "@types/typescript",\
+          "react-dom",\
+          "react",\
+          "recoil",\
+          "typescript"\
         ],\
         "linkType": "HARD"\
       }]\

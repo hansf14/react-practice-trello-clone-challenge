@@ -3,18 +3,12 @@ import { ThemeProvider, createGlobalStyle, styled } from "styled-components";
 import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
 import { DragDropContext, OnDragEndResponder, TypeId } from "@hello-pangea/dnd";
-import { useRecoilValue, useSetRecoilState } from "recoil";
+import { useRecoilState } from "recoil";
 import { darkTheme } from "./theme";
-import {
-  selectorOrderedTasks,
-  selectorOrderedTasksOfType,
-  selectorTaskOrder,
-  selectorTasks,
-  TasksId,
-  TaskTypeCamel,
-} from "@/atoms";
 import { arrayMoveElement } from "@/utils";
 import DroppableBoard from "@/components/DroppableBoard";
+import { categoryListAtom, categorySelectorFamily } from "@/atoms";
+import { getRecoil, setRecoil } from "recoil-nexus";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -106,36 +100,74 @@ const Boards = styled.div`
 `;
 
 function App() {
-  // const [stateIsDragging, setStateIsDragging] = useState<boolean>(false);
-  const stateOrderedTasks = useRecoilValue(selectorOrderedTasks);
+  const [stateCategoryList, setStateCategoryList] =
+    useRecoilState(categoryListAtom);
+  // const stateCategoryIndexer = useRecoilValue(categoryIndexerSelector);
+  // const stateTaskIndexer = useRecoilValue(taskIndexerSelector);
 
-  // const dragStartHandler: OnDragStartResponder<TypeId> = useCallback(() => {
-  // 	setStateIsDragging(true);
-  // }, []);
+  const onDragEnd: OnDragEndResponder<TypeId> = useCallback<OnDragEndResponder>(
+    (
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      { source, destination, draggableId, ...otherParams },
+      responderProvided,
+    ) => {
+      console.log("source:", source);
+      console.log("destination:", destination);
+      console.log("draggableId:", draggableId);
+      // console.log("otherParams:", otherParams);
 
-  const dragEndHandler: OnDragEndResponder<TypeId> =
-    useCallback<OnDragEndResponder>(
-      ({ source, destination, draggableId, ...otherParams }, responderProvided) => {
-        // console.log(source, destination);
-        console.log(otherParams);
-        if (!destination) {
+      if (!destination) {
+        return;
+      }
+
+      if (source.droppableId === destination.droppableId) {
+        // Same board movement
+        const category = getRecoil(categorySelectorFamily(source.droppableId));
+        if (!category) {
           return;
         }
+        const taskListClone = [...category.taskList];
+        arrayMoveElement({
+          arr: taskListClone,
+          idxFrom: source.index,
+          idxTo: destination.index,
+        });
+        setRecoil(categorySelectorFamily(source.droppableId), {
+          ...category,
+          taskList: taskListClone,
+        });
+      } else {
+        // Cross board movement
+        const categorySrc = getRecoil(
+          categorySelectorFamily(source.droppableId),
+        );
+        if (!categorySrc) {
+          return;
+        }
+        const categoryDest = getRecoil(
+          categorySelectorFamily(destination.droppableId),
+        );
+        if (!categoryDest) {
+          return;
+        }
+        const taskListCloneSrc = [...categorySrc.taskList];
+        const [task] = taskListCloneSrc.splice(source.index, 1);
+        const taskListCloneDest = [...categoryDest.taskList];
+        taskListCloneDest.splice(destination.index, 0, task);
+        setRecoil(categorySelectorFamily(source.droppableId), {
+          ...categorySrc,
+          taskList: taskListCloneSrc,
+        });
+        setRecoil(categorySelectorFamily(destination.droppableId), {
+          ...categoryDest,
+          taskList: taskListCloneDest,
+        });
+      }
+    },
+    [],
+  );
 
-        // setStateIsDragging(false);
-
-        // setStateOrderedListToDos((currentOrderedListToDos) => {
-        // 	const newOrderedListToDos = [...currentOrderedListToDos];
-        // 	arrayMoveElement({
-        // 		arr: newOrderedListToDos,
-        // 		idxFrom: source.index,
-        // 		idxTo: destination.index,
-        // 	});
-        // 	return newOrderedListToDos;
-        // });
-      },
-      [],
-    );
+  console.log(stateCategoryList);
 
   return (
     <>
@@ -149,17 +181,19 @@ function App() {
         <GlobalStyle />
         <DragDropContext
           // onDragStart={dragStartHandler}
-          onDragEnd={dragEndHandler}
+          onDragEnd={onDragEnd}
         >
           <Wrapper>
             <Boards>
-              {Object.keys(stateOrderedTasks).map((id) => (
-                <DroppableBoard
-                  key={id}
-                  id={id as TasksId}
-                  tasks={stateOrderedTasks[id as TasksId]}
-                />
-              ))}
+              {stateCategoryList.map((stateCategory) => {
+                return (
+                  <DroppableBoard
+                    key={stateCategory.text}
+                    id={stateCategory.text}
+                    tasks={stateCategory.taskList}
+                  />
+                );
+              })}
             </Boards>
           </Wrapper>
         </DragDropContext>

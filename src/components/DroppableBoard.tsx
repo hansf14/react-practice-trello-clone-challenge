@@ -1,63 +1,61 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { styled } from "styled-components";
 import { Droppable } from "@hello-pangea/dnd";
-import { selectorOrderedTasksOfType, Task, Tasks, TasksId } from "@/atoms";
+import { Task } from "@/atoms";
 import DraggableCard from "./DraggableCard";
-import { useRecoilValue } from "recoil";
 
 const Title = styled.h2`
-	text-align: center;
-	font-weight: 600;
-	margin-bottom: 10px;
-	font-size: 18px;
+  margin-bottom: 10px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 18px;
 `;
 
-const Board = styled.div`
+const DroppableBoardBase = styled.div`
   max-width: 300px;
-	padding: 10px 10px 20px;
-	background-color: ${({ theme }) => theme.boardBgColor};
-	border-radius: 5px;
-	min-height: 300px;
+  min-height: 300px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  background-color: ${({ theme }) => theme.boardBgColor};
+  border-radius: 5px;
+`;
+
+const DroppableArea = styled.div`
+  flex-grow: 1;
 `;
 
 export interface DroppableBoardProps {
-	id: TasksId;
-	tasks: Task[];
+  id: string;
+  tasks: Task[];
 }
 
 const DroppableBoard = React.memo(({ id, tasks }: DroppableBoardProps) => {
-	// const stateOrderedListToDos = useRecoilValue(() => selectorOrderedListTasks);
-
-	return (
-		<Board>
-			<Title>ABC</Title>
-			<Droppable droppableId={id}>
-				{(droppableProvided) => (
-					<div
-						ref={droppableProvided.innerRef}
-						{...droppableProvided.droppableProps}
-					>
-						{tasks.map((task, idx) => {
-							const toDoMemoized = useMemo<Task>(
-								() => task,
-								[...Object.values(task)]
-							);
-							return (
-								<DraggableCard
-									key={toDoMemoized.id}
-									draggableId={toDoMemoized.id}
-									task={toDoMemoized}
-									index={idx}
-									// isDragDisabled={stateIsDragging}
-								/>
-							);
-						})}
-						{droppableProvided.placeholder}
-					</div>
-				)}
-			</Droppable>
-		</Board>
-	);
+  return (
+    <DroppableBoardBase>
+      <Title>ABC</Title>
+      <Droppable droppableId={id}>
+        {(droppableProvided) => (
+          <DroppableArea
+            ref={droppableProvided.innerRef}
+            {...droppableProvided.droppableProps}
+          >
+            {tasks.map((task, idx) => {
+              return (
+                <DraggableCard
+                  key={task.id}
+                  id={task.id}
+                  index={idx}
+                  task={task}
+                />
+              );
+            })}
+            {droppableProvided.placeholder}
+          </DroppableArea>
+        )}
+      </Droppable>
+    </DroppableBoardBase>
+  );
 });
 DroppableBoard.displayName = "DroppableBoard";
 

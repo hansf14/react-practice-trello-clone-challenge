@@ -12876,6 +12876,7 @@ __metadata:
     react-router-dom: "npm:^5.3.0"
     react-scripts: "npm:5.0.1"
     recoil: "npm:^0.7.7"
+    recoil-nexus: "npm:^0.5.1"
     recoil-persist: "npm:^5.1.0"
     styled-components: "npm:^6.1.11"
     styled-reset: "npm:^4.3.4"
@@ -13084,6 +13085,19 @@ __metadata:
   dependencies:
     picomatch: "npm:^2.2.1"
   checksum: 10c0/6fa848cf63d1b82ab4e985f4cf72bd55b7dcfd8e0a376905804e48c3634b7e749170940ba77b32804d5fe93b3cc521aa95a8d7e7d725f830da6d93f3669ce66b
+  languageName: node
+  linkType: hard
+
+"recoil-nexus@npm:^0.5.1":
+  version: 0.5.1
+  resolution: "recoil-nexus@npm:0.5.1"
+  peerDependencies:
+    "@types/react": ">=16.8.0"
+    react: ">=16.8.0"
+    react-dom: ">=16.8.0"
+    recoil: ">=0.2.0"
+    typescript: ">=4.1.0"
+  checksum: 10c0/0e7ed67eac5f06de64ea64331f72d53e6b96a2860ffccdbb43ba8e25ed818e28278907de24687a1b45733356aa2743c9c20fa3f571399f62e215c4b398b6271a
   languageName: node
   linkType: hard
 
