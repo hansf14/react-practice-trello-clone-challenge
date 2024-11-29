@@ -1,7 +1,9 @@
-1. TODO Remove button
-2. local storage
-store todos state at the local storage
-load todos from default which is loaded from the local storage
-3. DnD to change the category
-
-4. Title for board
+1. input 꾸미기, 스타일 꾸미기
+2. 모든 task state를 local storage에 저장 및 로드
+3. 쓰레기통 - task 삭제기능 & 삭제버튼
+4. board 자체의 순서를 서로 바꿀 수 있는 기능
+5. board 생성 할 수 있는 form
+6. board 삭제
+7. board의 모든 task 삭제
+8. task 수정
+9. board 수정

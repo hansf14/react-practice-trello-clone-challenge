@@ -109,6 +109,7 @@ function App() {
     (
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       { source, destination, draggableId, ...otherParams },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       responderProvided,
     ) => {
       console.log("source:", source);
@@ -152,8 +153,12 @@ function App() {
         }
         const taskListCloneSrc = [...categorySrc.taskList];
         const [task] = taskListCloneSrc.splice(source.index, 1);
+
         const taskListCloneDest = [...categoryDest.taskList];
-        taskListCloneDest.splice(destination.index, 0, task);
+        const taskClone = { ...task };
+        taskClone.categoryKey = categoryDest.text;
+        taskListCloneDest.splice(destination.index, 0, taskClone);
+
         setRecoil(categorySelectorFamily(source.droppableId), {
           ...categorySrc,
           taskList: taskListCloneSrc,
@@ -167,7 +172,7 @@ function App() {
     [],
   );
 
-  console.log(stateCategoryList);
+  // console.log(stateCategoryList);
 
   return (
     <>
@@ -191,6 +196,7 @@ function App() {
                     key={stateCategory.text}
                     id={stateCategory.text}
                     tasks={stateCategory.taskList}
+                    label={stateCategory.text}
                   />
                 );
               })}
