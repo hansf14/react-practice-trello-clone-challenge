@@ -5,9 +5,6 @@ import { Draggable, DraggableStateSnapshot } from "@hello-pangea/dnd";
 const DraggableCardBase = styled.div.withConfig({
   shouldForwardProp: (prop) => !["isDragging"].includes(prop),
 })<Partial<DraggableStateSnapshot>>`
-  &:not(:last-child) {
-    margin-bottom: 10px;
-  }
   padding: 10px;
   background-color: ${({ theme, isDragging }) =>
     Boolean(isDragging) ? "tomato" : theme.cardBgColor};

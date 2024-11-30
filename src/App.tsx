@@ -74,9 +74,6 @@ const GlobalStyle = createGlobalStyle`
     font-optical-sizing: auto;
     font-weight: 500;
     font-style: normal;
-    
-    background-color: ${({ theme }) => theme.bgColor};
-    color: black;
   }
   a {
     text-decoration: none;
@@ -84,14 +81,30 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
-const Wrapper = styled.div`
-  margin: 0 auto;
-  display: flex;
-  max-width: 680px;
+const Main = styled.main`
   width: 100%;
-  height: 100vh;
+  height: 100%;
+  min-height: 100vh;
+  background: ${({ theme }) => theme.background};
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: black;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px;
   justify-content: center;
   align-items: center;
+`;
+
+const Wrapper = styled.div`
+  /* margin: 0 auto;
+  display: flex;
+  max-width: 680px;
+
+  justify-content: center;
+  align-items: center; */
 `;
 
 const Boards = styled.div`
@@ -167,73 +180,6 @@ function App() {
     [handleSubmit, onValid],
   );
 
-  // const onDragEnd: OnDragEndResponder<TypeId> = useCallback<OnDragEndResponder>(
-  //   (
-  //     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  //     { source, destination, draggableId, ...otherParams },
-  //     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  //     responderProvided,
-  //   ) => {
-  //     console.log("source:", source);
-  //     console.log("destination:", destination);
-  //     console.log("draggableId:", draggableId);
-  //     // console.log("otherParams:", otherParams);
-
-  //     if (!destination) {
-  //       return;
-  //     }
-
-  //     if (source.droppableId === destination.droppableId) {
-  //       // Same board movement
-  //       const category = getRecoil(categorySelectorFamily(source.droppableId));
-  //       if (!category) {
-  //         return;
-  //       }
-  //       const taskListClone = [...category.taskList];
-  //       arrayMoveElement({
-  //         arr: taskListClone,
-  //         idxFrom: source.index,
-  //         idxTo: destination.index,
-  //       });
-  //       setRecoil(categorySelectorFamily(source.droppableId), {
-  //         ...category,
-  //         taskList: taskListClone,
-  //       });
-  //     } else {
-  //       // Cross board movement
-  //       const categorySrc = getRecoil(
-  //         categorySelectorFamily(source.droppableId),
-  //       );
-  //       if (!categorySrc) {
-  //         return;
-  //       }
-  //       const categoryDest = getRecoil(
-  //         categorySelectorFamily(destination.droppableId),
-  //       );
-  //       if (!categoryDest) {
-  //         return;
-  //       }
-  //       const taskListCloneSrc = [...categorySrc.taskList];
-  //       const [task] = taskListCloneSrc.splice(source.index, 1);
-
-  //       const taskListCloneDest = [...categoryDest.taskList];
-  //       const taskClone = { ...task };
-  //       taskClone.categoryId = categoryDest.text;
-  //       taskListCloneDest.splice(destination.index, 0, taskClone);
-
-  //       setRecoil(categorySelectorFamily(source.droppableId), {
-  //         ...categorySrc,
-  //         taskList: taskListCloneSrc,
-  //       });
-  //       setRecoil(categorySelectorFamily(destination.droppableId), {
-  //         ...categoryDest,
-  //         taskList: taskListCloneDest,
-  //       });
-  //     }
-  //   },
-  //   [],
-  // );
-
   const onDragEnd: OnDragEndResponder<TypeId> = useCallback<OnDragEndResponder>(
     (
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -268,23 +214,6 @@ function App() {
 
   console.log(stateIndexer);
 
-  // const aaaa = () => {
-  //   const a = stateIndexer.updateCategory({
-  //     categoryId: "ba605f3e-b99e-4450-aa0a-ddd0ec22ad71",
-  //     category: {
-  //       id: "1234",
-  //       text: "1234text",
-  //     },
-  //   });
-  //   console.log(a);
-  //   // const a = stateIndexer.getCategory({
-  //   //   categoryId: "ba605f3e-b99e-4450-aa0a-ddd0ec22ad71",
-  //   // });
-  //   // console.log(a);
-  //   // console.log(stateIndexer.get({ keys: ["CategoryIdList"] }));
-  //   console.log(stateIndexer);
-  // };
-
   return (
     <>
       <ThemeProvider theme={darkTheme}>
@@ -296,53 +225,58 @@ function App() {
         </Helmet>
         <GlobalStyle />
         {/* <button onClick={aaaa}>ABC</button> */}
-        <DragDropContext onDragEnd={onDragEnd}>
-          <Wrapper>
-            <Boards>
-              {!categoryList || categoryList.length === 0 ? (
-                <div>Empty!</div>
-              ) : (
-                categoryList.map((category) => {
-                  const taskList = stateIndexer.getTaskListFromCategoryId__MutableTask({
-                    categoryId: category.id,
-                  });
+        <Main>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <Wrapper>
+              <Boards>
+                {!categoryList || categoryList.length === 0 ? (
+                  <div>Empty!</div>
+                ) : (
+                  categoryList.map((category) => {
+                    const taskList =
+                      stateIndexer.getTaskListFromCategoryId__MutableTask({
+                        categoryId: category.id,
+                      });
 
-                  return (
-                    <DraggableAndDroppableBoard
-                      key={category.id}
-                      id={category.id}
-                      label={category.text}
-                      slotHeader={
-                        <Form onSubmit={onSubmit({ categoryId: category.id })}>
-                          <input
-                            type="text"
-                            placeholder={`Add a task on ${category.text}`}
-                            {...register("taskText", { required: true })}
-                          />
-                        </Form>
-                      }
-                      slotBody={
-                        !taskList || taskList.length === 0 ? (
-                          <div>Empty!</div>
-                        ) : (
-                          taskList.map((task, idx) => (
-                            <DraggableCard
-                              key={task.id}
-                              id={task.id}
-                              index={idx}
-                            >
-                              {task.text}
-                            </DraggableCard>
-                          ))
-                        )
-                      }
-                    />
-                  );
-                })
-              )}
-            </Boards>
-          </Wrapper>
-        </DragDropContext>
+                    return (
+                      <DraggableAndDroppableBoard
+                        key={category.id}
+                        id={category.id}
+                        label={category.text}
+                        slotHeader={
+                          <Form
+                            onSubmit={onSubmit({ categoryId: category.id })}
+                          >
+                            <input
+                              type="text"
+                              placeholder={`Add a task on ${category.text}`}
+                              {...register("taskText", { required: true })}
+                            />
+                          </Form>
+                        }
+                        slotBody={
+                          !taskList || taskList.length === 0 ? (
+                            <div>Empty!</div>
+                          ) : (
+                            taskList.map((task, idx) => (
+                              <DraggableCard
+                                key={task.id}
+                                id={task.id}
+                                index={idx}
+                              >
+                                {task.text}
+                              </DraggableCard>
+                            ))
+                          )
+                        }
+                      />
+                    );
+                  })
+                )}
+              </Boards>
+            </Wrapper>
+          </DragDropContext>
+        </Main>
         <ReactQueryDevtools initialIsOpen={true} />
       </ThemeProvider>
     </>
