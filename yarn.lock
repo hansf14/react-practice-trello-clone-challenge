@@ -9583,6 +9583,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"js-sdsl@npm:^4.4.2":
+  version: 4.4.2
+  resolution: "js-sdsl@npm:4.4.2"
+  checksum: 10c0/50707728fc31642164f4d83c8087f3750aaa99c450b008b19e236a1f190c9e48f9fc799615c341f9ca2c0803b15ab6f48d92a9cc3e6ffd20065cba7d7e742b92
+  languageName: node
+  linkType: hard
+
 "js-sha3@npm:0.8.0":
   version: 0.8.0
   resolution: "js-sha3@npm:0.8.0"
@@ -12838,9 +12845,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-practice-trello-clone-assignment@workspace:.":
+"react-practice-trello-clone-challenge@workspace:.":
   version: 0.0.0-use.local
-  resolution: "react-practice-trello-clone-assignment@workspace:."
+  resolution: "react-practice-trello-clone-challenge@workspace:."
   dependencies:
     "@craco/craco": "npm:^7.1.0"
     "@hello-pangea/dnd": "npm:^17.0.0"
@@ -12865,6 +12872,7 @@ __metadata:
     eslint-plugin-prettier: "npm:^5.2.1"
     eslint-plugin-react-hooks: "npm:^5.0.0"
     gh-pages: "npm:^6.1.1"
+    js-sdsl: "npm:^4.4.2"
     lodash-es: "npm:^4.17.21"
     prettier: "npm:^3.3.3"
     react: "npm:^18.3.1"

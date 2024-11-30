@@ -1,7 +1,6 @@
 import React from "react";
 import { css, styled } from "styled-components";
 import { Draggable, DraggableStateSnapshot } from "@hello-pangea/dnd";
-import { Task } from "@/atoms";
 
 const DraggableCardBase = styled.div.withConfig({
   shouldForwardProp: (prop) => !["isDragging"].includes(prop),
@@ -24,33 +23,32 @@ const DraggableCardBase = styled.div.withConfig({
 export interface DraggableCardProps {
   id: string;
   index: number;
-  task: Task;
+  children: React.ReactNode;
 }
 
-const DraggableCard = React.memo(({ id, index, task }: DraggableCardProps) => {
-  // console.log(`index: [${index}] is rendered.`);
-  console.log(task, "is rendered.");
-  // console.log(task);
-  const { text } = task;
+export const DraggableCard = React.memo(
+  ({ id, index, children }: DraggableCardProps) => {
+    // console.log(`index: [${index}] is rendered.`);
+    console.log(children, "is rendered.");
+    // console.log(children);
 
-  return (
-    <Draggable draggableId={id} index={index}>
-      {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        (draggableProvided, draggableStateSnapshot, draggableRubic) => (
-          <DraggableCardBase
-            ref={draggableProvided.innerRef}
-            {...draggableProvided.dragHandleProps}
-            {...draggableProvided.draggableProps}
-            isDragging={draggableStateSnapshot.isDragging}
-          >
-            {text}
-          </DraggableCardBase>
-        )
-      }
-    </Draggable>
-  );
-});
+    return (
+      <Draggable draggableId={id} index={index}>
+        {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          (draggableProvided, draggableStateSnapshot, draggableRubic) => (
+            <DraggableCardBase
+              ref={draggableProvided.innerRef}
+              {...draggableProvided.dragHandleProps}
+              {...draggableProvided.draggableProps}
+              isDragging={draggableStateSnapshot.isDragging}
+            >
+              {children}
+            </DraggableCardBase>
+          )
+        }
+      </Draggable>
+    );
+  },
+);
 DraggableCard.displayName = "DraggableCard";
-
-export default DraggableCard;
