@@ -18,10 +18,10 @@
     &emsp;
     <img src="https://img.shields.io/badge/Styled Components-DB7093?style=flat&logo=styledcomponents&logoColor=white&logoWidth=25" height="25px"/>
   </div>
-</p>
+</p> -->
 
 
-- **Features**
+<!-- - **Features**
   - **Default 4 categories**
     - **"All" (Unremovable)**
     - **"To Do"**
@@ -34,10 +34,10 @@
   - **To-do CRUD**
     - **Supports multi-line to-do text**
   - **Persistency (refresh, reopen)**
-  - **Resizable multi-line to-do text input**
-- **Demo: [React Practice To-do List App Challenge](https://hansf14.github.io/react-practice-to-do-list-app-challenge)**
+  - **Resizable multi-line to-do text input** -->
+- **Demo: [React Practice Trello Clone Challenge](https://hansf14.github.io/react-practice-trello-clone-challenge)**
 - **Preview Screenshots**
-<p>
+<!-- <p>
   <div>
     &emsp;
     <img width="300px" src="preview-screenshots/01.png" alt="01.png" />

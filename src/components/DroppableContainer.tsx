@@ -1,4 +1,4 @@
-import { Droppable } from "@hello-pangea/dnd";
+// import { Droppable } from "@hello-pangea/dnd";
 import { Content } from "antd/es/layout/layout";
 import React from "react";
 
