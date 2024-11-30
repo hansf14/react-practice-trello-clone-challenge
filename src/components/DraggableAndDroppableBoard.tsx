@@ -1,13 +1,6 @@
 import React from "react";
-import { styled } from "styled-components";
-import { Droppable, DroppableStateSnapshot } from "@hello-pangea/dnd";
-
-const Title = styled.h2`
-  margin: 10px 0 15px;
-  text-align: center;
-  font-weight: bold;
-  font-size: 22px;
-`;
+import { ExecutionProps, styled } from "styled-components";
+// import { Droppable, DroppableStateSnapshot } from "@hello-pangea/dnd";
 
 const DraggableAndDroppableBoardBase = styled.div`
   max-width: 300px;
@@ -29,37 +22,41 @@ const DraggableAndDroppableBoardBase = styled.div`
 const DroppableArea = styled.div.withConfig({
   shouldForwardProp: (prop) =>
     !["isDraggingOver", "draggingFromThisWith"].includes(prop),
-})<Partial<DroppableStateSnapshot>>`
+})`
   padding: 10px;
   flex-grow: 1;
-  background-color: ${({ isDraggingOver, draggingFromThisWith }) =>
-    !Boolean(isDraggingOver)
-      ? "green"
-      : Boolean(draggingFromThisWith)
-        ? "yellow"
-        : "red"};
+  background-color: ${(
+    {
+      //  isDraggingOver, draggingFromThisWith
+    },
+  ) =>
+    // !Boolean(isDraggingOver)
+    //   ? "green"
+    //   : Boolean(draggingFromThisWith)
+    //     ? "yellow"
+    //     :
+    "red"};
   transition: background-color 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
   gap: 10px;
 `;
 
-export interface DraggableAndDroppableBoardProps {
-  id: string;
-  label: string;
+export type BoardProps = {
   slotHeader?: React.ReactNode;
   slotBody?: React.ReactNode;
-}
+} & React.ComponentPropsWithoutRef<"div"> &
+  ExecutionProps;
 
-export const DraggableAndDroppableBoard = React.memo(
-  (props: DraggableAndDroppableBoardProps) => {
-    const { id, label, slotHeader, slotBody } = props;
-
-    return (
-      <DraggableAndDroppableBoardBase>
-        <Title>{label}</Title>
-        {slotHeader}
-        <Droppable droppableId={id}>
+export const Board = React.memo(
+  React.forwardRef<HTMLDivElement, BoardProps>(
+    ({ slotHeader, slotBody, ...otherProps }: BoardProps, ref) => {
+      return (
+        <DraggableAndDroppableBoardBase ref={ref} {...otherProps}>
+          {slotHeader}
+          {slotBody}
+          {/* <SortableContext items={items}>{slotBody}</SortableContext> */}
+          {/* <Droppable droppableId={id}>
           {(droppableProvided, droppableStateSnapshot) => (
             <DroppableArea
               ref={droppableProvided.innerRef}
@@ -71,9 +68,10 @@ export const DraggableAndDroppableBoard = React.memo(
               {droppableProvided.placeholder}
             </DroppableArea>
           )}
-        </Droppable>
-      </DraggableAndDroppableBoardBase>
-    );
-  },
+        </Droppable> */}
+        </DraggableAndDroppableBoardBase>
+      );
+    },
+  ),
 );
-DraggableAndDroppableBoard.displayName = "DraggableAndDroppableBoard";
+Board.displayName = "DraggableAndDroppableBoard";

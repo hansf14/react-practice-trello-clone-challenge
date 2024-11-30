@@ -1,16 +1,31 @@
-import { FormEventHandler, useCallback } from "react";
+import { FormEventHandler, useCallback, useState } from "react";
 import { ThemeProvider, createGlobalStyle, styled } from "styled-components";
 import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
-import { DragDropContext, OnDragEndResponder, TypeId } from "@hello-pangea/dnd";
 import { useRecoilState } from "recoil";
 import { darkTheme } from "./theme";
 import { arrayMoveElement, generateUniqueRandomId } from "@/utils";
-import { DraggableAndDroppableBoard } from "@/components/DraggableAndDroppableBoard";
-import { getRecoil, setRecoil } from "recoil-nexus";
+import { Board as BoardBase } from "@/components/DraggableAndDroppableBoard";
 import { FormSubmitHandler, SubmitHandler, useForm } from "react-hook-form";
 import { Indexer, indexerAtom, Task } from "@/atoms";
 import { DraggableCard } from "@/components/DraggableCard";
+import {
+  DndContext,
+  DragEndEvent,
+  DragMoveEvent,
+  DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  UniqueIdentifier,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { DraggableContext } from "@/components/DraggableContext";
+import { CSS } from "@dnd-kit/utilities";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -114,6 +129,17 @@ const Boards = styled.div`
   gap: 10px;
 `;
 
+const Board = styled(BoardBase)<{ isDragging?: boolean }>`
+  opacity: ${({ isDragging }) => (isDragging ? "0.5" : "1")};
+`;
+
+const Title = styled.h2`
+  margin: 10px 0 15px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 22px;
+`;
+
 const Form = styled.form`
   width: 100%;
 
@@ -136,6 +162,22 @@ function App() {
     reset, // setValue("taskText", "")
     formState: { errors },
   } = useForm<FormData>();
+
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [currentContainerId, setCurrentContainerId] =
+    useState<UniqueIdentifier>();
+  const [containerName, setContainerName] = useState("");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const onDragStart = (event: DragStartEvent) => {};
+
+  const onDragMove = (event: DragMoveEvent) => {};
 
   const onValid = useCallback<
     ({ categoryId }: { categoryId: string }) => SubmitHandler<FormData>
@@ -180,32 +222,65 @@ function App() {
     [handleSubmit, onValid],
   );
 
-  const onDragEnd: OnDragEndResponder<TypeId> = useCallback<OnDragEndResponder>(
+  // const onDragEnd: OnDragEndResponder<TypeId> = useCallback<OnDragEndResponder>(
+  //   (
+  //     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  //     { source, destination, draggableId, ...otherParams },
+  //     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  //     responderProvided,
+  //   ) => {
+  //     console.log("source:", source);
+  //     console.log("destination:", destination);
+  //     // console.log("draggableId:", draggableId);
+  //     // // console.log("otherParams:", otherParams);
+
+  //     if (!destination) {
+  //       return;
+  //     }
+
+  //     setStateIndexer((curIndexer) => {
+  //       const newIndexer = new Indexer(curIndexer);
+  //       newIndexer.moveTask({
+  //         categoryIdFrom: source.droppableId,
+  //         categoryIdTo: destination.droppableId,
+  //         idxFrom: source.index,
+  //         idxTo: destination.index,
+  //       });
+  //       return newIndexer;
+  //     });
+  //   },
+  //   [setStateIndexer],
+  // );
+
+  const onDragEnd = useCallback(
     (
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      { source, destination, draggableId, ...otherParams },
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      responderProvided,
+      event: DragEndEvent,
+      // // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // { source, destination, draggableId, ...otherParams },
+      // // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // responderProvided,
     ) => {
-      console.log("source:", source);
-      console.log("destination:", destination);
+      // console.log("source:", source);
+      // console.log("destination:", destination);
       // console.log("draggableId:", draggableId);
       // // console.log("otherParams:", otherParams);
 
-      if (!destination) {
-        return;
-      }
+      const { active, over } = event;
+      console.log("active:", active);
+      console.log("over:", over);
 
-      setStateIndexer((curIndexer) => {
-        const newIndexer = new Indexer(curIndexer);
-        newIndexer.moveTask({
-          categoryIdFrom: source.droppableId,
-          categoryIdTo: destination.droppableId,
-          idxFrom: source.index,
-          idxTo: destination.index,
-        });
-        return newIndexer;
-      });
+      if (over && active.id !== over.id) {
+        // setStateIndexer((curIndexer) => {
+        //   const newIndexer = new Indexer(curIndexer);
+        //   newIndexer.moveTask({
+        //     categoryIdFrom: source.droppableId,
+        //     categoryIdTo: destination.droppableId,
+        //     idxFrom: source.index,
+        //     idxTo: destination.index,
+        //   });
+        //   return newIndexer;
+        // });
+      }
     },
     [setStateIndexer],
   );
@@ -226,56 +301,127 @@ function App() {
         <GlobalStyle />
         {/* <button onClick={aaaa}>ABC</button> */}
         <Main>
-          <DragDropContext onDragEnd={onDragEnd}>
+          <DndContext onDragEnd={onDragEnd}>
             <Wrapper>
               <Boards>
                 {!categoryList || categoryList.length === 0 ? (
                   <div>Empty!</div>
                 ) : (
-                  categoryList.map((category) => {
-                    const taskList =
-                      stateIndexer.getTaskListFromCategoryId__MutableTask({
-                        categoryId: category.id,
-                      });
+                  <SortableContext items={categoryList}>
+                    {categoryList.map((category) => {
+                      const taskList =
+                        stateIndexer.getTaskListFromCategoryId__MutableTask({
+                          categoryId: category.id,
+                        });
 
-                    return (
-                      <DraggableAndDroppableBoard
-                        key={category.id}
-                        id={category.id}
-                        label={category.text}
-                        slotHeader={
-                          <Form
-                            onSubmit={onSubmit({ categoryId: category.id })}
-                          >
-                            <input
-                              type="text"
-                              placeholder={`Add a task on ${category.text}`}
-                              {...register("taskText", { required: true })}
-                            />
-                          </Form>
-                        }
-                        slotBody={
-                          !taskList || taskList.length === 0 ? (
-                            <div>Empty!</div>
-                          ) : (
-                            taskList.map((task, idx) => (
-                              <DraggableCard
-                                key={task.id}
-                                id={task.id}
-                                index={idx}
-                              >
-                                {task.text}
-                              </DraggableCard>
-                            ))
-                          )
-                        }
-                      />
-                    );
-                  })
+                      if (!taskList) {
+                        return <div>Empty!</div>;
+                      }
+
+                      return (
+                        <DraggableContext id={category.id}>
+                          {({
+                            attributes,
+                            listeners,
+                            setNodeRef,
+                            transform,
+                            transition,
+                            isDragging,
+                          }) => {
+                            const style = {
+                              transform: CSS.Transform.toString(transform),
+                              transition,
+                            };
+
+                            return (
+                              <Board
+                                key={category.id}
+                                ref={setNodeRef}
+                                style={style}
+                                isDragging={isDragging}
+                                {...attributes}
+                                slotHeader={
+                                  <div>
+                                    <Title>{category.text}</Title>
+                                    <Form
+                                      onSubmit={onSubmit({
+                                        categoryId: category.id,
+                                      })}
+                                    >
+                                      <input
+                                        type="text"
+                                        placeholder={`Add a task on ${category.text}`}
+                                        {...register("taskText", {
+                                          required: true,
+                                        })}
+                                      />
+                                    </Form>
+                                    <div {...listeners}>DOH!</div>
+                                  </div>
+                                }
+                                slotBody={
+                                  !taskList || taskList.length === 0 ? (
+                                    <div>Empty!</div>
+                                  ) : (
+                                    <SortableContext items={taskList}>
+                                      {taskList.map((task, idx) => (
+                                        <DraggableContext
+                                          key={task.id}
+                                          id={task.id}
+                                        >
+                                          {({
+                                            attributes,
+                                            listeners,
+                                            setNodeRef,
+                                            transform,
+                                            transition,
+                                          }) => {
+                                            const style = {
+                                              transform:
+                                                CSS.Transform.toString(
+                                                  transform,
+                                                ),
+                                              transition,
+                                            };
+
+                                            return (
+                                              <DraggableCard
+                                                key={task.id}
+                                                ref={setNodeRef}
+                                                style={style}
+                                                {...attributes}
+                                              >
+                                                {task.text}
+                                                <div {...listeners}>DOH!</div>
+                                              </DraggableCard>
+                                            );
+                                          }}
+                                          {/* <DraggableCard key={task.id} id={task.id}>
+                                  {task.text}
+                                </DraggableCard> */}
+                                        </DraggableContext>
+                                      ))}
+                                    </SortableContext>
+                                    // <SortableContext items={taskList}>
+                                    //   {taskList.map((task, idx) => (
+                                    //     <DraggableCard key={task.id} id={task.id}>
+                                    //       {task.text}
+                                    //     </DraggableCard>
+                                    //   ))}
+                                    // </SortableContext>
+                                  )
+                                }
+                              />
+                            );
+                          }}
+                        </DraggableContext>
+                      );
+                    })}
+                  </SortableContext>
                 )}
               </Boards>
             </Wrapper>
-          </DragDropContext>
+          </DndContext>
         </Main>
         <ReactQueryDevtools initialIsOpen={true} />
       </ThemeProvider>

@@ -1,0 +1,24 @@
+{
+	"files": [
+		{
+			"path": "src/components/DraggableCard.tsx",
+			"bookmarks": [
+				{
+					"line": 40,
+					"column": 22,
+					"label": ""
+				},
+				{
+					"line": 55,
+					"column": 25,
+					"label": ""
+				},
+				{
+					"line": 56,
+					"column": 25,
+					"label": ""
+				}
+			]
+		}
+	]
+}
