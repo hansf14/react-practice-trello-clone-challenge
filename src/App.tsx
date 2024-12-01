@@ -1,4 +1,4 @@
-import React, { FormEventHandler, useCallback, useState } from "react";
+import React, { FormEventHandler, useCallback, useMemo, useState } from "react";
 import {
   ThemeProvider,
   createGlobalStyle,
@@ -16,6 +16,7 @@ import { FormSubmitHandler, SubmitHandler, useForm } from "react-hook-form";
 import { Category, Indexer, indexerAtom, Task } from "@/atoms";
 import { DraggableCard as CardBase } from "@/components/DraggableCard";
 import {
+  closestCenter,
   closestCorners,
   DndContext,
   DragEndEvent,
@@ -43,6 +44,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { createPortal } from "react-dom";
+import { RequiredDeep } from "type-fest";
+import { Input } from "antd";
+
+const { TextArea } = Input;
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -113,6 +118,29 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
+const c = (prevProps: any, nextProps: any) => {
+  // Custom comparison function for debugging re-renders
+  const keys = new Set([...Object.keys(prevProps), ...Object.keys(nextProps)]);
+  let rerenderTriggeredBy: any[] = [];
+
+  keys.forEach((key) => {
+    if (prevProps[key] !== nextProps[key]) {
+      console.log(`Prop '${key}' changed:`, {
+        previous: prevProps[key],
+        next: nextProps[key],
+      });
+      rerenderTriggeredBy.push(key);
+    }
+  });
+
+  // Return true to prevent re-rendering if all props are equal
+  const shouldPreventRerender = rerenderTriggeredBy.length === 0;
+  if (!shouldPreventRerender) {
+    console.log("Re-render triggered by:", rerenderTriggeredBy);
+  }
+  return shouldPreventRerender;
+};
+
 const Main = styled.main`
   width: 100%;
   height: 100%;
@@ -168,7 +196,7 @@ const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
       ? css`
           transform: ${(transform ?? "") + "translateZ(10px) !important"};
           opacity: 0.85;
-          border: 3px solid #c43636;
+          border: 3px solid yellow;
         `
       : ""}// background-color: ${({ theme }) => theme.boardBgColor};
 `;
@@ -179,10 +207,49 @@ export type BoardHeadProps = {
 } & React.ComponentPropsWithoutRef<"div"> &
   ExecutionProps;
 
+const BoardHeadTitle = styled.h2`
+  width: 100%;
+  margin: 10px 0 15px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 22px;
+`;
+
+const BoardHeadTitleInput = styled(TextArea)`
+  && {
+    width: 100%;
+    min-height: auto;
+    padding: 0;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+
+    font-weight: bold;
+    font-size: 22px;
+    text-align: center;
+    line-height: 1;
+
+    transition: none;
+
+    &:focus {
+      outline: 2px solid yellow;
+    }
+  }
+`;
+
+const BoardHeadForm = styled.form`
+  width: 100%;
+
+  input {
+    width: 100%;
+  }
+`;
+
 export const BoardHead = React.memo(
   React.forwardRef<HTMLDivElement, BoardHeadProps>(
     ({ category, listeners }, ref) => {
       const [stateIndexer, setStateIndexer] = useRecoilState(indexerAtom);
+      const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
 
       const {
         register,
@@ -216,10 +283,62 @@ export const BoardHead = React.memo(
         [setStateIndexer, category.id, reset],
       );
 
+      const boardHeadTitleEditEnableHandler = useCallback<
+        React.MouseEventHandler<HTMLTextAreaElement>
+      >(() => {
+        setStateIsEditMode(true);
+      }, []);
+
+      const boardHeadTitleEditDisableHandler = useCallback<
+        React.FocusEventHandler<HTMLTextAreaElement>
+      >(() => {
+        setStateIsEditMode(false);
+      }, []);
+
+      const boardHeadTitleEditFinishHandler = useCallback<
+        React.KeyboardEventHandler<HTMLTextAreaElement>
+      >((event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        setStateIsEditMode(false);
+      }, []);
+
+      const boardHeadTitleEditHandler = useCallback<
+        React.ChangeEventHandler<HTMLTextAreaElement>
+      >(
+        (event) => {
+          // console.log(event.target.value);
+          setStateIndexer((curIndexer) => {
+            const newIndexer = new Indexer(curIndexer);
+            newIndexer.updateCategory({
+              categoryId: category.id,
+              category: {
+                id: category.id,
+                text: event.target.value,
+              },
+            });
+            return newIndexer;
+          });
+        },
+        [setStateIndexer, category.id],
+      );
+
       return (
         <div ref={ref}>
-          <Title>{category.text}</Title>
-          <Form onSubmit={handleSubmit(onValid)}>
+          <BoardHeadTitle>
+            <BoardHeadTitleInput
+              value={category.text}
+              // autoFocus
+              autoSize
+              readOnly={!stateIsEditMode}
+              onClick={boardHeadTitleEditEnableHandler}
+              onBlur={boardHeadTitleEditDisableHandler}
+              onKeyDown={boardHeadTitleEditFinishHandler}
+              onChange={boardHeadTitleEditHandler}
+            />
+          </BoardHeadTitle>
+          <BoardHeadForm onSubmit={handleSubmit(onValid)}>
             <input
               type="text"
               placeholder={`Add a task on ${category.text}`}
@@ -227,7 +346,7 @@ export const BoardHead = React.memo(
                 required: true,
               })}
             />
-          </Form>
+          </BoardHeadForm>
           <div ref={ref} {...listeners}>
             DOH!<br></br>DOH!
           </div>
@@ -251,6 +370,76 @@ export const BoardBody = React.memo(
       categoryId: category.id,
     });
 
+    const items = useMemo(
+      () => taskList?.map((task) => task.id) ?? [],
+      [taskList],
+    );
+    const memoizedDataArray = React.useMemo(
+      () =>
+        taskList?.map((task, idx) => ({
+          customProps: {
+            type: "task" as DraggableContextPropsDataCustomType,
+            index: idx,
+            customData: task,
+          },
+        })) ?? [],
+      [taskList],
+    );
+    const Draggables = useMemo(() => {
+      console.log("BoardBody Draggables");
+
+      if (!taskList || taskList.length === 0) {
+        return <div>Empty!</div>;
+      }
+      return taskList.map((task, idx) => (
+        <DraggableContext<DraggableContextPropsDataCustomType, Task>
+          key={task.id}
+          id={task.id}
+          data={
+            memoizedDataArray[idx]
+            // {
+            // customProps: {
+            //   type: "task",
+            //   index: idx,
+            //   customData: task,
+            // },
+            // }
+          }
+        >
+          {({
+            attributes,
+            listeners,
+            setNodeRef,
+            setActivatorNodeRef,
+            transform,
+            transition,
+            isDragging,
+          }) => {
+            const style = {
+              transform: CSS.Transform.toString(transform),
+              transition,
+            };
+
+            return (
+              <Card>
+                <div
+                  // key={task.id}
+                  ref={setNodeRef}
+                  style={style}
+                  {...attributes}
+                >
+                  {task.text}
+                  <div ref={setActivatorNodeRef} {...listeners}>
+                    DOH!
+                  </div>
+                </div>
+              </Card>
+            );
+          }}
+        </DraggableContext>
+      ));
+    }, [taskList]);
+
     if (!taskList) {
       return <div>Empty!</div>;
     }
@@ -261,10 +450,12 @@ export const BoardBody = React.memo(
           <div>Empty!</div>
         ) : (
           <SortableContext
-            items={taskList}
+            items={items}
+            // items={taskList}
             // strategy={rectSortingStrategy}
           >
-            {taskList.map((task, idx) => (
+            {Draggables}
+            {/* {taskList.map((task, idx) => (
               <DraggableContext<DraggableContextPropsDataCustomType, Task>
                 key={task.id}
                 id={task.id}
@@ -305,29 +496,15 @@ export const BoardBody = React.memo(
                   );
                 }}
               </DraggableContext>
-            ))}
+            ))} */}
           </SortableContext>
         )}
       </>
     );
   }),
+  c,
 );
 BoardBody.displayName = "BoardBody";
-
-const Title = styled.h2`
-  margin: 10px 0 15px;
-  text-align: center;
-  font-weight: bold;
-  font-size: 22px;
-`;
-
-const Form = styled.form`
-  width: 100%;
-
-  input {
-    width: 100%;
-  }
-`;
 
 const Card = styled(CardBase)`
   /* touch-action: none; // Mobile에서 @dnd-kit 작동하기 위해서 필수임 */
@@ -335,9 +512,11 @@ const Card = styled(CardBase)`
 
 export type DraggableContextPropsDataCustomType = "category" | "task";
 
-export type DraggableContextPropsDataCustomData = DraggableContextPropsData<
-  DraggableContextPropsDataCustomType,
-  Category | Task
+export type DraggableContextPropsDataCustomData = RequiredDeep<
+  DraggableContextPropsData<
+    DraggableContextPropsDataCustomType,
+    Category | Task
+  >
 >;
 
 export interface FormData {
@@ -636,14 +815,14 @@ function App() {
   const onDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
     // Property 'over' does not exist on type 'DragStartEvent'.
-    console.log(active);
+    // console.log(active);
 
     const data = active.data.current as DraggableContextPropsDataCustomData;
-    if (data.customProps?.customData && data.customProps.type === "category") {
+    if (data.customProps.customData && data.customProps.type === "category") {
       setStateActiveCategory(data.customProps.customData as Category);
       return;
     }
-    if (data.customProps?.customData && data.customProps.type === "task") {
+    if (data.customProps.customData && data.customProps.type === "task") {
       setStateActiveCategory(data.customProps.customData as Task);
       return;
     }
@@ -652,39 +831,39 @@ function App() {
   const onDragOver = useCallback((event: DragOverEvent) => {
     const { active, over } = event;
 
-    console.log(active);
-    console.log(over);
+    // console.log(active);
+    // console.log(over);
   }, []);
 
   const onDragEnd = useCallback(
-    (
-      event: DragEndEvent,
-      // // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      // { source, destination, draggableId, ...otherParams },
-      // // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      // responderProvided,
-    ) => {
-      // console.log("source:", source);
-      // console.log("destination:", destination);
-      // console.log("draggableId:", draggableId);
-      // // console.log("otherParams:", otherParams);
-
+    (event: DragEndEvent) => {
       const { active, over } = event;
-      console.log("active:", active);
-      console.log("over:", over);
+      // console.log("onDragEnd");
+      // // console.log("active:", active);
+      // // console.log("over:", over);
 
-      if (over && active.id !== over.id) {
-        // setStateIndexer((curIndexer) => {
-        //   const newIndexer = new Indexer(curIndexer);
-        //   newIndexer.moveTask({
-        //     categoryIdFrom: source.droppableId,
-        //     categoryIdTo: destination.droppableId,
-        //     idxFrom: source.index,
-        //     idxTo: destination.index,
-        //   });
-        //   return newIndexer;
-        // });
-      }
+      // const activeData = active.data
+      //   .current as DraggableContextPropsDataCustomData;
+      // const overData = over?.data
+      //   .current as DraggableContextPropsDataCustomData;
+
+      // if (over && activeData.customProps.customData && active.id !== over.id) {
+      //   setStateIndexer((curIndexer) => {
+      //     const newIndexer = new Indexer(curIndexer);
+      //     newIndexer.moveCategory({
+      //       idxFrom: activeData.customProps.index,
+      //       idxTo: overData.customProps.index,
+      //     });
+      //     return newIndexer;
+      //   });
+      // }
+
+      // // newIndexer.moveTask({
+      // //   categoryIdFrom: activeData.customProps.customData.id,
+      // //   categoryIdTo: overData.customProps.customData.id,
+      // //   idxFrom: activeData.customProps.index,
+      // //   idxTo: overData.customProps.index,
+      // // });
     },
     [setStateIndexer],
   );
@@ -697,6 +876,92 @@ function App() {
 
   console.log(stateIndexer);
   console.log("stateActiveCategory:", stateActiveCategory);
+
+  const items = useMemo(
+    () => categoryList?.map((task) => task.id) ?? [],
+    [categoryList],
+  );
+  const memoizedDataArray = React.useMemo(
+    () =>
+      categoryList?.map((category, idx) => ({
+        customProps: {
+          type: "category" as DraggableContextPropsDataCustomType,
+          index: idx,
+          customData: category,
+        },
+      })) ?? [],
+    [categoryList],
+  );
+  const Draggables = useMemo(() => {
+    console.log("App Draggables");
+
+    if (!categoryList || categoryList.length === 0) {
+      return [<div>Empty!</div>, []];
+    }
+
+    let cc: any[] = [];
+
+    return categoryList.map((category, idx) => {
+      cc.push({
+        customProps: {
+          type: "category",
+          index: idx,
+          customData: category,
+        },
+      });
+      return (
+        <DraggableContext<DraggableContextPropsDataCustomType, Task>
+          key={category.id}
+          id={category.id}
+          data={
+            memoizedDataArray[idx]
+            // {
+            //   customProps: {
+            //     type: "category",
+            //     index: idx,
+            //     customData: category,
+            //   },
+            // }
+          }
+        >
+          {({
+            attributes,
+            listeners,
+            setNodeRef,
+            setActivatorNodeRef,
+            transform,
+            transition,
+            isDragging,
+          }) => {
+            const style = {
+              transform: CSS.Transform.toString(transform),
+              transition,
+            };
+            // console.log(CSS.Transform.toString(transform));
+            // console.log(style);
+
+            return (
+              <Board
+                // key={category.id}
+                ref={setNodeRef}
+                style={style}
+                isDragging={isDragging}
+                transform={style.transform}
+                {...attributes}
+              >
+                <BoardHead
+                  ref={setActivatorNodeRef}
+                  category={category}
+                  listeners={listeners}
+                />
+                <BoardBody category={category} />
+              </Board>
+            );
+          }}
+        </DraggableContext>
+      );
+    });
+  }, [categoryList]);
 
   return (
     <>
@@ -726,10 +991,12 @@ function App() {
                 ) : (
                   <>
                     <SortableContext
-                      items={categoryList}
+                      // items={categoryList}
+                      items={items}
                       // strategy={rectSortingStrategy}
                     >
-                      {categoryList.map((category, idx) => {
+                      {Draggables}
+                      {/* {categoryList.map((category, idx) => {
                         return (
                           <DraggableContext<
                             DraggableContextPropsDataCustomType,
@@ -781,7 +1048,7 @@ function App() {
                             }}
                           </DraggableContext>
                         );
-                      })}
+                      })} */}
                     </SortableContext>
                   </>
                 )}

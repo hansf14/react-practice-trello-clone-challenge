@@ -12897,6 +12897,7 @@ __metadata:
     styled-components: "npm:^6.1.11"
     styled-reset: "npm:^4.3.4"
     tsconfig-paths-webpack-plugin: "npm:^4.1.0"
+    type-fest: "npm:^4.29.0"
     typescript: "npm:^4.4.4"
     usehooks-ts: "npm:^3.1.0"
     uuid: "npm:^10.0.0"
@@ -14931,6 +14932,13 @@ __metadata:
   version: 0.21.3
   resolution: "type-fest@npm:0.21.3"
   checksum: 10c0/902bd57bfa30d51d4779b641c2bc403cdf1371fb9c91d3c058b0133694fcfdb817aef07a47f40faf79039eecbaa39ee9d3c532deff244f3a19ce68cea71a61e8
+  languageName: node
+  linkType: hard
+
+"type-fest@npm:^4.29.0":
+  version: 4.29.0
+  resolution: "type-fest@npm:4.29.0"
+  checksum: 10c0/de11f04e141e4dd2caf8ba9cb4894955f73d60c06303f93836feea66f162166a2d66e81e7aca270721627cdc7fef2d248b21917fe1346598a66c3d6b856d2d7f
   languageName: node
   linkType: hard
 

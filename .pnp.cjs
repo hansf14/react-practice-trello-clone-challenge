@@ -68,6 +68,7 @@ const RAW_RUNTIME_STATE =
           ["styled-components", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:6.1.13"],\
           ["styled-reset", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.5.2"],\
           ["tsconfig-paths-webpack-plugin", "npm:4.1.0"],\
+          ["type-fest", "npm:4.29.0"],\
           ["typescript", "patch:typescript@npm%3A4.9.5#optional!builtin<compat/typescript>::version=4.9.5&hash=289587"],\
           ["usehooks-ts", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:3.1.0"],\
           ["uuid", "npm:10.0.0"],\
@@ -18271,6 +18272,7 @@ const RAW_RUNTIME_STATE =
           ["styled-components", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:6.1.13"],\
           ["styled-reset", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.5.2"],\
           ["tsconfig-paths-webpack-plugin", "npm:4.1.0"],\
+          ["type-fest", "npm:4.29.0"],\
           ["typescript", "patch:typescript@npm%3A4.9.5#optional!builtin<compat/typescript>::version=4.9.5&hash=289587"],\
           ["usehooks-ts", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:3.1.0"],\
           ["uuid", "npm:10.0.0"],\
@@ -20696,6 +20698,13 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./.yarn/cache/type-fest-npm-0.21.3-5ff2a9c6fd-902bd57bfa.zip/node_modules/type-fest/",\
         "packageDependencies": [\
           ["type-fest", "npm:0.21.3"]\
+        ],\
+        "linkType": "HARD"\
+      }],\
+      ["npm:4.29.0", {\
+        "packageLocation": "./.yarn/cache/type-fest-npm-4.29.0-f59bfcf573-de11f04e14.zip/node_modules/type-fest/",\
+        "packageDependencies": [\
+          ["type-fest", "npm:4.29.0"]\
         ],\
         "linkType": "HARD"\
       }]\

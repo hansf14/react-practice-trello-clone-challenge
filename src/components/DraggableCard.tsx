@@ -51,8 +51,13 @@ export type DraggableCardProps = {
 export const DraggableCard = React.memo(
   React.forwardRef<HTMLDivElement, DraggableCardProps>((props, ref) => {
     // console.log(`index: [${index}] is rendered.`);
-    // console.log(children, "is rendered.");
+    console.log("rendered.");
     // console.log(children);
+
+    React.useEffect(() => {
+      // console.log(props.children);
+      console.log('props.children changed');
+  }, [props.children]);
 
     return <DraggableCardBase ref={ref} {...props} />;
   }),
