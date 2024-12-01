@@ -1,31 +1,48 @@
-import { FormEventHandler, useCallback, useState } from "react";
-import { ThemeProvider, createGlobalStyle, styled } from "styled-components";
+import React, { FormEventHandler, useCallback, useState } from "react";
+import {
+  ThemeProvider,
+  createGlobalStyle,
+  styled,
+  css,
+  ExecutionProps,
+} from "styled-components";
 import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
 import { useRecoilState } from "recoil";
 import { darkTheme } from "./theme";
 import { arrayMoveElement, generateUniqueRandomId } from "@/utils";
-import { Board as BoardBase } from "@/components/DraggableAndDroppableBoard";
+// import { Board as BoardBase } from "@/components/Board";
 import { FormSubmitHandler, SubmitHandler, useForm } from "react-hook-form";
-import { Indexer, indexerAtom, Task } from "@/atoms";
-import { DraggableCard } from "@/components/DraggableCard";
+import { Category, Indexer, indexerAtom, Task } from "@/atoms";
+import { DraggableCard as CardBase } from "@/components/DraggableCard";
 import {
+  closestCorners,
   DndContext,
   DragEndEvent,
   DragMoveEvent,
+  DragOverEvent,
+  DragOverlay,
   DragStartEvent,
   KeyboardSensor,
+  MouseSensor,
   PointerSensor,
+  TouchSensor,
   UniqueIdentifier,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import {
+  rectSortingStrategy,
   SortableContext,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { DraggableContext } from "@/components/DraggableContext";
+import {
+  DraggableContext,
+  DraggableContextPropsData,
+} from "@/components/DraggableContext";
 import { CSS } from "@dnd-kit/utilities";
+import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
+import { createPortal } from "react-dom";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -123,15 +140,179 @@ const Wrapper = styled.div`
 `;
 
 const Boards = styled.div`
+  transform-style: preserve-3d;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   width: 100%;
   gap: 10px;
 `;
 
-const Board = styled(BoardBase)<{ isDragging?: boolean }>`
-  opacity: ${({ isDragging }) => (isDragging ? "0.5" : "1")};
+const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
+  max-width: 300px;
+  min-height: 300px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+
+  // Glassmorphism
+  background-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  backdrop-filter: blur(13.5px);
+  -webkit-backdrop-filter: blur(13.5px);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+
+  transform-style: preserve-3d;
+  ${({ isDragging, transform }) =>
+    isDragging
+      ? css`
+          transform: ${(transform ?? "") + "translateZ(10px) !important"};
+          opacity: 0.85;
+          border: 3px solid #c43636;
+        `
+      : ""}// background-color: ${({ theme }) => theme.boardBgColor};
 `;
+
+export type BoardHeadProps = {
+  category: Category;
+  listeners?: SyntheticListenerMap;
+} & React.ComponentPropsWithoutRef<"div"> &
+  ExecutionProps;
+
+export const BoardHead = React.memo(
+  React.forwardRef<HTMLDivElement, BoardHeadProps>(
+    ({ category, listeners }, ref) => {
+      const [stateIndexer, setStateIndexer] = useRecoilState(indexerAtom);
+
+      const {
+        register,
+        handleSubmit,
+        // setValue,
+        reset, // setValue("taskText", "")
+        formState: { errors },
+      } = useForm<FormData>();
+
+      const onValid = useCallback<SubmitHandler<FormData>>(
+        (data: FormData, event) => {
+          // console.log(data);
+
+          setStateIndexer((curIndexer) => {
+            const newTask = {
+              id: generateUniqueRandomId(),
+              text: data.taskText,
+            } satisfies Task;
+
+            const newIndexer = new Indexer(curIndexer);
+            newIndexer.createTask({
+              categoryId: category.id,
+              task: newTask,
+              shouldAppend: false,
+            });
+            return newIndexer;
+          });
+
+          reset();
+        },
+        [setStateIndexer, category.id, reset],
+      );
+
+      return (
+        <div ref={ref}>
+          <Title>{category.text}</Title>
+          <Form onSubmit={handleSubmit(onValid)}>
+            <input
+              type="text"
+              placeholder={`Add a task on ${category.text}`}
+              {...register("taskText", {
+                required: true,
+              })}
+            />
+          </Form>
+          <div ref={ref} {...listeners}>
+            DOH!<br></br>DOH!
+          </div>
+        </div>
+      );
+    },
+  ),
+);
+BoardHead.displayName = "BoardHead";
+
+export type BoardBodyProps = {
+  category: Category;
+} & React.ComponentPropsWithoutRef<"div"> &
+  ExecutionProps;
+
+export const BoardBody = React.memo(
+  React.forwardRef<HTMLDivElement, BoardBodyProps>(({ category }, ref) => {
+    const [stateIndexer, setStateIndexer] = useRecoilState(indexerAtom);
+
+    const taskList = stateIndexer.getTaskListFromCategoryId__MutableTask({
+      categoryId: category.id,
+    });
+
+    if (!taskList) {
+      return <div>Empty!</div>;
+    }
+
+    return (
+      <>
+        {!taskList || taskList.length === 0 ? (
+          <div>Empty!</div>
+        ) : (
+          <SortableContext
+            items={taskList}
+            // strategy={rectSortingStrategy}
+          >
+            {taskList.map((task, idx) => (
+              <DraggableContext<DraggableContextPropsDataCustomType, Task>
+                key={task.id}
+                id={task.id}
+                data={{
+                  customProps: {
+                    type: "task",
+                    index: idx,
+                    customData: task,
+                  },
+                }}
+              >
+                {({
+                  attributes,
+                  listeners,
+                  setNodeRef,
+                  setActivatorNodeRef,
+                  transform,
+                  transition,
+                  isDragging,
+                }) => {
+                  const style = {
+                    transform: CSS.Transform.toString(transform),
+                    transition,
+                  };
+
+                  return (
+                    <Card
+                      key={task.id}
+                      ref={setNodeRef}
+                      style={style}
+                      {...attributes}
+                    >
+                      {task.text}
+                      <div ref={setActivatorNodeRef} {...listeners}>
+                        DOH!
+                      </div>
+                    </Card>
+                  );
+                }}
+              </DraggableContext>
+            ))}
+          </SortableContext>
+        )}
+      </>
+    );
+  }),
+);
+BoardBody.displayName = "BoardBody";
 
 const Title = styled.h2`
   margin: 10px 0 15px;
@@ -148,6 +329,17 @@ const Form = styled.form`
   }
 `;
 
+const Card = styled(CardBase)`
+  /* touch-action: none; // Mobile에서 @dnd-kit 작동하기 위해서 필수임 */
+`;
+
+export type DraggableContextPropsDataCustomType = "category" | "task";
+
+export type DraggableContextPropsDataCustomData = DraggableContextPropsData<
+  DraggableContextPropsDataCustomType,
+  Category | Task
+>;
+
 export interface FormData {
   taskText: string;
 }
@@ -155,72 +347,182 @@ export interface FormData {
 function App() {
   const [stateIndexer, setStateIndexer] = useRecoilState(indexerAtom);
 
-  const {
-    register,
-    handleSubmit,
-    // setValue,
-    reset, // setValue("taskText", "")
-    formState: { errors },
-  } = useForm<FormData>();
+  const [stateActiveCategory, setStateActiveCategory] =
+    useState<Category | null>(null);
+  const [stateActiveTask, setStateActiveTask] = useState<Task | null>(null);
 
-  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
-  const [currentContainerId, setCurrentContainerId] =
-    useState<UniqueIdentifier>();
-  const [containerName, setContainerName] = useState("");
-
+  // const detectSensor = () => {
+  //   const isWebEntry = JSON.parse(sessionStorage.getItem("isWebEntry"));
+  //   return isWebEntry ? PointerSensor : TouchSensor;
+  // };
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    // useSensor(PointerSensor),
+    useSensor(MouseSensor),
+    useSensor(
+      TouchSensor,
+      //    {
+      //   activationConstraint: {
+      //     distance: 10, // Adjust sensitivity for touch devices
+      //   },
+      // }
+    ),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
 
-  const onDragStart = (event: DragStartEvent) => {};
+  // const onDragStart = (event: DragStartEvent) => {
+  //   const { active } = event;
+  //   setActiveId(active.id);
+  // };
 
-  const onDragMove = (event: DragMoveEvent) => {};
+  // const onDragMove = (event: DragMoveEvent) => {
+  //   const { active, over } = event;
 
-  const onValid = useCallback<
-    ({ categoryId }: { categoryId: string }) => SubmitHandler<FormData>
-  >(
-    ({ categoryId }) => {
-      return (data: FormData, event) => {
-        // console.log(data);
+  //   // Handle items sorting
+  //   if (
+  //     active &&
+  //     over &&
+  //     active.id.toString().includes("item") &&
+  //     over.id.toString().includes("item") &&
+  //     active.id !== over.id
+  //   ) {
+  //     // Find the active container and over container
+  //     // const activeContainer =
+  //     //       const findValueOfItems =
+  //     // Cid: UniqueIdentifier | undefined, type:
+  //     // if (tpe === 'container') {
+  //     // return containers.find((container) => container.id === id);
+  //     // if (type === 'item') {
+  //     // return containers.find((container) =>
+  //     // container.items.find((item) => item.id === id),
+  //     // string)
+  //     // => {
+  //     const activeContainer = findValueOfItems(active.id, "item");
+  //     const overContainer = findValueOfItems(over.id, "item");
 
-        setStateIndexer((curIndexer) => {
-          const newTask = {
-            id: generateUniqueRandomId(),
-            text: data.taskText,
-          } satisfies Task;
+  //     if (!activeContainer || !overContainer) {
+  //       return;
+  //     }
 
-          const newIndexer = new Indexer(curIndexer);
-          newIndexer.createTask({
-            categoryId,
-            task: newTask,
-            shouldAppend: false,
-          });
-          return newIndexer;
-        });
+  //     // Find the active and over container index
+  //     const activeContainerIdx = containers.findIndex(
+  //       (container) => container.id === activeContainer.id,
+  //     );
+  //     const overContainerIdx = containers.findIndex(
+  //       (container) => container.id === overContainer.id,
+  //     );
 
-        reset();
-      };
-    },
-    [setStateIndexer, reset],
-  );
+  //     // Find the active and over item
+  //     // ...
 
-  const onSubmit = useCallback<
-    ({
-      categoryId,
-    }: {
-      categoryId: string;
-    }) => FormEventHandler<HTMLFormElement>
-  >(
-    ({ categoryId }) => {
-      return (event) => {
-        return handleSubmit((data, event) => onValid({ categoryId }));
-      };
-    },
-    [handleSubmit, onValid],
-  );
+  //     // In the same container
+  //     if (activeContainerIdx === overContainerIdx) {
+  //       let newItems = [...containers];
+  //       newItems[activeContainerIdx].items = arrayMove(
+  //         newItems[activeContainerIdx].items,
+  //         activeItemIdx,
+  //         overItemIdx,
+  //       );
+
+  //       setContainers(newItems);
+  //     } else {
+  //       let newITems = [...containers];
+  //       const [removedItem] = newItems[activeContainerIdx].items.splice(
+  //         activeItemIdx,
+  //         1,
+  //       );
+  //       newItems[overContainerIdx].items.splice(overItemIdx, 0, removedItem);
+  //       setContainers(newItems);
+  //     }
+  //   }
+
+  //   // Handle item drop into a container
+  //   if (
+  //     active &&
+  //     over &&
+  //     active.id.toString().includes("item") &&
+  //     over.id.toString().includes("container") &&
+  //     active.id !== over.id
+  //   ) {
+  //     // Find the active and over container
+  //     const activeContainer = findValueOfItems(active.id, "item");
+  //     const overContainer = findValueOfItems(over.id, "container");
+
+  //     // If the active or over container is undefined, return
+  //     if (!activeContainer || !overContainer) {
+  //       return;
+  //     }
+
+  //     // Find the active and over container index
+  //     const activeContainerIdx = containers.findIndex(
+  //       (container) => container.id === activeContainer.id,
+  //     );
+  //     const overContainerIdx = containers.findIndex(
+  //       (container) => container.id === overContainer.id,
+  //     );
+
+  //     // Find the index of the active item in the active container
+  //     const activeItemIndex = activeContainer.items.findIndex(
+  //       (item) => item.id === active.id,
+  //     );
+  //     const overItemIndex = overContainer.items.findIndex(
+  //       (item) => item.id === over.id,
+  //     );
+
+  //     // Remove the active item from the active container and add it to the over container
+  //     let newItems = [...containers];
+  //     const [removedItem] = newItems[activeContainerIdx].items.splice(
+  //       activeItemIndex,
+  //       1,
+  //     );
+  //     newItems[overContainerIndex].items.push(removedItem);
+  //     setContainers(newItems);
+  //   }
+  // };
+
+  // const onValid = useCallback<
+  //   ({ categoryId }: { categoryId: string }) => SubmitHandler<FormData>
+  // >(
+  //   ({ categoryId }) => {
+  //     return (data: FormData, event) => {
+  //       // console.log(data);
+
+  //       setStateIndexer((curIndexer) => {
+  //         const newTask = {
+  //           id: generateUniqueRandomId(),
+  //           text: data.taskText,
+  //         } satisfies Task;
+
+  //         const newIndexer = new Indexer(curIndexer);
+  //         newIndexer.createTask({
+  //           categoryId,
+  //           task: newTask,
+  //           shouldAppend: false,
+  //         });
+  //         return newIndexer;
+  //       });
+
+  //       reset();
+  //     };
+  //   },
+  //   [setStateIndexer, reset],
+  // );
+
+  // const onSubmit = useCallback<
+  //   ({
+  //     categoryId,
+  //   }: {
+  //     categoryId: string;
+  //   }) => FormEventHandler<HTMLFormElement>
+  // >(
+  //   ({ categoryId }) => {
+  //     return (event) => {
+  //       return handleSubmit((data, event) => onValid({ categoryId }));
+  //     };
+  //   },
+  //   [handleSubmit, onValid],
+  // );
 
   // const onDragEnd: OnDragEndResponder<TypeId> = useCallback<OnDragEndResponder>(
   //   (
@@ -251,6 +553,108 @@ function App() {
   //   },
   //   [setStateIndexer],
   // );
+
+  // const onDragEnd = (event: DragEndEvent) => {
+  //   // Handle container sorting
+  //   if (
+  //     active &&
+  //     over &&
+  //     active.id.toString().includes("container") &&
+  //     over.id.toString().includes("container") &&
+  //     active.id !== over.id
+  //   ) {
+  //     const activeContainerIdx = containers.findIndex(
+  //       (container) => container.id === active.id,
+  //     );
+  //     const overContainerIdx = containers.findIndex(
+  //       (container) => container.id === over.id,
+  //     );
+
+  //     // Swap the active and over container
+  //     let newItems = [...containers];
+  //     newItems = arrayMove(newItems, activeContainerIndex, overContainerIndex);
+  //     setContainers(newItems);
+  //   }
+
+  //   // Handle item sorting
+  //   if (
+  //     active &&
+  //     over &&
+  //     active.id.toString().includes("item") &&
+  //     over.id.toString().includes("item") &&
+  //     active.id !== over.id
+  //   ) {
+  //     const activeContainer = findValueOfItems(active.id, "item");
+  //     const overContainer = findValueOfItems(over.id, "item");
+
+  //     if (!activeContainer || !overContainer) {
+  //       return;
+  //     }
+
+  //     // Find the active and over container index
+  //     const activeContainerIdx = containers.findIndex(
+  //       (container) => container.id === activeContainer.id,
+  //     );
+  //     const overContainerIdx = containers.findIndex(
+  //       (container) => container.id === overContainer.id,
+  //     );
+
+  //     // Find the index of the active item in the active container
+  //     const activeItemIndex = activeContainer.items.findIndex(
+  //       (item) => item.id === active.id,
+  //     );
+  //     const overItemIndex = overContainer.items.findIndex(
+  //       (item) => item.id === over.id,
+  //     );
+
+  //     // In the same container
+  //     if (activeContainerIdx === overContainerIdx) {
+  //       let newItems = [...containers];
+  //       newItems[activeContainerIdx].items = arrayMove(
+  //         newItems[activeContainerIdx].items,
+  //         activeItemIdx,
+  //         overItemIdx,
+  //       );
+
+  //       setContainers(newItems);
+  //     } else {
+  //       let newITems = [...containers];
+  //       const [removedItem] = newItems[activeContainerIdx].items.splice(
+  //         activeItemIdx,
+  //         1,
+  //       );
+  //       newItems[overContainerIdx].items.splice(overItemIdx, 0, removedItem);
+  //       setContainers(newItems);
+  //     }
+
+  //     //Handle item drop into a container
+  //     // ...
+  //   }
+  //   setActiveId(null);
+  // };
+
+  const onDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event;
+    // Property 'over' does not exist on type 'DragStartEvent'.
+    console.log(active);
+
+    const data = active.data.current as DraggableContextPropsDataCustomData;
+    if (data.customProps?.customData && data.customProps.type === "category") {
+      setStateActiveCategory(data.customProps.customData as Category);
+      return;
+    }
+    if (data.customProps?.customData && data.customProps.type === "task") {
+      setStateActiveCategory(data.customProps.customData as Task);
+      return;
+    }
+  }, []);
+
+  const onDragOver = useCallback((event: DragOverEvent) => {
+    const { active, over } = event;
+
+    console.log(active);
+    console.log(over);
+  }, []);
 
   const onDragEnd = useCallback(
     (
@@ -286,8 +690,13 @@ function App() {
   );
 
   const categoryList = stateIndexer.getCategoryList__MutableCategory();
+  // const isActiveIdTask =
+  //   stateActiveId && !!stateIndexer.getTask({ taskId: stateActiveId });
+  // const isActiveIdCategory =
+  //   stateActiveId && !!stateIndexer.getCategory({ categoryId: stateActiveId });
 
   console.log(stateIndexer);
+  console.log("stateActiveCategory:", stateActiveCategory);
 
   return (
     <>
@@ -301,123 +710,91 @@ function App() {
         <GlobalStyle />
         {/* <button onClick={aaaa}>ABC</button> */}
         <Main>
-          <DndContext onDragEnd={onDragEnd}>
+          {/* 모바일 지원: 모든 draggable item이나 handle의 CSS에 `touch-action: none;`을 주거나 sensors에 PointerSensor 대신 MouseSensor와 TouchSensor 사용. */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={onDragStart}
+            // onDragOver={() => console.log("Over")}
+            onDragOver={onDragOver}
+            onDragEnd={onDragEnd}
+          >
             <Wrapper>
               <Boards>
                 {!categoryList || categoryList.length === 0 ? (
                   <div>Empty!</div>
                 ) : (
-                  <SortableContext items={categoryList}>
-                    {categoryList.map((category) => {
-                      const taskList =
-                        stateIndexer.getTaskListFromCategoryId__MutableTask({
-                          categoryId: category.id,
-                        });
-
-                      if (!taskList) {
-                        return <div>Empty!</div>;
-                      }
-
-                      return (
-                        <DraggableContext id={category.id}>
-                          {({
-                            attributes,
-                            listeners,
-                            setNodeRef,
-                            transform,
-                            transition,
-                            isDragging,
-                          }) => {
-                            const style = {
-                              transform: CSS.Transform.toString(transform),
+                  <>
+                    <SortableContext
+                      items={categoryList}
+                      // strategy={rectSortingStrategy}
+                    >
+                      {categoryList.map((category, idx) => {
+                        return (
+                          <DraggableContext<
+                            DraggableContextPropsDataCustomType,
+                            Task
+                          >
+                            key={category.id}
+                            id={category.id}
+                            data={{
+                              customProps: {
+                                type: "category",
+                                index: idx,
+                                customData: category,
+                              },
+                            }}
+                          >
+                            {({
+                              attributes,
+                              listeners,
+                              setNodeRef,
+                              setActivatorNodeRef,
+                              transform,
                               transition,
-                            };
+                              isDragging,
+                            }) => {
+                              const style = {
+                                transform: CSS.Transform.toString(transform),
+                                transition,
+                              };
+                              // console.log(CSS.Transform.toString(transform));
+                              // console.log(style);
 
-                            return (
-                              <Board
-                                key={category.id}
-                                ref={setNodeRef}
-                                style={style}
-                                isDragging={isDragging}
-                                {...attributes}
-                                slotHeader={
-                                  <div>
-                                    <Title>{category.text}</Title>
-                                    <Form
-                                      onSubmit={onSubmit({
-                                        categoryId: category.id,
-                                      })}
-                                    >
-                                      <input
-                                        type="text"
-                                        placeholder={`Add a task on ${category.text}`}
-                                        {...register("taskText", {
-                                          required: true,
-                                        })}
-                                      />
-                                    </Form>
-                                    <div {...listeners}>DOH!</div>
-                                  </div>
-                                }
-                                slotBody={
-                                  !taskList || taskList.length === 0 ? (
-                                    <div>Empty!</div>
-                                  ) : (
-                                    <SortableContext items={taskList}>
-                                      {taskList.map((task, idx) => (
-                                        <DraggableContext
-                                          key={task.id}
-                                          id={task.id}
-                                        >
-                                          {({
-                                            attributes,
-                                            listeners,
-                                            setNodeRef,
-                                            transform,
-                                            transition,
-                                          }) => {
-                                            const style = {
-                                              transform:
-                                                CSS.Transform.toString(
-                                                  transform,
-                                                ),
-                                              transition,
-                                            };
-
-                                            return (
-                                              <DraggableCard
-                                                key={task.id}
-                                                ref={setNodeRef}
-                                                style={style}
-                                                {...attributes}
-                                              >
-                                                {task.text}
-                                                <div {...listeners}>DOH!</div>
-                                              </DraggableCard>
-                                            );
-                                          }}
-                                          {/* <DraggableCard key={task.id} id={task.id}>
-                                  {task.text}
-                                </DraggableCard> */}
-                                        </DraggableContext>
-                                      ))}
-                                    </SortableContext>
-                                    // <SortableContext items={taskList}>
-                                    //   {taskList.map((task, idx) => (
-                                    //     <DraggableCard key={task.id} id={task.id}>
-                                    //       {task.text}
-                                    //     </DraggableCard>
-                                    //   ))}
-                                    // </SortableContext>
-                                  )
-                                }
-                              />
-                            );
-                          }}
-                        </DraggableContext>
-                      );
-                    })}
-                  </SortableContext>
+                              return (
+                                <Board
+                                  key={category.id}
+                                  ref={setNodeRef}
+                                  style={style}
+                                  isDragging={isDragging}
+                                  transform={style.transform}
+                                  {...attributes}
+                                >
+                                  <BoardHead
+                                    ref={setActivatorNodeRef}
+                                    category={category}
+                                    listeners={listeners}
+                                  />
+                                  <BoardBody category={category} />
+                                </Board>
+                              );
+                            }}
+                          </DraggableContext>
+                        );
+                      })}
+                    </SortableContext>
+                  </>
+                )}
+                {createPortal(
+                  <DragOverlay adjustScale={false}>
+                    {stateActiveCategory && (
+                      <Board>
+                        <BoardHead category={stateActiveCategory} />
+                        <BoardBody category={stateActiveCategory} />
+                      </Board>
+                    )}
+                  </DragOverlay>,
+                  document.body,
                 )}
               </Boards>
             </Wrapper>

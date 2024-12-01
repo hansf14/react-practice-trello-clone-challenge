@@ -1,8 +1,20 @@
+import { SmartOmit } from "@/utils";
 import { useSortable, UseSortableArguments } from "@dnd-kit/sortable";
 import React from "react";
 
-export const DraggableContext = (
-  props: UseSortableArguments & {
+export type DraggableContextPropsData<T extends string, D> = {
+  customProps?: {
+    type?: T;
+    index?: number;
+    customData?: D;
+    [x: string]: any;
+  };
+};
+
+export const DraggableContext = <T extends string, D>(
+  props: SmartOmit<UseSortableArguments, "data"> & {
+    data?: DraggableContextPropsData<T, D>;
+  } & {
     children: (
       draggableProvided: ReturnType<typeof useSortable>,
     ) => React.ReactNode;

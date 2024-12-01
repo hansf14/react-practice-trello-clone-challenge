@@ -28,6 +28,19 @@ const DraggableCardBase = styled.div.withConfig({
     ""}
 `;
 
+// const Task = styled.div<{ isDragging: boolean }>`
+//   background: ${({ isDragging }) => (isDragging ? "#e0e0e0" : "white")};
+//   border: 1px solid #ddd;
+//   padding: 12px;
+//   margin-bottom: 8px;
+//   border-radius: 4px;
+//   box-shadow: ${({ isDragging }) =>
+//     isDragging ? "0px 4px 6px rgba(0, 0, 0, 0.1)" : "none"};
+//   position: ${({ isDragging }) => (isDragging ? "absolute" : "relative")};
+//   z-index: ${({ isDragging }) => (isDragging ? 1000 : 1)};
+//   cursor: grab;
+// `;
+
 export type DraggableCardProps = {
   // id: string;
   // index: number;
@@ -41,38 +54,7 @@ export const DraggableCard = React.memo(
     // console.log(children, "is rendered.");
     // console.log(children);
 
-    // const { attributes, listeners, setNodeRef, transform, transition } =
-    //   useSortable({ id });
-
-    // const style = {
-    //   transform: CSS.Transform.toString(transform),
-    //   transition,
-    // };
-
-    return (
-      <DraggableCardBase
-        ref={ref}
-        // style={style}
-        // {...attributes} // -> to handle
-        // {...listeners} // -> to handle
-        {...props}
-      ></DraggableCardBase>
-      // <Draggable draggableId={id} index={index}>
-      //   {
-      //     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      //     (draggableProvided, draggableStateSnapshot, draggableRubic) => (
-      //       <DraggableCardBase
-      //         ref={draggableProvided.innerRef}
-      //         {...draggableProvided.dragHandleProps}
-      //         {...draggableProvided.draggableProps}
-      //         isDragging={draggableStateSnapshot.isDragging}
-      //       >
-      //         {children}
-      //       </DraggableCardBase>
-      //     )
-      //   }
-      // </Draggable>
-    );
+    return <DraggableCardBase ref={ref} {...props} />;
   }),
 );
 DraggableCard.displayName = "DraggableCard";
