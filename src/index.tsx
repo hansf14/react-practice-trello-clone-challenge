@@ -4,6 +4,8 @@ import { HelmetProvider } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { RecoilRoot } from "recoil";
 // import RecoilNexus from "recoil-nexus";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,7 +35,9 @@ const Root = () => {
       <RecoilRoot>
         {/* <RecoilNexus /> */}
         <QueryClientProvider client={queryClient}>
-          <App />
+          <DndProvider backend={HTML5Backend}>
+            <App />
+          </DndProvider>
         </QueryClientProvider>
       </RecoilRoot>
     </HelmetProvider>
