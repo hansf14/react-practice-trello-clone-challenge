@@ -18,42 +18,15 @@ import { ReactQueryDevtools } from "react-query/devtools";
 import { useRecoilState } from "recoil";
 import { darkTheme } from "./theme";
 import { arrayMoveElement, generateUniqueRandomId } from "@/utils";
-// import { Board as BoardBase } from "@/components/Board";
 import { FormSubmitHandler, SubmitHandler, useForm } from "react-hook-form";
 import { Category, Indexer, indexerAtom, Task } from "@/atoms";
-// import { DraggableCard as CardBase } from "@/components/DraggableCard";
-import {
-  closestCorners,
-  DndContext,
-  DragEndEvent,
-  DragMoveEvent,
-  DragOverEvent,
-  DragOverlay,
-  DragStartEvent,
-  KeyboardSensor,
-  MouseSensor,
-  PointerSensor,
-  TouchSensor,
-  UniqueIdentifier,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  rectSortingStrategy,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-} from "@dnd-kit/sortable";
-import {
-  DraggableContext,
-  DraggableContextPropsData,
-} from "@/components/DraggableContext";
 import { CSS } from "@dnd-kit/utilities";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { createPortal } from "react-dom";
 import { RequiredDeep } from "type-fest";
 import { Input } from "antd";
 import { useWhichPropsChanged } from "@/hooks/useWhichPropsChanged";
+import { useDnd, UseDndSetDraggableHandleRef } from "@/hooks/useDnd";
 
 const { TextArea } = Input;
 
@@ -134,22 +107,13 @@ const Main = styled.main`
   background-repeat: no-repeat;
   background-size: cover;
   color: black;
-
-  display: flex;
-  flex-wrap: wrap;
   gap: 10px;
   padding: 10px;
+
+  display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-`;
-
-const Wrapper = styled.div`
-  /* margin: 0 auto;
-  display: flex;
-  max-width: 680px;
-
-  justify-content: center;
-  align-items: center; */
 `;
 
 const Boards = styled.div`
@@ -188,7 +152,7 @@ const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
 
 export type BoardHeadProps = {
   category: Category;
-  listeners?: SyntheticListenerMap;
+  setDragHandleRef: UseDndSetDraggableHandleRef;
 } & React.ComponentPropsWithoutRef<"div"> &
   ExecutionProps;
 
@@ -232,7 +196,7 @@ const BoardHeadForm = styled.form`
 
 export const BoardHead = React.memo(
   React.forwardRef<HTMLDivElement, BoardHeadProps>(
-    ({ category, listeners }, ref) => {
+    ({ category, setDragHandleRef }, ref) => {
       const [stateIndexer, setStateIndexer] = useRecoilState(indexerAtom);
       const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
 
@@ -332,7 +296,7 @@ export const BoardHead = React.memo(
               })}
             />
           </BoardHeadForm>
-          <div ref={ref} {...listeners}>
+          <div ref={setDragHandleRef}>
             DOH!<br></br>DOH!
           </div>
         </div>
@@ -342,93 +306,45 @@ export const BoardHead = React.memo(
 );
 BoardHead.displayName = "BoardHead";
 
-export const BoardBase = React.memo(({ category, idx }: any) => {
-  const p = useSortable({
-    id: category.id,
-    data: {
-      customProps: {
-        type: "category",
-        index: idx,
-        customData: category,
-      },
+export type BoardBaseProps = {} & React.ComponentPropsWithoutRef<"div"> &
+  ExecutionProps;
+
+export const BoardBase = React.memo(
+  React.forwardRef<HTMLDivElement, BoardBaseProps>(
+    (props: BoardBaseProps, ref) => {
+      const { ...otherProps } = props;
+      return <Board ref={ref} {...otherProps}></Board>;
     },
-  });
-  const refActiveCategoryDom = useRef<HTMLDivElement | null>(null);
-  const bbb = useCallback(
-    (setNodeRef: any) => (node: HTMLDivElement) => {
-      refActiveCategoryDom.current = node;
-      setNodeRef(node); // Combine draggable's ref and your custom ref
-    },
-    [],
-  );
-  const style = {
-    transform: CSS.Translate.toString(p.transform),
-    transition: p.transition,
-  };
+  ),
+);
 
-  return (
-    <Board
-      ref={bbb(p.setNodeRef)}
-      // ref={(node) => {
-      //   refActiveCategoryDom.current = node;
-      //   setNodeRef(node); // Combine draggable's ref and your custom ref
-      // }}
-      style={style}
-      isDragging={p.isDragging}
-      transform={style.transform}
-      {...p.attributes}
-    >
-      <BoardHead
-        ref={p.setActivatorNodeRef}
-        category={category}
-        listeners={p.listeners}
-      />
-      <BoardBody category={category} />
-    </Board>
-  );
-});
+// export const BoardBase = React.memo(
+//   React.forwardRef<HTMLDivElement, BoardBaseProps>(
+//     (props: BoardBaseProps, ref) => {
+//       const { category, ...otherProps } = props;
+//       return (
+//         <Board ref={ref} {...otherProps}>
+//           <BoardHead category={category} />
+//           <BoardBody category={category} />
+//         </Board>
+//       );
+//     },
+//   ),
+// );
 
-export const CardBase = React.memo(
-  ({ task, idx }: { task: Task; idx: number }) => {
-    console.log("[CardBase]");
+export const Card = React.memo(
+  React.forwardRef<HTMLDivElement, { task: Task }>(
+    ({ task }: { task: Task }, ref) => {
+      console.log("[CardBase]");
 
-    const p = useSortable({
-      id: task.id,
-      data: {
-        customProps: {
-          type: "task",
-          index: idx,
-          customData: task,
-        },
-      },
-    });
-    const refActiveCategoryDom = useRef<HTMLDivElement | null>(null);
-    const bbb = useCallback(
-      (setNodeRef: any) => (node: HTMLDivElement) => {
-        refActiveCategoryDom.current = node;
-        setNodeRef(node); // Combine draggable's ref and your custom ref
-      },
-      [],
-    );
-    const style = {
-      transform: CSS.Translate.toString(p.transform),
-      transition: p.transition,
-    };
-
-    return (
-      <div
-        ref={bbb(p.setNodeRef)}
-        style={style}
-        // isDragging={p.isDragging}
-        {...p.attributes}
-      >
-        {task.text}
-        <div ref={p.setActivatorNodeRef} {...p.listeners}>
-          DOH!
+      return (
+        <div ref={ref}>
+          {task.text}
+          <div>DOH!</div>
         </div>
-      </div>
-    );
-  },
+      );
+    },
+  ),
 );
 
 export type BoardBodyProps = {
@@ -441,166 +357,21 @@ export const BoardBody = React.memo(
     const { category } = props;
     const [stateIndexer, setStateIndexer] = useRecoilState(indexerAtom);
 
-    useWhichPropsChanged(props);
-
     const taskList = useMemo(() => {
-      console.log("[taskList]");
+      // console.log("[taskList]");
       return stateIndexer.getTaskListFromCategoryId__MutableTask({
         categoryId: category.id,
       });
     }, [category.id, stateIndexer]);
-    // const taskList = useMemo(
-    //   () =>
-    //     stateIndexer.getTaskListFromCategoryId__MutableTask({
-    //       categoryId: category.id,
-    //     }),
-    //   [category.id, stateIndexer],
-    // );
-    // const datas = useMemo<DraggableContextPropsDataCustomData[]>(() => {
-    //   return (taskList ?? []).map((task, idx) => {
-    //     return {
-    //       customProps: {
-    //         type: "task",
-    //         index: idx,
-    //         customData: (taskList ?? [])[idx],
-    //       },
-    //     };
-    //   });
-    // }, [taskList]);
-
-    // const a = useCallback(
-    //   (task: any) => {
-    //     // eslint-disable-next-line react-hooks/rules-of-hooks
-    //     return useMemo(
-    //       () =>
-    //         ({
-    //           attributes,
-    //           listeners,
-    //           setNodeRef,
-    //           setActivatorNodeRef,
-    //           transform,
-    //           transition,
-    //           isDragging,
-    //         }: any) => {
-    //           const style = {
-    //             transform: CSS.Translate.toString(transform),
-    //             transition,
-    //           };
-    //           // console.log(CSS.Transform.toString(transform));
-    //           // console.log(style);
-
-    //           return (
-    //             <Card
-    //               ref={(node) => {
-    //                 if (node && ref) {
-    //                   (ref as MutableRefObject<HTMLDivElement>).current = node;
-    //                 }
-    //                 setNodeRef(node); // Combine draggable's ref and your custom ref
-    //               }}
-    //               style={style}
-    //               {...attributes}
-    //             >
-    //               {task.text}
-    //               <div ref={setActivatorNodeRef} {...listeners}>
-    //                 DOH!
-    //               </div>
-    //             </Card>
-    //           );
-    //         },
-    //       [task],
-    //     );
-    //   },
-    //   [ref],
-    // );
-
-    // const a = useCallback(
-    //   (task: any) =>
-    //     ({
-    //       attributes,
-    //       listeners,
-    //       setNodeRef,
-    //       setActivatorNodeRef,
-    //       transform,
-    //       transition,
-    //       isDragging,
-    //     }: any) => {
-    //       const style = {
-    //         transform: CSS.Translate.toString(transform),
-    //         transition,
-    //       };
-    //       // console.log(CSS.Transform.toString(transform));
-    //       // console.log(style);
-
-    //       return (
-    //         <Card
-    //           ref={(node) => {
-    //             if (node && ref) {
-    //               (ref as MutableRefObject<HTMLDivElement>).current = node;
-    //             }
-    //             setNodeRef(node); // Combine draggable's ref and your custom ref
-    //           }}
-    //           // style={style}
-    //           {...attributes}
-    //         >
-    //           {task.text}
-    //           <div ref={setActivatorNodeRef} {...listeners}>
-    //             DOH!
-    //           </div>
-    //         </Card>
-    //       );
-    //     },
-    //   [ref],
-    // );
-
-    if (!taskList) {
-      return <div>Empty!</div>;
-    }
 
     return (
       <>
         {!taskList || taskList.length === 0 ? (
           <div>Empty!</div>
         ) : (
-          <SortableContext
-            items={taskList}
-            // strategy={rectSortingStrategy}
-          >
-            {taskList.map((task, idx) => {
-              return (
-                <CardBase key={task.id} task={task} idx={idx} />
-                // <Card
-                //   key={task.id}
-                //   ref={(node) => {
-                //     if (node && ref) {
-                //       (ref as MutableRefObject<HTMLDivElement>).current = node;
-                //     }
-                //     setNodeRef(node); // Combine draggable's ref and your custom ref
-                //   }}
-                //   // style={style}
-                //   {...attributes}
-                // >
-                //   {task.text}
-                //   <div ref={setActivatorNodeRef} {...listeners}>
-                //     DOH!
-                //   </div>
-                // </Card>
-                // <DraggableContext<DraggableContextPropsDataCustomType, Task>
-                //   key={task.id}
-                //   id={task.id}
-                //   data={datas[idx]}
-                //   // data={{
-                //   //   customProps: {
-                //   //     type: "task",
-                //   //     index: idx,
-                //   //     customData: task,
-                //   //   },
-                //   // }}
-                // >
-                //   {a(task)}
-                // </DraggableContext>
-              );
-            })}
-          </SortableContext>
+          taskList.map((task, idx) => {
+            return <Card ref={ref} key={task.id} task={task} {...props} />;
+          })
         )}
       </>
     );
@@ -608,18 +379,14 @@ export const BoardBody = React.memo(
 );
 BoardBody.displayName = "BoardBody";
 
-const Card = styled(CardBase)`
-  /* touch-action: none; // Mobile에서 @dnd-kit 작동하기 위해서 필수임 */
-`;
+// export type DraggableContextPropsDataCustomType = "category" | "task";
 
-export type DraggableContextPropsDataCustomType = "category" | "task";
-
-export type DraggableContextPropsDataCustomData = RequiredDeep<
-  DraggableContextPropsData<
-    DraggableContextPropsDataCustomType,
-    Category | Task
-  >
->;
+// export type DraggableContextPropsDataCustomData = RequiredDeep<
+//   DraggableContextPropsData<
+//     DraggableContextPropsDataCustomType,
+//     Category | Task
+//   >
+// >;
 
 export interface FormData {
   taskText: string;
@@ -633,27 +400,7 @@ function App() {
   const [stateActiveTask, setStateActiveTask] = useState<Task | null>(null);
   const [stateActiveCategoryDomStyle, setStateActiveCategoryDomStyle] =
     useState({});
-
-  // const detectSensor = () => {
-  //   const isWebEntry = JSON.parse(sessionStorage.getItem("isWebEntry"));
-  //   return isWebEntry ? PointerSensor : TouchSensor;
-  // };
-  const sensors = useSensors(
-    // useSensor(PointerSensor),
-    useSensor(MouseSensor),
-    useSensor(
-      TouchSensor,
-      //    {
-      //   activationConstraint: {
-      //     distance: 10, // Adjust sensitivity for touch devices
-      //   },
-      // }
-    ),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
+    
   // const onDragStart = (event: DragStartEvent) => {
   //   const { active } = event;
   //   setActiveId(active.id);
@@ -916,257 +663,24 @@ function App() {
   //   setActiveId(null);
   // };
 
-  const onDragStart = useCallback((event: DragStartEvent) => {
-    const { active } = event;
-    // Property 'over' does not exist on type 'DragStartEvent'.
-    console.log(active);
-
-    const data = active.data.current as DraggableContextPropsDataCustomData;
-    if (data.customProps.customData && data.customProps.type === "category") {
-      setStateActiveCategory(data.customProps.customData as Category);
-
-      // if (refActiveCategoryDom.current) {
-      //   const { offsetHeight, offsetWidth } = refActiveCategoryDom.current;
-      //   setStateActiveCategoryDomStyle({
-      //     height: offsetHeight,
-      //     width: offsetWidth,
-      //   });
-      // }
-      return;
-    }
-    if (data.customProps.customData && data.customProps.type === "task") {
-      setStateActiveCategory(data.customProps.customData as Task);
-      return;
-    }
-  }, []);
-
-  const onDragOver = useCallback((event: DragOverEvent) => {
-    const { active, over } = event;
-
-    // console.log(active);
-    // console.log(over);
-  }, []);
-
-  const onDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      console.log("[onDragEnd]");
-      const { active, over } = event;
-      console.log("active:", active);
-      console.log("over:", over);
-
-      const activeData = active.data
-        .current as DraggableContextPropsDataCustomData;
-      const overData = over?.data
-        .current as DraggableContextPropsDataCustomData;
-
-      if (over && activeData.customProps.customData && active.id !== over.id) {
-        setStateIndexer((curIndexer) => {
-          const newIndexer = new Indexer(curIndexer);
-          newIndexer.moveCategory({
-            idxFrom: activeData.customProps.index,
-            idxTo: overData.customProps.index,
-          });
-          return newIndexer;
-        });
-      }
-
-      // newIndexer.moveTask({
-      //   categoryIdFrom: activeData.customProps.customData.id,
-      //   categoryIdTo: overData.customProps.customData.id,
-      //   idxFrom: activeData.customProps.index,
-      //   idxTo: overData.customProps.index,
-      // });
-    },
-    [setStateIndexer],
-  );
+  /////////////////////////////////////////////////////
 
   const categoryList = useMemo(
-    () => stateIndexer.getCategoryList__MutableCategory(),
+    () => stateIndexer.getCategoryList__MutableCategory() ?? [],
     [stateIndexer],
   );
-  const datas = useMemo<DraggableContextPropsDataCustomData[]>(() => {
-    return (categoryList ?? []).map((category, idx) => {
-      return {
-        customProps: {
-          type: "category",
-          index: idx,
-          customData: (categoryList ?? [])[idx],
-        },
-      };
-    });
-  }, [categoryList]);
-
-  // const b = useRef(
-  //   (category: any) =>
-  //     ({
-  //       attributes,
-  //       listeners,
-  //       setNodeRef,
-  //       setActivatorNodeRef,
-  //       transform,
-  //       transition,
-  //       isDragging,
-  //     }: any) => {
-  //       const style = {
-  //         transform: CSS.Translate.toString(transform),
-  //         transition,
-  //       };
-  //       // console.log(CSS.Transform.toString(transform));
-  //       // console.log(style);
-
-  //       return (
-  //         <Board
-  //           ref={(node) => {
-  //             refActiveCategoryDom.current = node;
-  //             setNodeRef(node); // Combine draggable's ref and your custom ref
-  //           }}
-  //           style={style}
-  //           isDragging={isDragging}
-  //           transform={style.transform}
-  //           {...attributes}
-  //         >
-  //           <BoardHead
-  //             ref={setActivatorNodeRef}
-  //             category={category}
-  //             listeners={listeners}
-  //           />
-  //           <BoardBody category={category} />
-  //         </Board>
-  //       );
-  //     },
-  // );
-
-  // const a = useCallback((category: any) => {
-  //   // eslint-disable-next-line react-hooks/rules-of-hooks
-  //   return useMemo(
-  //     () =>
-  //       ({
-  //         attributes,
-  //         listeners,
-  //         setNodeRef,
-  //         setActivatorNodeRef,
-  //         transform,
-  //         transition,
-  //         isDragging,
-  //       }: any) => {
-  //         const style = {
-  //           transform: CSS.Translate.toString(transform),
-  //           transition,
-  //         };
-  //         // console.log(CSS.Transform.toString(transform));
-  //         // console.log(style);
-
-  //         return (
-  //           <Board
-  //             ref={(node) => {
-  //               refActiveCategoryDom.current = node;
-  //               setNodeRef(node); // Combine draggable's ref and your custom ref
-  //             }}
-  //             style={style}
-  //             isDragging={isDragging}
-  //             transform={style.transform}
-  //             {...attributes}
-  //           >
-  //             <BoardHead
-  //               ref={setActivatorNodeRef}
-  //               category={category}
-  //               listeners={listeners}
-  //             />
-  //             <BoardBody category={category} />
-  //           </Board>
-  //         );
-  //       },
-  //     [category],
-  //   );
-  // }, []);
-
-  // const a = useCallback(
-  //   ({
-  //     attributes,
-  //     listeners,
-  //     setNodeRef,
-  //     setActivatorNodeRef,
-  //     transform,
-  //     transition,
-  //     isDragging,
-  //     category,
-  //   }: any) => {
-  //     // console.log(CSS.Transform.toString(transform));
-  //     // console.log(style);
-
-  //     return (
-  //       <Board
-  //         ref={bbb(setNodeRef)}
-  //         // ref={(node) => {
-  //         //   refActiveCategoryDom.current = node;
-  //         //   setNodeRef(node); // Combine draggable's ref and your custom ref
-  //         // }}
-  //         style={style}
-  //         isDragging={isDragging}
-  //         transform={style.transform}
-  //         {...attributes}
-  //       >
-  //         <BoardHead
-  //           ref={setActivatorNodeRef}
-  //           category={category}
-  //           listeners={listeners}
-  //         />
-  //         <BoardBody category={category} />
-  //       </Board>
-  //     );
-  //   },
-  //   [bbb],
-  // );
-
-  // const a = useCallback(
-  //   (category: any) =>
-  //     ({
-  //       attributes,
-  //       listeners,
-  //       setNodeRef,
-  //       setActivatorNodeRef,
-  //       transform,
-  //       transition,
-  //       isDragging,
-  //     }: any) => {
-  //       const style = {
-  //         transform: CSS.Translate.toString(transform),
-  //         transition,
-  //       };
-  //       // console.log(CSS.Transform.toString(transform));
-  //       // console.log(style);
-
-  //       return (
-  //         <Board
-  //           ref={bbb(setNodeRef)}
-  //           // ref={(node) => {
-  //           //   refActiveCategoryDom.current = node;
-  //           //   setNodeRef(node); // Combine draggable's ref and your custom ref
-  //           // }}
-  //           style={style}
-  //           isDragging={isDragging}
-  //           transform={style.transform}
-  //           {...attributes}
-  //         >
-  //           <BoardHead
-  //             ref={setActivatorNodeRef}
-  //             category={category}
-  //             listeners={listeners}
-  //           />
-  //           <BoardBody category={category} />
-  //         </Board>
-  //       );
-  //     },
-  //   [bbb],
-  // );
-
-  // const isActiveIdTask =
-  //   stateActiveId && !!stateIndexer.getTask({ taskId: stateActiveId });
-  // const isActiveIdCategory =
-  //   stateActiveId && !!stateIndexer.getCategory({ categoryId: stateActiveId });
 
   console.log(stateIndexer);
   console.log("stateActiveCategory:", stateActiveCategory);
+
+  const {
+    draggableProvided,
+    setDraggableRef,
+    setDraggableHandleRef,
+    droppableProvided,
+  } = useDnd<Category>({
+    items: categoryList,
+  });
 
   return (
     <>
@@ -1178,93 +692,28 @@ function App() {
           />
         </Helmet>
         <GlobalStyle />
-        {/* <button onClick={aaaa}>ABC</button> */}
         <Main>
-          {/* 모바일 지원: 모든 draggable item이나 handle의 CSS에 `touch-action: none;`을 주거나 sensors에 PointerSensor 대신 MouseSensor와 TouchSensor 사용. */}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={onDragStart}
-            onDragOver={() => console.log("Over")}
-            // onDragOver={onDragOver}
-            onDragEnd={onDragEnd}
-          >
-            <Wrapper>
-              <Boards>
-                {!categoryList || categoryList.length === 0 ? (
-                  <div>Empty!</div>
-                ) : (
-                  <>
-                    <SortableContext
-                      items={categoryList}
-                      strategy={rectSortingStrategy}
+          <Boards>
+            {categoryList.length === 0 ? (
+              <div>Empty!</div>
+            ) : (
+              <>
+                {categoryList.map((category, idx) => {
+                  return (
+                    <BoardBase
+                      key={category.id}
+                      ref={setDraggableRef({ index: idx })}
+                      {...draggableProvided({ index: idx })}
                     >
-                      {categoryList.map((category, idx) => {
-                        return (
-                          <BoardBase
-                            key={category.id}
-                            category={category}
-                            idx={idx}
-                          />
-                        );
-                        // return (
-                        //   <DraggableContext<
-                        //     DraggableContextPropsDataCustomType,
-                        //     Task
-                        //   >
-                        //     key={category.id}
-                        //     id={category.id}
-                        //     data={datas[idx]}
-                        //     // data={{
-                        //     //   customProps: {
-                        //     //     type: "category",
-                        //     //     index: idx,
-                        //     //     customData: category,
-                        //     //   },
-                        //     // }}
-                        //   >
-                        //     {/* {({
-                        //       attributes,
-                        //       listeners,
-                        //       setNodeRef,
-                        //       setActivatorNodeRef,
-                        //       transform,
-                        //       transition,
-                        //       isDragging,
-                        //     }: any) => {
-                        //       const style = {
-                        //         transform: CSS.Translate.toString(transform),
-                        //         transition,
-                        //       };
-                        //       // console.log(CSS.Transform.toString(transform));
-                        //       // console.log(style);
-
-                        //       return (
-                        //         <Board
-                        //           ref={(node) => {
-                        //             refActiveCategoryDom.current = node;
-                        //             setNodeRef(node); // Combine draggable's ref and your custom ref
-                        //           }}
-                        //           style={style}
-                        //           isDragging={isDragging}
-                        //           transform={style.transform}
-                        //           {...attributes}
-                        //         >
-                        //           <BoardHead
-                        //             ref={setActivatorNodeRef}
-                        //             category={category}
-                        //             listeners={listeners}
-                        //           />
-                        //           <BoardBody category={category} />
-                        //         </Board>
-                        //       );
-                        //     }} */}
-                        //     {a}
-                        //     {/* {a({category})} */}
-                        //   </DraggableContext>
-                        // );
-                      })}
-                      {createPortal(
+                      <BoardHead
+                        category={category}
+                        setDragHandleRef={setDraggableHandleRef({ index: idx })}
+                      />
+                      <BoardBody category={category} />
+                    </BoardBase>
+                  );
+                })}
+                {/* {createPortal(
                         <DragOverlay adjustScale={false}>
                           {stateActiveCategory && (
                             <Board style={stateActiveCategoryDomStyle}>
@@ -1274,13 +723,22 @@ function App() {
                           )}
                         </DragOverlay>,
                         document.body,
-                      )}
-                    </SortableContext>
-                  </>
-                )}
-              </Boards>
-            </Wrapper>
-          </DndContext>
+                      )} */}
+              </>
+            )}
+          </Boards>
+          <div
+          // onDragEnter={onDragEnter}
+          // onDragLeave={onDragLeave}
+          // onDragOver={onDragOver({ category: { id: "123", text: "1234" } })}
+          // onDrop={onDrop({ category: { id: "123", text: "1234" } })}
+          >
+            AAA
+            <br />
+            BBB
+            <br />
+            CCC
+          </div>
         </Main>
         <ReactQueryDevtools initialIsOpen={true} />
       </ThemeProvider>

@@ -11,16 +11,6 @@
 			]
 		},
 		{
-			"path": "src/App.tsx",
-			"bookmarks": [
-				{
-					"line": 540,
-					"column": 25,
-					"label": ""
-				}
-			]
-		},
-		{
 			"path": "src/atoms.ts",
 			"bookmarks": [
 				{
