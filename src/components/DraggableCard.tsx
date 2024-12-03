@@ -3,6 +3,7 @@ import { css, ExecutionProps, styled } from "styled-components";
 // import { Draggable, DraggableStateSnapshot } from "@hello-pangea/dnd";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useWhichPropsChanged } from "@/hooks/useWhichPropsChanged";
 
 const DraggableCardBase = styled.div.withConfig({
   shouldForwardProp: (prop) => !["isDragging"].includes(prop),
@@ -54,10 +55,12 @@ export const DraggableCard = React.memo(
     console.log("rendered.");
     // console.log(children);
 
-    React.useEffect(() => {
-      // console.log(props.children);
-      console.log('props.children changed');
-  }, [props.children]);
+    useWhichPropsChanged(props);
+
+    // React.useEffect(() => {
+    //   // console.log(props.children);
+    //   console.log("props.children changed");
+    // }, [props.children]);
 
     return <DraggableCardBase ref={ref} {...props} />;
   }),

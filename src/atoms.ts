@@ -150,6 +150,7 @@ export class Indexer extends MultiMap<IndexerKey, string | Category | Task> {
       return categoryIdList;
     }
 
+    // TODO: change to map
     const categoryList: Category[] = [];
     categoryIdList.forEach((categoryId) => {
       const category = this.getCategory({ categoryId });
@@ -178,6 +179,7 @@ export class Indexer extends MultiMap<IndexerKey, string | Category | Task> {
     }) as string[] | undefined;
   }
 
+  // TODO: change to map
   getTaskListFromCategoryId__MutableTask({
     categoryId,
   }: {

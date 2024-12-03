@@ -4,8 +4,33 @@
 			"path": "src/components/DraggableCard.tsx",
 			"bookmarks": [
 				{
-					"line": 53,
+					"line": 54,
 					"column": 22,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "src/App.tsx",
+			"bookmarks": [
+				{
+					"line": 540,
+					"column": 25,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "src/atoms.ts",
+			"bookmarks": [
+				{
+					"line": 152,
+					"column": 26,
+					"label": ""
+				},
+				{
+					"line": 181,
+					"column": 3,
 					"label": ""
 				}
 			]
