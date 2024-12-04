@@ -28,8 +28,10 @@ import { Input } from "antd";
 import { useWhichPropsChanged } from "@/hooks/useWhichPropsChanged";
 import {
   useDraggable,
-  UseDndSetDraggableHandleRef,
-  UseDndDraggableItemSpec,
+  UseDraggableSetDraggableHandleRef,
+  UseDraggableItemSpec,
+  UseDraggableParams,
+  UseDraggableOnDragStartCb,
 } from "@/hooks/useDnd";
 import { CursorFollower } from "@/components/CursorFollower";
 import { Indexer } from "@/indexer";
@@ -156,9 +158,18 @@ const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
       : ""}// background-color: ${({ theme }) => theme.boardBgColor};
 `;
 
+const DragOverlay = styled.div`
+  display: flex;
+  align-items: stretch;
+
+  ${Board} {
+    background-color: red;
+  }
+`;
+
 export type BoardHeadProps = {
   category: Category;
-  setDragHandleRef?: UseDndSetDraggableHandleRef;
+  setDragHandleRef?: UseDraggableSetDraggableHandleRef;
 } & React.ComponentPropsWithoutRef<"div"> &
   ExecutionProps;
 
@@ -406,11 +417,8 @@ function App() {
   const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
     useRecoilState(indexerCategoryTaskAtom);
 
-  const [stateActiveCategory, setStateActiveCategory] =
-    useState<Category | null>(null);
-  const [stateActiveTask, setStateActiveTask] = useState<Task | null>(null);
-  const [stateActiveCategoryDomStyle, setStateActiveCategoryDomStyle] =
-    useState({});
+  // const [stateActiveCategoryDomStyle, setStateActiveCategoryDomStyle] =
+  //   useState({});
 
   // const onDragStart = (event: DragStartEvent) => {
   //   const { active } = event;
@@ -681,7 +689,7 @@ function App() {
     [stateIndexerCategoryTask],
   );
 
-  const draggableCategories = useMemo<UseDndDraggableItemSpec<Category>[]>(
+  const draggableCategories = useMemo<UseDraggableItemSpec<Category>[]>(
     () =>
       categoryList.map((category, idx) => ({
         type: "category",
@@ -691,18 +699,33 @@ function App() {
     [categoryList],
   );
 
-  console.log(categoryList);
-  console.log(stateIndexerCategoryTask);
-  console.log("stateActiveCategory:", stateActiveCategory);
+  const [stateActiveCategory, setStateActiveCategory] =
+    useState<UseDraggableItemSpec<Category> | null>(null);
+  // const [stateActiveTask, setStateActiveTask] = useState<Task | null>(null);
+
+  const onDragStartCb = useCallback<UseDraggableOnDragStartCb<Category>>(
+    ({ active }) => {
+      // console.log("active:", active);
+      setStateActiveCategory(active);
+    },
+    [],
+  );
 
   const {
     draggableProvided,
     setDraggableRef,
     setDraggableHandleRef,
     setDragGhostRef,
+    isDragging,
   } = useDraggable({
     items: draggableCategories,
+    onDragStartCb,
   });
+
+  // console.log(categoryList);
+  // console.log(stateIndexerCategoryTask);
+  console.log("stateActiveCategory:", stateActiveCategory);
+  console.log("isDragging:", isDragging);
 
   return (
     <>
@@ -749,26 +772,16 @@ function App() {
               </>
             )}
           </Boards>
-          {
-            !!stateActiveCategory && (
-              <BoardBase key={stateActiveCategory.id}>
-                <BoardHead category={stateActiveCategory} />
-                <BoardBody category={stateActiveCategory} />
-              </BoardBase>
-            )
-            // <BoardBase
-            //   key={category.id}
-            //   ref={setDraggableRef({ index: idx })}
-            //   {...draggableProvided({ index: idx })}
-            // >
-            //   <BoardHead
-            //     category={category}
-            //     setDragHandleRef={setDraggableHandleRef({ index: idx })}
-            //   />
-            //   <BoardBody category={category} />
-            // </BoardBase>
-          }
-
+          {!!stateActiveCategory &&
+            createPortal(
+              <DragOverlay ref={setDragGhostRef}>
+                <Board isDragging={isDragging}>
+                  <BoardHead category={stateActiveCategory.data} />
+                  <BoardBody category={stateActiveCategory.data} />
+                </Board>
+              </DragOverlay>,
+              document.body,
+            )}
           {/* <div
             ref={setDragGhostRef}
             // onDragEnter={onDragEnter}

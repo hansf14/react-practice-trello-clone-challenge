@@ -46,58 +46,67 @@ import { useIsomorphicLayoutEffect } from "usehooks-ts";
 // ondragover	A dragged element is over the drop target
 // ondrop	A dragged element is dropped on the target
 
-export interface UseDndConfig {
-  effectAllowed: DataTransfer["effectAllowed"];
-  dropEffect: DataTransfer["dropEffect"];
-}
+////////////////////////////////////
 
-export interface UseDndDraggable {
+// export interface UseDraggableConfig {
+//   effectAllowed: DataTransfer["effectAllowed"];
+//   dropEffect: DataTransfer["dropEffect"];
+// }
+
+export interface UseDraggableRefObj {
   element: HTMLElement | null;
   elementHandle: HTMLElement | null;
 }
 
-export type UseDndSetDraggableRef = (node: HTMLElement | null) => void;
+export type UseDraggableSetDraggableRef = (node: HTMLElement | null) => void;
 
-export type UseDndSetDraggableHandleRef = (node: HTMLElement | null) => void;
+export type UseDraggableSetDraggableHandleRef = (
+  node: HTMLElement | null,
+) => void;
 
-export type UseDndItemBaseSpec = { id: string };
+export type UseDraggableItemBaseSpec = { id: string };
 
-export type UseDndDraggableItemSpec<T extends UseDndItemBaseSpec> = {
+export type UseDroppableItemBaseSpec = UseDraggableItemBaseSpec;
+
+export type UseDraggableItemSpec<T extends UseDraggableItemBaseSpec> = {
   type: string;
   index: number;
   data: T;
 };
 
-export type UseDndDroppableItemSpec<T extends UseDndItemBaseSpec> = {
+export type UseDroppableItemSpec<T extends UseDraggableItemBaseSpec> = {
   acceptableTypes: string[];
   index: number;
   data: T;
 };
 
+export type UseDraggableOnDragStartCb<T extends UseDraggableItemBaseSpec> =
+  NonNullable<UseDraggableParams<T>["onDragStartCb"]>;
+
 export interface UseDraggableParams<
-  DraggableItemSpec extends UseDndItemBaseSpec = UseDndItemBaseSpec,
-  DroppableItemSpec extends UseDndItemBaseSpec = UseDndItemBaseSpec,
+  DraggableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
+  DroppableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
 > {
-  items: UseDndDraggableItemSpec<DraggableItemSpec>[];
+  items: UseDraggableItemSpec<DraggableItemSpec>[];
   onDragStartCb?: ({
     active,
   }: {
-    active: UseDndDraggableItemSpec<DraggableItemSpec>;
+    active: UseDraggableItemSpec<DraggableItemSpec>;
   }) => void;
   onDragEndCb?: ({
     active,
     over,
   }: {
     index: number;
-    active: UseDndDraggableItemSpec<DraggableItemSpec>;
-    over: UseDndDroppableItemSpec<DroppableItemSpec>;
+    active: UseDraggableItemSpec<DraggableItemSpec>;
+    over: UseDroppableItemSpec<DroppableItemSpec>;
   }) => void;
 }
 
 export interface UseDroppableParams<
-  DroppableItemSpec extends UseDndItemBaseSpec = UseDndItemBaseSpec,
+  DroppableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
 > {
-  items: UseDndDroppableItemSpec<DroppableItemSpec>[];
+  items: UseDroppableItemSpec<DroppableItemSpec>[];
 }
 
 const isDraggingAtom = atom<boolean>({
@@ -105,8 +114,23 @@ const isDraggingAtom = atom<boolean>({
   default: false,
 });
 
+export function cloneCssPropertiesToCssStyleDeclaration(
+  cssProperties: React.CSSProperties,
+  styleDeclaration: CSSStyleDeclaration,
+) {
+  Object.entries(cssProperties).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      const cssKey = key.replace(
+        /[A-Z]/g,
+        (match) => `-${match.toLowerCase()}`,
+      ); // Convert camelCase to kebab-case
+      styleDeclaration.setProperty(cssKey, String(value));
+    }
+  });
+}
+
 export const useDraggable = <
-  DraggableItemSpec extends UseDndItemBaseSpec = UseDndItemBaseSpec,
+  DraggableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
 >(
   props: UseDraggableParams<DraggableItemSpec>,
 ) => {
@@ -119,8 +143,9 @@ export const useDraggable = <
   // Need immediate update
   const refIsDragging = useRef<boolean>(false);
   const [stateIsDragging, setStateIsDragging] = useRecoilState(isDraggingAtom);
+  const refActiveDomStyle = useRef<Record<string, string> | null>();
 
-  const refDraggables = useRef<UseDndDraggable[]>(
+  const refDraggables = useRef<UseDraggableRefObj[]>(
     items.map(() => ({
       element: null,
       elementHandle: null,
@@ -143,11 +168,24 @@ export const useDraggable = <
     if (!refDragGhost.current) {
       return;
     }
+    // Mandatory
     refDragGhost.current.style.setProperty("position", "fixed");
-    refDragGhost.current.style.setProperty("background-color", "red");
     refDragGhost.current.style.setProperty("left", "0");
     refDragGhost.current.style.setProperty("top", "0");
     refDragGhost.current.style.setProperty("display", "none");
+    if (refActiveDomStyle.current) {
+      refDragGhost.current.style.setProperty(
+        "width",
+        refActiveDomStyle.current["width"],
+      );
+      refDragGhost.current.style.setProperty(
+        "height",
+        refActiveDomStyle.current["height"],
+      );
+    }
+
+    // Custom
+    // ...
   }, [refDragGhost.current]);
 
   // const [stateEffectAllowed, setStateEffectAllowed] =
@@ -290,39 +328,16 @@ export const useDraggable = <
 
         /////////////////////////////////////////////////////
 
-        // const originalElement = refDraggables.current[index].element!;
-        // const dragImage = originalElement.cloneNode(true) as HTMLElement;
-        // dragImage.id = "draggeimage";
-        // // dragImage.style.position = "absolute";
-        // dragImage.style.background = "red";
-        // dragImage.style.opacity = "1";
-        // dragImage.style["backdropFilter"] = "none";
-        // document.body.appendChild(dragImage);
-        // event.dataTransfer.setDragImage(dragImage, 0, 0);
-
-        // const { active } = event;
-        // // Property 'over' does not exist on type 'DragStartEvent'.
-        // console.log(active);
-
-        // const data = active.data.current as DraggableContextPropsDataCustomData;
-        // if (data.customProps.customData && data.customProps.type === "category") {
-        //   setStateActiveCategory(data.customProps.customData as Category);
-
-        //   if (refActiveCategoryDom.current) {
-        //     const { offsetHeight, offsetWidth } = refActiveCategoryDom.current;
-        //     setStateActiveCategoryDomStyle({
-        //       height: offsetHeight,
-        //       width: offsetWidth,
-        //     });
-        //   }
-        //   return;
-        // }
-        // if (data.customProps.customData && data.customProps.type === "task") {
-        //   setStateActiveCategory(data.customProps.customData as Task);
-        //   return;
-        // }
+        if (refDraggables.current[index].element) {
+          const originalElement = refDraggables.current[index]
+            .element as HTMLElement;
+          const { offsetWidth, offsetHeight } = originalElement;
+          refActiveDomStyle.current ??= {};
+          refActiveDomStyle.current["width"] = offsetWidth + "px";
+          refActiveDomStyle.current["height"] = offsetHeight + "px";
+        }
       },
-    [items, onMouseMove, onMouseUp, onDragStartCb],
+    [items, onMouseMove, onMouseUp, onDragStartCb, setStateIsDragging],
   );
 
   // [1] Triggered: While the element is being dragged.
@@ -419,12 +434,15 @@ export const useDraggable = <
     [onDragStart],
   );
 
+  // console.log("stateIsDragging:", stateIsDragging);
+  // console.log("refIsDragging.current:", refIsDragging.current);
   const ret = useMemo(
     () => ({
       // setConfig,
       setDraggableRef,
       setDraggableHandleRef,
       setDragGhostRef,
+      isDragging: stateIsDragging,
       draggableProvided,
     }),
     [
@@ -432,15 +450,17 @@ export const useDraggable = <
       setDraggableRef,
       setDraggableHandleRef,
       setDragGhostRef,
+      stateIsDragging,
       draggableProvided,
     ],
   );
+  // console.log("ret.isDragging:", ret.isDragging);
 
   return ret;
 };
 
 export const useDroppable = <
-  DroppableItemSpec extends UseDndItemBaseSpec = UseDndItemBaseSpec,
+  DroppableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
 >(
   props: UseDroppableParams<DroppableItemSpec>,
 ) => {
