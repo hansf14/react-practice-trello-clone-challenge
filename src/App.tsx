@@ -17,21 +17,22 @@ import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
 import { useRecoilState } from "recoil";
 import { darkTheme } from "./theme";
-import {
-  arrayMoveElement,
-  createKeyValueMapping,
-  generateUniqueRandomId,
-} from "@/utils";
+import { arrayMoveElement, generateUniqueRandomId } from "@/utils";
 import { FormSubmitHandler, SubmitHandler, useForm } from "react-hook-form";
-import { Category, Indexer, indexerAtom, Task } from "@/atoms";
+import { Category, indexerCategoryTaskAtom, Task } from "@/atoms";
 import { CSS } from "@dnd-kit/utilities";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { createPortal } from "react-dom";
 import { RequiredDeep } from "type-fest";
 import { Input } from "antd";
 import { useWhichPropsChanged } from "@/hooks/useWhichPropsChanged";
-import { useDnd, UseDndSetDraggableHandleRef } from "@/hooks/useDnd";
-import { useDrag, useDrop, XYCoord } from "react-dnd";
+import {
+  useDraggable,
+  UseDndSetDraggableHandleRef,
+  UseDndDraggableItemSpec,
+} from "@/hooks/useDnd";
+import { CursorFollower } from "@/components/CursorFollower";
+import { Indexer } from "@/indexer";
 
 const { TextArea } = Input;
 
@@ -104,10 +105,6 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
-const DndItemTypes = ["category", "task"] as const;
-export type DndItemType = (typeof DndItemTypes)[number];
-const DndItemTypeMapping = createKeyValueMapping({ arr: DndItemTypes });
-
 const Main = styled.main`
   width: 100%;
   height: 100%;
@@ -133,13 +130,7 @@ const Boards = styled.div`
   gap: 10px;
 `;
 
-export interface BoardProps {
-  isDragging?: boolean;
-  transform?: string;
-  isDraggedOver?: boolean;
-}
-
-const Board = styled.div<BoardProps>`
+const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
   max-width: 300px;
   min-height: 300px;
   padding: 10px;
@@ -162,15 +153,12 @@ const Board = styled.div<BoardProps>`
           opacity: 0.85;
           border: 3px solid yellow;
         `
-      : ""} // background-color: ${({ theme }) => theme.boardBgColor};
-
-  background-color: ${({ isDraggedOver }) =>
-    (isDraggedOver ?? false) ? "orange" : "green"};
+      : ""}// background-color: ${({ theme }) => theme.boardBgColor};
 `;
 
 export type BoardHeadProps = {
   category: Category;
-  // setDragHandleRef: UseDndSetDraggableHandleRef;
+  setDragHandleRef?: UseDndSetDraggableHandleRef;
 } & React.ComponentPropsWithoutRef<"div"> &
   ExecutionProps;
 
@@ -213,112 +201,115 @@ const BoardHeadForm = styled.form`
 `;
 
 export const BoardHead = React.memo(
-  React.forwardRef<HTMLDivElement, BoardHeadProps>(({ category }, ref) => {
-    const [stateIndexer, setStateIndexer] = useRecoilState(indexerAtom);
-    const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
+  React.forwardRef<HTMLDivElement, BoardHeadProps>(
+    ({ category, setDragHandleRef }, ref) => {
+      const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
+        useRecoilState(indexerCategoryTaskAtom);
+      const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
 
-    const {
-      register,
-      handleSubmit,
-      // setValue,
-      reset, // setValue("taskText", "")
-      formState: { errors },
-    } = useForm<FormData>();
+      const {
+        register,
+        handleSubmit,
+        // setValue,
+        reset, // setValue("taskText", "")
+        formState: { errors },
+      } = useForm<FormData>();
 
-    const onValid = useCallback<SubmitHandler<FormData>>(
-      (data: FormData, event) => {
-        // console.log(data);
+      const onValid = useCallback<SubmitHandler<FormData>>(
+        (data: FormData, event) => {
+          // console.log(data);
 
-        setStateIndexer((curIndexer) => {
-          const newTask = {
-            id: generateUniqueRandomId(),
-            text: data.taskText,
-          } satisfies Task;
+          setStateIndexerCategoryTask((curIndexer) => {
+            const newTask = {
+              id: generateUniqueRandomId(),
+              text: data.taskText,
+            } satisfies Task;
 
-          const newIndexer = new Indexer(curIndexer);
-          newIndexer.createTask({
-            categoryId: category.id,
-            task: newTask,
-            shouldAppend: false,
+            const newIndexer = new Indexer(curIndexer);
+            newIndexer.createChild({
+              parentId: category.id,
+              child: newTask,
+              shouldAppend: false,
+            });
+            return newIndexer;
           });
-          return newIndexer;
-        });
 
-        reset();
-      },
-      [setStateIndexer, category.id, reset],
-    );
+          reset();
+        },
+        [setStateIndexerCategoryTask, category.id, reset],
+      );
 
-    const boardHeadTitleEditEnableHandler = useCallback<
-      React.MouseEventHandler<HTMLTextAreaElement>
-    >(() => {
-      setStateIsEditMode(true);
-    }, []);
+      const boardHeadTitleEditEnableHandler = useCallback<
+        React.MouseEventHandler<HTMLTextAreaElement>
+      >(() => {
+        setStateIsEditMode(true);
+      }, []);
 
-    const boardHeadTitleEditDisableHandler = useCallback<
-      React.FocusEventHandler<HTMLTextAreaElement>
-    >(() => {
-      setStateIsEditMode(false);
-    }, []);
+      const boardHeadTitleEditDisableHandler = useCallback<
+        React.FocusEventHandler<HTMLTextAreaElement>
+      >(() => {
+        setStateIsEditMode(false);
+      }, []);
 
-    const boardHeadTitleEditFinishHandler = useCallback<
-      React.KeyboardEventHandler<HTMLTextAreaElement>
-    >((event) => {
-      if (event.key !== "Enter") {
-        return;
-      }
-      setStateIsEditMode(false);
-    }, []);
+      const boardHeadTitleEditFinishHandler = useCallback<
+        React.KeyboardEventHandler<HTMLTextAreaElement>
+      >((event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        setStateIsEditMode(false);
+      }, []);
 
-    const boardHeadTitleEditHandler = useCallback<
-      React.ChangeEventHandler<HTMLTextAreaElement>
-    >(
-      (event) => {
-        // console.log(event.target.value);
-        setStateIndexer((curIndexer) => {
-          const newIndexer = new Indexer(curIndexer);
-          newIndexer.updateCategory({
-            categoryId: category.id,
-            category: {
-              id: category.id,
-              text: event.target.value,
-            },
+      const boardHeadTitleEditHandler = useCallback<
+        React.ChangeEventHandler<HTMLTextAreaElement>
+      >(
+        (event) => {
+          // console.log(event.target.value);
+          setStateIndexerCategoryTask((curIndexer) => {
+            const newIndexer = new Indexer(curIndexer);
+            newIndexer.updateParent({
+              parentId: category.id,
+              parent: {
+                id: category.id,
+                text: event.target.value,
+              },
+            });
+            return newIndexer;
           });
-          return newIndexer;
-        });
-      },
-      [setStateIndexer, category.id],
-    );
+        },
+        [setStateIndexerCategoryTask, category.id],
+      );
 
-    return (
-      <div ref={ref}>
-        <BoardHeadTitle>
-          <BoardHeadTitleInput
-            value={category.text}
-            // autoFocus
-            autoSize
-            readOnly={!stateIsEditMode}
-            onClick={boardHeadTitleEditEnableHandler}
-            onBlur={boardHeadTitleEditDisableHandler}
-            onKeyDown={boardHeadTitleEditFinishHandler}
-            onChange={boardHeadTitleEditHandler}
-          />
-        </BoardHeadTitle>
-        <BoardHeadForm onSubmit={handleSubmit(onValid)}>
-          <input
-            type="text"
-            placeholder={`Add a task on ${category.text}`}
-            {...register("taskText", {
-              required: true,
-            })}
-          />
-        </BoardHeadForm>
+      return (
         <div ref={ref}>
-          DOH!<br></br>DOH!
+          <BoardHeadTitle>
+            <BoardHeadTitleInput
+              value={category.text}
+              // autoFocus
+              autoSize
+              readOnly={!stateIsEditMode}
+              onClick={boardHeadTitleEditEnableHandler}
+              onBlur={boardHeadTitleEditDisableHandler}
+              onKeyDown={boardHeadTitleEditFinishHandler}
+              onChange={boardHeadTitleEditHandler}
+            />
+          </BoardHeadTitle>
+          <BoardHeadForm onSubmit={handleSubmit(onValid)}>
+            <input
+              type="text"
+              placeholder={`Add a task on ${category.text}`}
+              {...register("taskText", {
+                required: true,
+              })}
+            />
+          </BoardHeadForm>
+          <div ref={setDragHandleRef}>
+            DOH!<br></br>DOH!
+          </div>
         </div>
-      </div>
-    );
-  }),
+      );
+    },
+  ),
 );
 BoardHead.displayName = "BoardHead";
 
@@ -329,34 +320,7 @@ export const BoardBase = React.memo(
   React.forwardRef<HTMLDivElement, BoardBaseProps>(
     (props: BoardBaseProps, ref) => {
       const { ...otherProps } = props;
-
-      const [{ isDraggedOver }, setDroppableRef] = useDrop({
-        accept: [DndItemTypeMapping["task"]],
-        drop: (item, monitor) => console.log(item),
-        collect: (monitor) => ({
-          isDraggedOver: monitor.isOver(),
-        }),
-      });
-
-      const setRef = useCallback(
-        (node: HTMLDivElement | null) => {
-          if (node) {
-            setDroppableRef(node);
-            if (ref) {
-              (ref as MutableRefObject<HTMLDivElement | null>).current = node;
-            }
-          }
-        },
-        [ref, setDroppableRef],
-      );
-
-      return (
-        <Board
-          ref={setRef}
-          isDraggedOver={isDraggedOver}
-          {...otherProps}
-        ></Board>
-      );
+      return <Board ref={ref} {...otherProps}></Board>;
     },
   ),
 );
@@ -375,139 +339,19 @@ export const BoardBase = React.memo(
 //   ),
 // );
 
-export interface DndItem {
-  type: DndItemType;
-  index: number;
-  data: Category | Task;
-}
-
-export interface CardBaseProps {
-  isDragging: boolean;
-}
-
-export interface CardProps {
-  task: Task;
-  index: number;
-}
-
-export interface CardDragCollectedProps {
-  isDragging: boolean;
-}
-
-export interface CardDropCollectedProps {
-  handlerId: string | symbol | null;
-}
-
-const CardBase = styled.div<CardBaseProps>`
-  background-color: ${({ isDragging }) => (isDragging ? "red" : "1")};
-`;
-
 export const Card = React.memo(
-  React.forwardRef<HTMLDivElement, CardProps>(({ task, index }, ref) => {
-    console.log("[CardBase]");
-    const refElement = useRef<HTMLDivElement>();
+  React.forwardRef<HTMLDivElement, { task: Task }>(
+    ({ task }: { task: Task }, ref) => {
+      console.log("[CardBase]");
 
-    const [{ isDragging }, setDraggableHandleRef, setDraggableRef] = useDrag<
-      DndItem,
-      void,
-      CardDragCollectedProps
-    >({
-      type: DndItemTypeMapping["task"],
-      item: {
-        type: DndItemTypeMapping["task"],
-        index,
-        data: task,
-      },
-      collect: (monitor) => ({
-        isDragging: monitor.isDragging(),
-      }),
-    });
-
-    const [{ handlerId }, setDroppableRef] = useDrop<
-      DndItem,
-      void,
-      CardDropCollectedProps
-    >({
-      accept: DndItemTypeMapping["task"],
-      collect: (monitor) => ({
-        handlerId: monitor.getHandlerId(),
-      }),
-      hover: (item, monitor) => {
-        if (!refElement.current) {
-          return;
-        }
-
-        // console.log(item);
-        const draggedIndex = item.index;
-        const hoveredIndex = index;
-        // console.log("draggedIndex:", draggedIndex);
-        // console.log("hoveredIndex:", hoveredIndex);
-
-        // Don't replace items with themselves
-        if (draggedIndex === hoveredIndex) {
-          return;
-        }
-
-        // Get rectangle on screen
-        const hoveredBoundingRect = refElement.current?.getBoundingClientRect();
-
-        // Get vertical middle
-        const hoveredMiddleY =
-          (hoveredBoundingRect.bottom - hoveredBoundingRect.top) / 2;
-        console.log("hoveredMiddleY:", hoveredMiddleY);
-
-        // Get mouse position
-        const clientOffset = monitor.getClientOffset();
-
-        // Get pixels to the top
-        const hoveredClientY =
-          (clientOffset as XYCoord).y - hoveredBoundingRect.top;
-
-        // Only perform the move when the mouse has crossed half of the items height
-        // When dragging downwards, only move when the cursor is below 50%
-        // When dragging upwards, only move when the cursor is above 50%
-
-        // Dragging downwards
-        if (draggedIndex < hoveredIndex && hoveredClientY < hoveredMiddleY) {
-          return;
-        }
-        // Dragging upwards
-        if (draggedIndex > hoveredIndex && hoveredClientY > hoveredMiddleY) {
-          return;
-        }
-
-        // // Time to actually perform the action
-        // moveCard(dragIndex, hoverIndex);
-
-        // // Note: we're mutating the monitor item here!
-        // // Generally it's better to avoid mutations,
-        // // but it's good here for the sake of performance
-        // // to avoid expensive index searches.
-        // item.index = hoverIndex;
-      },
-    });
-
-    const setRef = useCallback(
-      (node: HTMLDivElement | null) => {
-        if (node) {
-          setDraggableRef(node);
-          setDroppableRef(node);
-          refElement.current = node;
-          if (ref) {
-            (ref as MutableRefObject<HTMLDivElement | null>).current = node;
-          }
-        }
-      },
-      [ref, setDraggableRef, setDroppableRef],
-    );
-
-    return (
-      <CardBase ref={setRef} isDragging={isDragging}>
-        {task.text}
-        <div ref={setDraggableHandleRef}>DOH!</div>
-      </CardBase>
-    );
-  }),
+      return (
+        <div ref={ref}>
+          {task.text}
+          <div>DOH!</div>
+        </div>
+      );
+    },
+  ),
 );
 
 export type BoardBodyProps = {
@@ -518,14 +362,17 @@ export type BoardBodyProps = {
 export const BoardBody = React.memo(
   React.forwardRef<HTMLDivElement, BoardBodyProps>((props, ref) => {
     const { category } = props;
-    const [stateIndexer, setStateIndexer] = useRecoilState(indexerAtom);
+    const [stateIndexer, setStateIndexer] = useRecoilState(
+      indexerCategoryTaskAtom,
+    );
 
-    const taskList = useMemo(() => {
-      // console.log("[taskList]");
-      return stateIndexer.getTaskListFromCategoryId__MutableTask({
-        categoryId: category.id,
-      });
-    }, [category.id, stateIndexer]);
+    const taskList = useMemo<Task[]>(
+      () =>
+        stateIndexer.getChildListFromParentId__MutableChild({
+          parentId: category.id,
+        }) ?? [],
+      [category.id, stateIndexer],
+    );
 
     return (
       <>
@@ -533,15 +380,7 @@ export const BoardBody = React.memo(
           <div>Empty!</div>
         ) : (
           taskList.map((task, idx) => {
-            return (
-              <Card
-                ref={ref}
-                key={task.id}
-                index={idx}
-                task={task}
-                {...props}
-              />
-            );
+            return <Card ref={ref} key={task.id} task={task} {...props} />;
           })
         )}
       </>
@@ -564,7 +403,8 @@ export interface FormData {
 }
 
 function App() {
-  const [stateIndexer, setStateIndexer] = useRecoilState(indexerAtom);
+  const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
+    useRecoilState(indexerCategoryTaskAtom);
 
   const [stateActiveCategory, setStateActiveCategory] =
     useState<Category | null>(null);
@@ -837,21 +677,32 @@ function App() {
   /////////////////////////////////////////////////////
 
   const categoryList = useMemo(
-    () => stateIndexer.getCategoryList__MutableCategory() ?? [],
-    [stateIndexer],
+    () => stateIndexerCategoryTask.getParentList__MutableParent() ?? [],
+    [stateIndexerCategoryTask],
   );
 
-  // console.log(stateIndexer);
-  // console.log("stateActiveCategory:", stateActiveCategory);
+  const draggableCategories = useMemo<UseDndDraggableItemSpec<Category>[]>(
+    () =>
+      categoryList.map((category, idx) => ({
+        type: "category",
+        index: idx,
+        data: category,
+      })),
+    [categoryList],
+  );
 
-  // const {
-  //   draggableProvided,
-  //   setDraggableRef,
-  //   setDraggableHandleRef,
-  //   droppableProvided,
-  // } = useDnd<Category>({
-  //   items: categoryList,
-  // });
+  console.log(categoryList);
+  console.log(stateIndexerCategoryTask);
+  console.log("stateActiveCategory:", stateActiveCategory);
+
+  const {
+    draggableProvided,
+    setDraggableRef,
+    setDraggableHandleRef,
+    setDragGhostRef,
+  } = useDraggable({
+    items: draggableCategories,
+  });
 
   return (
     <>
@@ -873,13 +724,12 @@ function App() {
                   return (
                     <BoardBase
                       key={category.id}
-                      // ref={setDraggableRef}
-                      // ref={setDraggableRef({ index: idx })}
-                      // {...draggableProvided({ index: idx })}
+                      ref={setDraggableRef({ index: idx })}
+                      {...draggableProvided({ index: idx })}
                     >
                       <BoardHead
                         category={category}
-                        // setDragHandleRef={setDraggableHandleRef({ index: idx })}
+                        setDragHandleRef={setDraggableHandleRef({ index: idx })}
                       />
                       <BoardBody category={category} />
                     </BoardBase>
@@ -899,18 +749,39 @@ function App() {
               </>
             )}
           </Boards>
-          <div
-          // onDragEnter={onDragEnter}
-          // onDragLeave={onDragLeave}
-          // onDragOver={onDragOver({ category: { id: "123", text: "1234" } })}
-          // onDrop={onDrop({ category: { id: "123", text: "1234" } })}
+          {
+            !!stateActiveCategory && (
+              <BoardBase key={stateActiveCategory.id}>
+                <BoardHead category={stateActiveCategory} />
+                <BoardBody category={stateActiveCategory} />
+              </BoardBase>
+            )
+            // <BoardBase
+            //   key={category.id}
+            //   ref={setDraggableRef({ index: idx })}
+            //   {...draggableProvided({ index: idx })}
+            // >
+            //   <BoardHead
+            //     category={category}
+            //     setDragHandleRef={setDraggableHandleRef({ index: idx })}
+            //   />
+            //   <BoardBody category={category} />
+            // </BoardBase>
+          }
+
+          {/* <div
+            ref={setDragGhostRef}
+            // onDragEnter={onDragEnter}
+            // onDragLeave={onDragLeave}
+            // onDragOver={onDragOver({ category: { id: "123", text: "1234" } })}
+            // onDrop={onDrop({ category: { id: "123", text: "1234" } })}
           >
             AAA
             <br />
             BBB
             <br />
             CCC
-          </div>
+          </div> */}
         </Main>
         <ReactQueryDevtools initialIsOpen={true} />
       </ThemeProvider>

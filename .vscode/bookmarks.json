@@ -9,21 +9,6 @@
 					"label": ""
 				}
 			]
-		},
-		{
-			"path": "src/atoms.ts",
-			"bookmarks": [
-				{
-					"line": 152,
-					"column": 26,
-					"label": ""
-				},
-				{
-					"line": 181,
-					"column": 3,
-					"label": ""
-				}
-			]
 		}
 	]
 }
