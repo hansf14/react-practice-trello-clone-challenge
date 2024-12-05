@@ -1,4 +1,5 @@
 import { useBeforeRender } from "@/hooks/useBeforeRender";
+import { useDeviceDetector } from "@/hooks/useDeviceDetector";
 import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { Indexer } from "@/indexer";
@@ -16,6 +17,7 @@ import React, {
   useState,
 } from "react";
 import { atom, useRecoilState } from "recoil";
+import { RequiredDeep } from "type-fest";
 
 ////////////////////////////////////
 
@@ -101,11 +103,22 @@ export type UseDraggableOnDragEndCb<
   DraggableItemSpec extends UseDraggableItemBaseSpec,
 > = NonNullable<UseDraggableParams<DraggableItemSpec>["onDragEndCb"]>;
 
+export interface UseDraggableSensorsConfig {
+  mouse?: UseDraggableSensorConfig;
+  touch?: UseDraggableSensorConfig;
+}
+
+export interface UseDraggableSensorConfig {
+  enable: boolean;
+  dragSensitivityOverride?: number;
+}
+
 export interface UseDraggableParams<
   DraggableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
 > {
   items: UseDraggableItemSpec<DraggableItemSpec>[];
   dragSensitivity?: number;
+  sensorsConfig?: UseDraggableSensorsConfig;
   onDragStartCb?: ({
     active,
   }: {
@@ -217,7 +230,8 @@ const droppableEventHandlersAtom = atom<DroppableEventHandlers>({
 // });
 
 export type CustomDragStartEvent = CustomEvent<{
-  mouseEvent: MouseEvent;
+  mouseEvent: MouseEvent | null;
+  touchEvent: TouchEvent | null;
   index: number;
 }>;
 
@@ -229,10 +243,63 @@ export const useDraggable = <
   const {
     items,
     dragSensitivity = 3,
+    sensorsConfig: _sensorsConfig,
     onDragStartCb,
     onDragMoveCb,
     onDragEndCb,
   } = props;
+
+  const { getDeviceDetector } = useDeviceDetector();
+  const getSensorsConfig = useCallback(() => {
+    const {
+      getIsEmulatorWebkit,
+      getIsMobile,
+      getIsTablet,
+      getIsDesktop,
+      getIsTouchDevice,
+    } = getDeviceDetector();
+    // const isMobile = getIsMobile();
+    // const isTablet = getIsTablet();
+    // const isEmulatorWebkit = getIsEmulatorWebkit();
+    // const isDesktop = getIsDesktop();
+    const isTouchDevice = getIsTouchDevice();
+    // console.log("isMobile:", isMobile);
+    // console.log("isTablet:", isTablet);
+    // console.log("isEmulatorWebkit:", isEmulatorWebkit);
+    // console.log("isDesktop:", isDesktop);
+    // console.log("isTouchDevice:", isTouchDevice);
+
+    const sensorsDefaultConfig: UseDraggableSensorsConfig = {
+      mouse: isTouchDevice
+        ? {
+            enable: false,
+            dragSensitivityOverride: dragSensitivity,
+          }
+        : {
+            enable: true,
+            dragSensitivityOverride: dragSensitivity,
+          },
+      touch: isTouchDevice
+        ? {
+            enable: true,
+            dragSensitivityOverride: dragSensitivity,
+          }
+        : {
+            enable: false,
+            dragSensitivityOverride: dragSensitivity,
+          },
+    };
+    const sensorsConfig: UseDraggableSensorsConfig = _sensorsConfig
+      ? {
+          ...sensorsDefaultConfig,
+          ..._sensorsConfig,
+        }
+      : sensorsDefaultConfig;
+
+    return sensorsConfig as RequiredDeep<UseDraggableSensorsConfig>;
+  }, [getDeviceDetector, _sensorsConfig, dragSensitivity]);
+
+  const sensorsConfig = getSensorsConfig();
 
   const [stateDroppableEventHandlers, setStateDroppableEventHandlers] =
     useRecoilState(droppableEventHandlersAtom);
@@ -248,20 +315,27 @@ export const useDraggable = <
 
   const [stateIsDragging, setStateIsDragging] = useRecoilState(isDraggingAtom);
   const [stateActiveItem, setStateActiveItem] = useRecoilState(activeItemAtom);
+  const refCursorPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const [stateIsDraggedOver, setStateIsDraggedOver] = useState<boolean>(false);
 
   // const [stateIsDragging, setStateIsDragging] = useState<boolean>(false);
   // Need immediate update
   const refIsDragging = useRef<boolean>(false);
-  const refActiveDomStyle = useRef<Record<string, string> | null>();
+  const refActiveDragSizeStyle = useRef<Record<string, string> | null>();
   const refActiveDragHandle = useRef<HTMLElement>();
   const refActiveDrag = useRef<HTMLElement>();
+  const refActiveDragPos = useRef<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
 
   const refIsMouseDown = useRef<boolean>(false);
   const refMouseDownPos = useRef<{ x: number; y: number } | null>(null);
-  const refMouseUpPos = useRef<{ x: number; y: number } | null>(null);
+  const refMouseUpPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const refCursorDelta = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const refPrevTouchPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const refDragGhostPos = useRef<{ x: number; y: number } | null>(null);
 
   const refDraggables = useRef<DraggableElement[]>(
@@ -345,96 +419,95 @@ export const useDraggable = <
 
   /////////////////////////////////////////////////////
 
-  const setDragGhostStyle = useCallback(
-    ({ node }: { node: HTMLElement }) => {
-      // Mandatory
-      node.style.setProperty("position", "fixed");
-      node.style.setProperty("left", "0");
-      node.style.setProperty("top", "0");
-      !stateIsDragging
-        ? node.style.setProperty("display", "none")
-        : node.style.removeProperty("display");
-      node.style.setProperty("pointer-events", "none");
+  const setDragGhostStyle = useCallback(() => {
+    if (!refIsDragging.current || !refDragGhost.current) {
+      return;
+    }
 
-      // console.log("refActiveDomStyle.current:", refActiveDomStyle.current);
-      if (refActiveDomStyle.current) {
-        node.style.setProperty("width", refActiveDomStyle.current["width"]);
-        node.style.setProperty("height", refActiveDomStyle.current["height"]);
-      }
+    // Mandatory
+    refDragGhost.current.style.setProperty("position", "fixed");
+    refDragGhost.current.style.setProperty("left", "0");
+    refDragGhost.current.style.setProperty("top", "0");
+    !stateIsDragging
+      ? refDragGhost.current.style.setProperty("display", "none")
+      : refDragGhost.current.style.removeProperty("display");
+    refDragGhost.current.style.setProperty("pointer-events", "none");
 
-      // const { x, y } = refDragGhostRelativePos.current;
-      // const { x, y } = refCursorPos.current;
-      // const { x: relativeX, y: relativeY } = refDragGhostRelativePos.current;
+    // console.log("refActiveDomStyle.current:", refActiveDomStyle.current);
+    if (refActiveDragSizeStyle.current) {
+      refDragGhost.current.style.setProperty(
+        "width",
+        refActiveDragSizeStyle.current["width"],
+      );
+      refDragGhost.current.style.setProperty(
+        "height",
+        refActiveDragSizeStyle.current["height"],
+      );
+    }
+
+    // const { x, y } = refDragGhostRelativePos.current;
+    // const { x, y } = refCursorPos.current;
+    // const { x: relativeX, y: relativeY } = refDragGhostRelativePos.current;
+    // const { x: cursorX, y: cursorY } = refCursorPos.current;
+    // const x = relativeX + cursorX;
+    // const y = relativeY + cursorY;
+
+    if (!!refActiveDrag.current && !!refActiveDragHandle.current) {
       // const { x: cursorX, y: cursorY } = refCursorPos.current;
-      // const x = relativeX + cursorX;
-      // const y = relativeY + cursorY;
+      // const { x: cursorToHandleX, y: cursorToHandleY } =
+      //   getCursorRelativePosToElement({
+      //     cursorPos: refCursorPos.current,
+      //     element: refActiveDragHandle.current,
+      //   });
+      // const { x: activeToHandleX, y: activeToHandleY } =
+      //   getElementRelativePos({
+      //     fromElement: refActiveDrag.current,
+      //     toElement: refActiveDragHandle.current,
+      //   });
+      // const { x: cursorToActiveX, y: cursorToActiveY } =
+      //   getCursorRelativePosToElement({
+      //     cursorPos: refCursorPos.current,
+      //     element: refActiveDrag.current,
+      //   });
+      // console.log(`[${cursorToActiveX},${cursorToActiveY}]`);
+      // console.log(`[${cursorX},${cursorY}]`);
+      // console.log(`[${activeToHandleX},${activeToHandleY}]`);
+      // console.log(`[${cursorToHandleX},${cursorToHandleY}]`);
 
-      if (!!refActiveDrag.current && !!refActiveDragHandle.current) {
-        // const { x: cursorX, y: cursorY } = refCursorPos.current;
-        // const { x: cursorToHandleX, y: cursorToHandleY } =
-        //   getCursorRelativePosToElement({
-        //     cursorPos: refCursorPos.current,
-        //     element: refActiveDragHandle.current,
-        //   });
-        // const { x: activeToHandleX, y: activeToHandleY } =
-        //   getElementRelativePos({
-        //     fromElement: refActiveDrag.current,
-        //     toElement: refActiveDragHandle.current,
-        //   });
-        // const { x: cursorToActiveX, y: cursorToActiveY } =
-        //   getCursorRelativePosToElement({
-        //     cursorPos: refCursorPos.current,
-        //     element: refActiveDrag.current,
-        //   });
-        // console.log(`[${cursorToActiveX},${cursorToActiveY}]`);
-        // console.log(`[${cursorX},${cursorY}]`);
-        // console.log(`[${activeToHandleX},${activeToHandleY}]`);
-        // console.log(`[${cursorToHandleX},${cursorToHandleY}]`);
+      // const x = cursorX - cursorToHandleX - activeToHandleX + a;
+      // const y = cursorY - cursorToHandleY - activeToHandleY + b;
+      // console.log(`[${x},${y}]`);
 
-        // const x = cursorX - cursorToHandleX - activeToHandleX + a;
-        // const y = cursorY - cursorToHandleY - activeToHandleY + b;
-        // console.log(`[${x},${y}]`);
-
-        if (!refDragGhostPos.current) {
-          const { x: activeX, y: activeY } =
-            refActiveDrag.current.getBoundingClientRect();
-          refDragGhostPos.current = { x: activeX, y: activeY };
-        }
-        const { x: dragGhostX, y: dragGhostY } = refDragGhostPos.current;
-        const { x: cursorDeltaX, y: cursorDeltaY } = refCursorDelta.current;
-        const x = dragGhostX + cursorDeltaX;
-        const y = dragGhostY + cursorDeltaY;
-        refDragGhostPos.current = { x, y };
-        refCursorDelta.current = { x: 0, y: 0 };
-        // const x = activeX + cursorToActiveX - activeToHandleX + cursorToHandleX;
-        // const y = activeY + cursorToActiveY - activeToHandleY + cursorToHandleY;
-        node.style.removeProperty("display");
-        node.style.setProperty("transform", `translate3d(${x}px, ${y}px, 0)`);
+      if (!refDragGhostPos.current) {
+        const { x: activeX, y: activeY } = refActiveDragPos.current;
+        refDragGhostPos.current = { x: activeX, y: activeY };
       }
-    },
-    [stateIsDragging],
-  );
+      const { x: dragGhostX, y: dragGhostY } = refDragGhostPos.current;
+      const { x: cursorDeltaX, y: cursorDeltaY } = refCursorDelta.current;
+      const x = dragGhostX + cursorDeltaX;
+      const y = dragGhostY + cursorDeltaY;
+      refDragGhostPos.current = { x, y };
+      refCursorDelta.current = { x: 0, y: 0 };
+      // const x = activeX + cursorToActiveX - activeToHandleX + cursorToHandleX;
+      // const y = activeY + cursorToActiveY - activeToHandleY + cursorToHandleY;
+      refDragGhost.current.style.removeProperty("display");
+      // TODO: clientX, clientY -> pageX, pageY to apply to location within document.
+      refDragGhost.current.style.setProperty(
+        "transform",
+        `translate3d(${x}px, ${y}px, 0)`,
+      );
+    }
+  }, [stateIsDragging]);
 
-  const refCursorPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  const setDragGhostFollowCursor = useCallback(
-    (event: MouseEvent | DragEvent) => {
-      // console.log("refIsDragging.current:", refIsDragging.current);
-      // console.log("refDragGhost.current:", refDragGhost.current);
-
-      if (
-        refIsDragging.current &&
-        refDragGhost.current &&
-        refDragGhost.current
-      ) {
-        // console.log("Follow!");
-        // console.log(x, y);
-
-        setDragGhostStyle({ node: refDragGhost.current });
-      }
-    },
-    [setDragGhostStyle],
-  );
+  // const onActiveDragResize = useCallback<ResizeObserverCallback>(
+  //   (entries, observer) => {
+  //     const entry = entries[0];
+  //     const { inlineSize: newWidth, blockSize: newHeight } =
+  //       entry.borderBoxSize[0];
+  //     console.log(`${newWidth},${newHeight}`);
+  //   },
+  //   [],
+  // );
 
   /////////////////////////////////////////////////////
 
@@ -443,9 +516,14 @@ export const useDraggable = <
       console.log("[onCustomDragStart]");
 
       const customEvent = event as CustomDragStartEvent;
-      const { mouseEvent, index } = customEvent.detail;
+      const { mouseEvent, touchEvent, index } = customEvent.detail;
 
-      refCursorPos.current = { x: mouseEvent.clientX, y: mouseEvent.clientY };
+      if (mouseEvent) {
+        refCursorPos.current = { x: mouseEvent.clientX, y: mouseEvent.clientY };
+      } else if (touchEvent) {
+        const touch = touchEvent.touches[0];
+        refCursorPos.current = { x: touch.clientX, y: touch.clientY };
+      }
 
       onDragStartCb?.({
         active: items[index],
@@ -461,9 +539,15 @@ export const useDraggable = <
         const originalElement = refDraggables.current[index]
           .element as HTMLElement;
         const { offsetWidth, offsetHeight } = originalElement;
-        refActiveDomStyle.current ??= {};
-        refActiveDomStyle.current["width"] = offsetWidth + "px";
-        refActiveDomStyle.current["height"] = offsetHeight + "px";
+        refActiveDragSizeStyle.current ??= {};
+        refActiveDragSizeStyle.current["width"] = offsetWidth + "px";
+        refActiveDragSizeStyle.current["height"] = offsetHeight + "px";
+
+        const { x, y } = originalElement.getBoundingClientRect();
+        refActiveDragPos.current = { x, y };
+
+        // TODO:
+        // new ResizeObserver(onActiveDragResize);
       }
 
       // console.log(refDraggables.current[index].element);
@@ -497,17 +581,141 @@ export const useDraggable = <
 
       // console.log("refDragGhost.current:", refDragGhost.current);
       forceRender();
-      setDragGhostFollowCursor(mouseEvent);
+      setDragGhostStyle();
     },
-    [items, onDragStartCb, forceRender, setDragGhostFollowCursor],
+    [
+      items,
+      // onActiveDragResize,
+      onDragStartCb,
+      forceRender,
+      setDragGhostStyle,
+    ],
   );
 
-  const onMouseMove = useCallback((event: MouseEvent) => {
-    console.log("[onMouseMove]");
-    refCursorPos.current = { x: event.clientX, y: event.clientY };
-    refCursorDelta.current.x += event.movementX;
-    refCursorDelta.current.y += event.movementY;
-  }, []);
+  const onTouchMove = useCallback(
+    (event: TouchEvent) => {
+      console.log("[onTouchMove]");
+
+      if (!sensorsConfig.touch.enable) {
+        return;
+      }
+      console.log("[onTouchMove] functioning");
+
+      // console.log(event.touches);
+      // console.log(event.targetTouches);
+      // console.log(event.changedTouches);
+      // touches: length 1
+      // targetTouches: length 1
+      // changedTouches: length 1
+
+      const touch = event.touches[0];
+      const { x: curTouchX, y: curTouchY } = (refCursorPos.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+      });
+      const { x: prevTouchX, y: prevTouchY } = refPrevTouchPos.current;
+      const touchMovementX = curTouchX - prevTouchX;
+      const touchMovementY = curTouchY - prevTouchY;
+      refPrevTouchPos.current = { x: curTouchX, y: curTouchY };
+
+      refCursorDelta.current.x += touchMovementX;
+      refCursorDelta.current.y += touchMovementY;
+    },
+    [sensorsConfig],
+  );
+
+  const onMouseMove = useCallback(
+    (event: MouseEvent) => {
+      console.log("[onMouseMove]");
+
+      if (!sensorsConfig.mouse.enable) {
+        return;
+      }
+      console.log("[onMouseMove] functioning");
+
+      refCursorPos.current = { x: event.clientX, y: event.clientY };
+      refCursorDelta.current.x += event.movementX;
+      refCursorDelta.current.y += event.movementY;
+    },
+    [sensorsConfig],
+  );
+
+  const idOnTouchMoveThrottled = useMemoizeCallbackId();
+  const onTouchMoveThrottled = useCallback(
+    ({ index }: { index: number }) =>
+      memoizeCallback({
+        fn: throttle((event: TouchEvent) => {
+          console.log("[onTouchMoveThrottled]");
+
+          if (!sensorsConfig.touch.enable) {
+            return;
+          }
+          console.log("[onTouchMoveThrottled] functioning");
+
+          const touch = event.touches[0];
+
+          if (
+            !refIsDragging.current &&
+            refMouseDownPos.current &&
+            (Math.abs(refMouseDownPos.current.x - touch.clientX) >=
+              sensorsConfig.touch.dragSensitivityOverride ||
+              Math.abs(refMouseDownPos.current.y - touch.clientY) >=
+                sensorsConfig.touch.dragSensitivityOverride)
+          ) {
+            refIsDragging.current = true;
+            setStateIsDragging(true);
+            setStateActiveItem(items[index]);
+
+            refActiveDrag.current = refDraggables.current[index].element;
+            refActiveDragHandle.current =
+              refDraggables.current[index].elementHandle;
+
+            document.addEventListener("custom-drag-start", onCustomDragStart, {
+              once: true,
+            });
+            const customDragStartEvent: CustomDragStartEvent = new CustomEvent(
+              "custom-drag-start",
+              {
+                detail: {
+                  mouseEvent: null,
+                  touchEvent: event,
+                  index,
+                },
+              },
+            );
+            document.dispatchEvent(customDragStartEvent);
+          }
+
+          setDragGhostStyle();
+
+          onDragMoveCb?.({ active: items[index] });
+        }, 17),
+        id: idOnTouchMoveThrottled,
+        deps: [
+          index,
+          idOnTouchMoveThrottled,
+          sensorsConfig,
+          items,
+          dragSensitivity,
+          onCustomDragStart,
+          setStateIsDragging,
+          setStateActiveItem,
+          setDragGhostStyle,
+          onDragMoveCb,
+        ],
+      }),
+    [
+      idOnTouchMoveThrottled,
+      sensorsConfig,
+      items,
+      dragSensitivity,
+      onCustomDragStart,
+      setStateIsDragging,
+      setStateActiveItem,
+      setDragGhostStyle,
+      onDragMoveCb,
+    ],
+  );
 
   const idOnMouseMoveThrottled = useMemoizeCallbackId();
   const onMouseMoveThrottled = useCallback(
@@ -516,17 +724,23 @@ export const useDraggable = <
         fn: throttle((event: MouseEvent) => {
           console.log("[onMouseMoveThrottled]");
 
+          if (!sensorsConfig.mouse.enable) {
+            return;
+          }
+          console.log("[onMouseMoveThrottled] functioning");
+
           // console.log("stateIsDragging:", stateIsDragging);
 
           // console.log("MouseMove event.clientX:", event.clientX);
           // console.log("MouseMove event.pageX:", event.pageX);
+
           if (
             !refIsDragging.current &&
             refMouseDownPos.current &&
             (Math.abs(refMouseDownPos.current.x - event.clientX) >=
-              dragSensitivity ||
+              sensorsConfig.mouse.dragSensitivityOverride ||
               Math.abs(refMouseDownPos.current.y - event.clientY) >=
-                dragSensitivity)
+                sensorsConfig.mouse.dragSensitivityOverride)
           ) {
             refIsDragging.current = true;
             setStateIsDragging(true);
@@ -547,24 +761,27 @@ export const useDraggable = <
             // console.log("x:", refMouseDownPos.current?.x, event.pageX);
             // console.log("y:", refMouseDownPos.current?.y, event.pageY);
 
-            document.addEventListener("custom-drag-start", onCustomDragStart, {
-              once: true,
-            });
+            document.body.addEventListener(
+              "custom-drag-start",
+              onCustomDragStart,
+              {
+                once: true,
+              },
+            );
             const customDragStartEvent: CustomDragStartEvent = new CustomEvent(
               "custom-drag-start",
               {
                 detail: {
                   mouseEvent: event,
+                  touchEvent: null,
                   index,
                 },
               },
             );
-            document.dispatchEvent(customDragStartEvent);
+            document.body.dispatchEvent(customDragStartEvent);
           }
 
-          if (refIsDragging.current) {
-            setDragGhostFollowCursor(event);
-          }
+          setDragGhostStyle();
 
           onDragMoveCb?.({ active: items[index] });
         }, 17),
@@ -572,26 +789,99 @@ export const useDraggable = <
         deps: [
           index,
           idOnMouseMoveThrottled,
+          sensorsConfig,
           items,
-          onDragMoveCb,
           dragSensitivity,
           onCustomDragStart,
           setStateIsDragging,
           setStateActiveItem,
-          setDragGhostFollowCursor,
-          // onDragMoveCb,
+          setDragGhostStyle,
+          onDragMoveCb,
         ],
       }),
     [
       idOnMouseMoveThrottled,
+      sensorsConfig,
       items,
-      onDragMoveCb,
       dragSensitivity,
       onCustomDragStart,
       setStateIsDragging,
       setStateActiveItem,
-      setDragGhostFollowCursor,
-      // onDragMoveCb,
+      setDragGhostStyle,
+      onDragMoveCb,
+    ],
+  );
+
+  const idOnTouchEnd = useMemoizeCallbackId();
+  const onTouchEnd = useCallback(
+    ({ index }: { index: number }) =>
+      memoizeCallback({
+        fn: (event: TouchEvent) => {
+          console.log("[onTouchEnd]");
+
+          if (!sensorsConfig.touch.enable) {
+            return;
+          }
+          console.log("[onTouchEnd] functioning");
+
+          // console.log(event.touches);
+          // console.log(event.targetTouches);
+          // console.log(event.changedTouches);
+          // touches: length 0
+          // targetTouches: length 0
+          // changedTouches: length 1
+
+          // const touch = event.changedTouches[0];
+
+          // refCursorPos.current = { x: event.clientX, y: event.clientY };
+
+          if (refIsDragging.current && refDragGhost.current) {
+            refDragGhost.current.style.setProperty("display", "none");
+          }
+
+          document.body.removeEventListener("touchmove", onTouchMove);
+          document.body.removeEventListener(
+            "touchmove",
+            onTouchMoveThrottled({ index }),
+          );
+
+          refIsDragging.current = false;
+          setStateIsDragging(false);
+          setStateActiveItem(null);
+          refActiveDrag.current = undefined;
+          refActiveDragHandle.current = undefined;
+          // refActiveDomStyle.current TODO:
+
+          refIsMouseDown.current = false;
+          refMouseDownPos.current = null;
+
+          refDragGhostPos.current = null;
+          refCursorDelta.current = { x: 0, y: 0 };
+
+          onDragEndCb?.({ active: items[index] });
+        },
+        id: idOnTouchEnd,
+        deps: [
+          index,
+          idOnTouchEnd,
+          sensorsConfig,
+          items,
+          setStateIsDragging,
+          setStateActiveItem,
+          onTouchMove,
+          onTouchMoveThrottled,
+          onDragEndCb,
+        ],
+      }),
+    [
+      idOnTouchEnd,
+      sensorsConfig,
+      items,
+      setStateIsDragging,
+      setStateActiveItem,
+      onTouchMove,
+      onTouchMoveThrottled,
+      onDragEndCb,
     ],
   );
 
@@ -602,14 +892,19 @@ export const useDraggable = <
         fn: (event: MouseEvent) => {
           console.log("[onMouseUp]");
 
+          if (!sensorsConfig.mouse.enable) {
+            return;
+          }
+          console.log("[onMouseUp] functioning");
+
           refCursorPos.current = { x: event.clientX, y: event.clientY };
 
           if (refIsDragging.current && refDragGhost.current) {
             refDragGhost.current.style.setProperty("display", "none");
           }
 
-          document.removeEventListener("mousemove", onMouseMove);
-          document.removeEventListener(
+          document.body.removeEventListener("mousemove", onMouseMove);
+          document.body.removeEventListener(
             "mousemove",
             onMouseMoveThrottled({ index }),
           );
@@ -619,6 +914,7 @@ export const useDraggable = <
           setStateActiveItem(null);
           refActiveDrag.current = undefined;
           refActiveDragHandle.current = undefined;
+          // refActiveDomStyle.current TODO:
 
           refIsMouseDown.current = false;
           refMouseDownPos.current = null;
@@ -632,6 +928,7 @@ export const useDraggable = <
         deps: [
           index,
           idOnMouseUp,
+          sensorsConfig,
           items,
           setStateIsDragging,
           setStateActiveItem,
@@ -641,13 +938,73 @@ export const useDraggable = <
         ],
       }),
     [
-      items,
       idOnMouseUp,
+      items,
+      sensorsConfig,
       setStateIsDragging,
       setStateActiveItem,
       onMouseMove,
       onMouseMoveThrottled,
       onDragEndCb,
+    ],
+  );
+
+  const idOnTouchStart = useMemoizeCallbackId();
+  const onTouchStart = useCallback(
+    ({ index }: { index: number }) =>
+      memoizeCallback({
+        fn: (event: React.TouchEvent) => {
+          console.log("[onTouchStart]");
+
+          if (!sensorsConfig.touch.enable) {
+            return;
+          }
+          console.log("[onTouchStart] functioning");
+
+          // console.log(event.touches);
+          // console.log(event.targetTouches);
+          // console.log(event.changedTouches);
+          // touches: length 1
+          // targetTouches: length 1
+          // changedTouches: length 1
+
+          const touch = event.touches[0];
+          refIsMouseDown.current = true;
+
+          refPrevTouchPos.current = { x: touch.clientX, y: touch.clientY };
+
+          refCursorPos.current = { x: touch.clientX, y: touch.clientY };
+          refMouseDownPos.current = {
+            x: touch.clientX,
+            y: touch.clientY,
+          };
+          // console.log(refMouseDownPos.current);
+
+          document.body.addEventListener("touchmove", onTouchMove);
+          document.body.addEventListener(
+            "touchmove",
+            onTouchMoveThrottled({ index }),
+          );
+          document.body.addEventListener("touchend", onTouchEnd({ index }), {
+            once: true,
+          });
+        },
+        id: idOnTouchStart,
+        deps: [
+          index,
+          idOnTouchStart,
+          sensorsConfig,
+          onTouchMove,
+          onTouchMoveThrottled,
+          onTouchEnd,
+        ],
+      }),
+    [
+      idOnTouchStart,
+      sensorsConfig,
+      onTouchMove,
+      onTouchMoveThrottled,
+      onTouchEnd,
     ],
   );
 
@@ -658,6 +1015,11 @@ export const useDraggable = <
         fn: (event: React.MouseEvent<HTMLElement>) => {
           console.log("[onMouseDown]");
 
+          if (!sensorsConfig.mouse.enable) {
+            return;
+          }
+          console.log("[onMouseDown] functioning");
+
           refCursorPos.current = { x: event.clientX, y: event.clientY };
 
           refIsMouseDown.current = true;
@@ -667,19 +1029,32 @@ export const useDraggable = <
           };
           // console.log(refMouseDownPos.current);
 
-          document.addEventListener("mousemove", onMouseMove);
-          document.addEventListener(
+          document.body.addEventListener("mousemove", onMouseMove);
+          document.body.addEventListener(
             "mousemove",
             onMouseMoveThrottled({ index }),
           );
-          document.addEventListener("mouseup", onMouseUp({ index }), {
+          document.body.addEventListener("mouseup", onMouseUp({ index }), {
             once: true,
           });
         },
         id: idOnMouseDown,
-        deps: [index, idOnMouseDown, onMouseMove, onMouseMoveThrottled, onMouseUp],
+        deps: [
+          index,
+          idOnMouseDown,
+          sensorsConfig,
+          onMouseMove,
+          onMouseMoveThrottled,
+          onMouseUp,
+        ],
       }),
-    [idOnMouseDown, onMouseMove, onMouseMoveThrottled, onMouseUp],
+    [
+      idOnMouseDown,
+      sensorsConfig,
+      onMouseMove,
+      onMouseMoveThrottled,
+      onMouseUp,
+    ],
   );
 
   /////////////////////////////////////////////////////
@@ -773,13 +1148,14 @@ export const useDraggable = <
   // );
 
   /////////////////////////////////////////////////////
+
   const idSetDraggableHandleRef = useMemoizeCallbackId();
   const setDraggableHandleRef = useCallback(
     ({ index }: { index: number }) =>
       memoizeCallback({
         fn: (node: HTMLElement | null) => {
           if (node) {
-            console.log(node);
+            // console.log(node);
             node.setAttribute("draggable", "true"); // 드래그로 텍스트 블록 처리 되는거 방지용도로만 적용시킴
             node.setAttribute("tabindex", "0");
 
@@ -828,9 +1204,9 @@ export const useDraggable = <
     (node: HTMLElement | null) => {
       if (node) {
         // console.log(node);
-        refDragGhost.current = node;
 
-        setDragGhostStyle({ node });
+        refDragGhost.current = node;
+        setDragGhostStyle();
 
         // forceRender();
       }
@@ -849,12 +1225,14 @@ export const useDraggable = <
         onMouseDown: onMouseDown({ index }),
         // onMouseMove: onMouseMove({ index }),
         // onMouseUp: onMouseUp,
+        onTouchStart: onTouchStart({ index }),
         onDragStart: onDragStart({ index }),
         // onDrag: onDrag({ index }),
         // onDragEnd: onDragEnd({ index }),
       }),
     [
       onMouseDown,
+      onTouchStart,
       // onMouseMove,
       //  onMouseUp,
       onDragStart,

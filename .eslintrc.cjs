@@ -39,7 +39,7 @@ module.exports = {
     },
   },
   rules: {
-    "no-undef": "error",
+    "no-undef": "off",
     // "no-console": "warn",
     "no-console": "off", // Disable console warnings for this workspace
     // "prettier/prettier": "error", // Means error
