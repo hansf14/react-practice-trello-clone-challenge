@@ -14,6 +14,12 @@ DragIndicator
 horizontalRestrict
 touch events
 
+0번째 드래그 후 1번째 드래그하면 0번째가 드래그되는 버그
+
+optimize touch at mobile
+drag scroll
+darg trigger when only mouse down (hold)
+
 useDnd
   useDroppable
     useDraggable

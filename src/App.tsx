@@ -97,7 +97,12 @@ const GlobalStyle = createGlobalStyle`
   * {
     box-sizing: border-box;
   }
+  html {
+    overflow: auto;
+    user-select: none;
+  }
   body {
+    overflow: auto;
     font-family: "Source Sans 3", sans-serif;
     font-optical-sizing: auto;
     font-weight: 500;
@@ -110,7 +115,7 @@ const GlobalStyle = createGlobalStyle`
 `;
 
 const Main = styled.main`
-  width: 100%;
+  min-width: fit-content;
   height: 100%;
   min-height: 100vh;
   background: ${({ theme }) => theme.background};
@@ -128,14 +133,15 @@ const Main = styled.main`
 
 const Boards = styled.div`
   transform-style: preserve-3d;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  width: 100%;
+  width: max-content;
+  display: flex;
+  justify-content: stretch;
   gap: 10px;
 `;
 
 const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
-  max-width: 300px;
+  flex-shrink: 0;
+  width: min(100%, 300px);
   min-height: 300px;
   padding: 10px;
   display: flex;
