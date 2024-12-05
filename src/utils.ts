@@ -198,22 +198,29 @@ export type KeyMapping<T> = {
 // type AType = NameType<"a", typeof a>; // ["a", 42]
 // type BType = NameType<"b", typeof b>; // ["b", "hello"]
 
-const memoizedCallbackCache = new MultiRefMap<unknown[], Function>();
+export const memoizeCallbackCache = new MultiRefMap<unknown[], Function>();
 
-export const memoizeCallback = <D extends unknown>({
+export type MemoizeCallback<F> = F extends (...args: infer P) => infer R
+  ? (...args: P) => R
+  : never;
+
+export const memoizeCallback = <F extends Function, D extends unknown>({
   fn,
+  id,
   deps,
 }: {
-  fn: Function;
+  fn: F;
+  id: string;
   deps: D[];
 }) => {
-  if (memoizedCallbackCache.has(deps)) {
-    return memoizedCallbackCache.get(deps)!;
+  const keys = [id, fn.toString(), ...deps];
+  if (memoizeCallbackCache.has(keys)) {
+    return memoizeCallbackCache.get(keys)! as MemoizeCallback<F>;
   }
 
-  memoizedCallbackCache.set(deps, fn);
+  memoizeCallbackCache.set(keys, fn);
   // console.log(memoizedCallbackCache);
-  return fn;
+  return fn as unknown as MemoizeCallback<F>;
 };
 
 // Not tested
@@ -230,4 +237,31 @@ export function cloneCssPropertiesToCssStyleDeclaration(
       styleDeclaration.setProperty(cssKey, String(value));
     }
   });
+}
+
+export function getElementRelativePos({
+  fromElement,
+  toElement,
+}: {
+  fromElement: HTMLElement;
+  toElement: HTMLElement;
+}) {
+  const rectFrom = fromElement.getBoundingClientRect();
+  const rectTo = toElement.getBoundingClientRect();
+  const x = rectTo.left - rectFrom.left;
+  const y = rectTo.top - rectFrom.top;
+  return { x, y };
+}
+
+export function getCursorRelativePosToElement({
+  cursorPos,
+  element,
+}: {
+  cursorPos: { x: number; y: number };
+  element: HTMLElement;
+}): { x: number; y: number } {
+  const rect = element.getBoundingClientRect();
+  const x = cursorPos.x - rect.x;
+  const y = cursorPos.y - rect.y;
+  return { x, y };
 }

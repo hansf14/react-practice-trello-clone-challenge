@@ -1,7 +1,12 @@
 import { useBeforeRender } from "@/hooks/useBeforeRender";
 import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
+import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { Indexer } from "@/indexer";
-import { memoizeCallback } from "@/utils";
+import {
+  getCursorRelativePosToElement,
+  getElementRelativePos,
+  memoizeCallback,
+} from "@/utils";
 import { throttle } from "lodash-es";
 import React, {
   useCallback,
@@ -56,11 +61,11 @@ import { atom, useRecoilState } from "recoil";
 // }
 
 export type DraggableElement = {
-  element: HTMLElement | null;
-  elementHandle: HTMLElement | null;
+  element: HTMLElement | undefined;
+  elementHandle: HTMLElement | undefined;
 };
 
-export type DroppableElement = HTMLElement | null;
+export type DroppableElement = HTMLElement | undefined;
 
 export type UseDraggableSetDraggableRef = (node: HTMLElement | null) => void;
 
@@ -90,21 +95,14 @@ export type UseDraggableOnDragStartCb<
 
 export type UseDraggableOnDragMoveCb<
   DraggableItemSpec extends UseDraggableItemBaseSpec,
-  DroppableItemSpec extends UseDroppableItemBaseSpec,
-> = NonNullable<
-  UseDraggableParams<DraggableItemSpec, DroppableItemSpec>["onDragMoveCb"]
->;
+> = NonNullable<UseDraggableParams<DraggableItemSpec>["onDragMoveCb"]>;
 
 export type UseDraggableOnDragEndCb<
   DraggableItemSpec extends UseDraggableItemBaseSpec,
-  DroppableItemSpec extends UseDroppableItemBaseSpec,
-> = NonNullable<
-  UseDraggableParams<DraggableItemSpec, DroppableItemSpec>["onDragEndCb"]
->;
+> = NonNullable<UseDraggableParams<DraggableItemSpec>["onDragEndCb"]>;
 
 export interface UseDraggableParams<
   DraggableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
-  DroppableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
 > {
   items: UseDraggableItemSpec<DraggableItemSpec>[];
   dragSensitivity?: number;
@@ -115,17 +113,13 @@ export interface UseDraggableParams<
   }) => void;
   onDragMoveCb?: ({
     active,
-    over,
   }: {
     active: UseDraggableItemSpec<DraggableItemSpec>;
-    over: UseDroppableItemSpec<DroppableItemSpec>;
   }) => void;
   onDragEndCb?: ({
     active,
-    over,
   }: {
     active: UseDraggableItemSpec<DraggableItemSpec>;
-    over: UseDroppableItemSpec<DroppableItemSpec>;
   }) => void;
 }
 
@@ -144,6 +138,12 @@ const isDraggingAtom = atom<boolean>({
   key: "isDraggingAtom",
   default: false,
 });
+
+const activeItemAtom =
+  atom<UseDraggableItemSpec<UseDraggableItemBaseSpec> | null>({
+    key: "activeItemAtom",
+    default: null,
+  });
 
 const indexerDraggable = atom<Indexer<UseDraggableItemBaseSpec>>({
   key: "indexerDraggable",
@@ -223,9 +223,8 @@ export type CustomDragStartEvent = CustomEvent<{
 
 export const useDraggable = <
   DraggableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
-  DroppableItemSpec extends UseDroppableItemBaseSpec = UseDroppableItemBaseSpec,
 >(
-  props: UseDraggableParams<DraggableItemSpec, DroppableItemSpec>,
+  props: UseDraggableParams<DraggableItemSpec>,
 ) => {
   const {
     items,
@@ -240,14 +239,15 @@ export const useDraggable = <
 
   const { forceRender } = useForceRenderWithOptionalCb();
 
-  const [stateIndexerDraggable, setStateIndexerDraggable] =
-    useRecoilState(indexerDraggable);
-  const [stateIndexerDroppable, setStateIndexerDroppable] =
-    useRecoilState(indexerDroppable);
+  // const [stateIndexerDraggable, setStateIndexerDraggable] =
+  //   useRecoilState(indexerDraggable);
+  // const [stateIndexerDroppable, setStateIndexerDroppable] =
+  //   useRecoilState(indexerDroppable);
 
   const [stateDndRefs, setStateDndRefs] = useRecoilState(dndRefsAtom);
 
   const [stateIsDragging, setStateIsDragging] = useRecoilState(isDraggingAtom);
+  const [stateActiveItem, setStateActiveItem] = useRecoilState(activeItemAtom);
 
   const [stateIsDraggedOver, setStateIsDraggedOver] = useState<boolean>(false);
 
@@ -255,15 +255,19 @@ export const useDraggable = <
   // Need immediate update
   const refIsDragging = useRef<boolean>(false);
   const refActiveDomStyle = useRef<Record<string, string> | null>();
+  const refActiveDragHandle = useRef<HTMLElement>();
+  const refActiveDrag = useRef<HTMLElement>();
 
   const refIsMouseDown = useRef<boolean>(false);
   const refMouseDownPos = useRef<{ x: number; y: number } | null>(null);
   const refMouseUpPos = useRef<{ x: number; y: number } | null>(null);
+  const refCursorDelta = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const refDragGhostPos = useRef<{ x: number; y: number } | null>(null);
 
   const refDraggables = useRef<DraggableElement[]>(
     items.map(() => ({
-      element: null,
-      elementHandle: null,
+      element: undefined,
+      elementHandle: undefined,
     })),
   );
   // useEffect(() => {
@@ -296,10 +300,10 @@ export const useDraggable = <
   }, [items.length, setStateDndRefs]);
 
   const refDragGhost = useRef<HTMLElement>();
-  const refDragGhostRelativePos = useRef<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  });
+  // const refDragGhostRelativePos = useRef<{ x: number; y: number }>({
+  //   x: 0,
+  //   y: 0,
+  // });
   // useBeforeRender(() => {
   //   if (!refDragGhost.current) {
   //     return;
@@ -357,9 +361,61 @@ export const useDraggable = <
         node.style.setProperty("width", refActiveDomStyle.current["width"]);
         node.style.setProperty("height", refActiveDomStyle.current["height"]);
       }
+
+      // const { x, y } = refDragGhostRelativePos.current;
+      // const { x, y } = refCursorPos.current;
+      // const { x: relativeX, y: relativeY } = refDragGhostRelativePos.current;
+      // const { x: cursorX, y: cursorY } = refCursorPos.current;
+      // const x = relativeX + cursorX;
+      // const y = relativeY + cursorY;
+
+      if (!!refActiveDrag.current && !!refActiveDragHandle.current) {
+        // const { x: cursorX, y: cursorY } = refCursorPos.current;
+        // const { x: cursorToHandleX, y: cursorToHandleY } =
+        //   getCursorRelativePosToElement({
+        //     cursorPos: refCursorPos.current,
+        //     element: refActiveDragHandle.current,
+        //   });
+        // const { x: activeToHandleX, y: activeToHandleY } =
+        //   getElementRelativePos({
+        //     fromElement: refActiveDrag.current,
+        //     toElement: refActiveDragHandle.current,
+        //   });
+        // const { x: cursorToActiveX, y: cursorToActiveY } =
+        //   getCursorRelativePosToElement({
+        //     cursorPos: refCursorPos.current,
+        //     element: refActiveDrag.current,
+        //   });
+        // console.log(`[${cursorToActiveX},${cursorToActiveY}]`);
+        // console.log(`[${cursorX},${cursorY}]`);
+        // console.log(`[${activeToHandleX},${activeToHandleY}]`);
+        // console.log(`[${cursorToHandleX},${cursorToHandleY}]`);
+
+        // const x = cursorX - cursorToHandleX - activeToHandleX + a;
+        // const y = cursorY - cursorToHandleY - activeToHandleY + b;
+        // console.log(`[${x},${y}]`);
+
+        if (!refDragGhostPos.current) {
+          const { x: activeX, y: activeY } =
+            refActiveDrag.current.getBoundingClientRect();
+          refDragGhostPos.current = { x: activeX, y: activeY };
+        }
+        const { x: dragGhostX, y: dragGhostY } = refDragGhostPos.current;
+        const { x: cursorDeltaX, y: cursorDeltaY } = refCursorDelta.current;
+        const x = dragGhostX + cursorDeltaX;
+        const y = dragGhostY + cursorDeltaY;
+        refDragGhostPos.current = { x, y };
+        refCursorDelta.current = { x: 0, y: 0 };
+        // const x = activeX + cursorToActiveX - activeToHandleX + cursorToHandleX;
+        // const y = activeY + cursorToActiveY - activeToHandleY + cursorToHandleY;
+        node.style.removeProperty("display");
+        node.style.setProperty("transform", `translate3d(${x}px, ${y}px, 0)`);
+      }
     },
     [stateIsDragging],
   );
+
+  const refCursorPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const setDragGhostFollowCursor = useCallback(
     (event: MouseEvent | DragEvent) => {
@@ -371,21 +427,10 @@ export const useDraggable = <
         refDragGhost.current &&
         refDragGhost.current
       ) {
-        setDragGhostStyle({ node: refDragGhost.current });
-
-        // const { x, y } = refDragGhostRelativePos.current;
-        const { x: relativeX, y: relativeY } = refDragGhostRelativePos.current;
-        const x = relativeX + event.clientX;
-        const y = relativeY + event.clientY;
-
         // console.log("Follow!");
         // console.log(x, y);
 
-        refDragGhost.current.style.removeProperty("display");
-        refDragGhost.current.style.setProperty(
-          "transform",
-          `translate3d(${x}px, ${y}px, 0)`,
-        );
+        setDragGhostStyle({ node: refDragGhost.current });
       }
     },
     [setDragGhostStyle],
@@ -399,6 +444,8 @@ export const useDraggable = <
 
       const customEvent = event as CustomDragStartEvent;
       const { mouseEvent, index } = customEvent.detail;
+
+      refCursorPos.current = { x: mouseEvent.clientX, y: mouseEvent.clientY };
 
       onDragStartCb?.({
         active: items[index],
@@ -421,32 +468,32 @@ export const useDraggable = <
 
       // console.log(refDraggables.current[index].element);
       // console.log(refDraggables.current[index].elementHandle);
-      if (
-        !!refDraggables.current[index].element &&
-        !!refDraggables.current[index].elementHandle
-      ) {
-        // const { x, y } = (
-        //   event.target as HTMLElement
-        // ).getBoundingClientRect(); // elementHandleRect
-        const elementRect =
-          refDraggables.current[index].element!.getBoundingClientRect();
-        const elementHandleRect =
-          refDraggables.current[index].elementHandle!.getBoundingClientRect();
-        // console.log(elementRect);
-        // console.log(elementHandleRect);
+      // if (
+      //   !!refDraggables.current[index].element &&
+      //   !!refDraggables.current[index].elementHandle
+      // ) {
+      //   // const { x, y } = (
+      //   //   event.target as HTMLElement
+      //   // ).getBoundingClientRect(); // elementHandleRect
+      //   const elementRect =
+      //     refDraggables.current[index].element!.getBoundingClientRect();
+      //   const elementHandleRect =
+      //     refDraggables.current[index].elementHandle!.getBoundingClientRect();
+      //   // console.log(elementRect);
+      //   // console.log(elementHandleRect);
 
-        // console.log(mouseEvent.pageX);
-        // console.log(mouseEvent.clientX);
-        // console.log(mouseEvent.screenX);
-        // console.log(mouseEvent.movementX);
+      //   // console.log(mouseEvent.pageX);
+      //   // console.log(mouseEvent.clientX);
+      //   // console.log(mouseEvent.screenX);
+      //   // console.log(mouseEvent.movementX);
 
-        refDragGhostRelativePos.current.x = elementRect.x - elementHandleRect.x;
-        refDragGhostRelativePos.current.y = elementRect.y - elementHandleRect.y;
+      //   refDragGhostRelativePos.current.x = elementRect.x - elementHandleRect.x;
+      //   refDragGhostRelativePos.current.y = elementRect.y - elementHandleRect.y;
 
-        // refDragGhostRelativePos.current.x = event.clientX - elementRect.x;
-        // refDragGhostRelativePos.current.y =
-        //   event.clientY - elementHandleRect.y;
-      }
+      //   // refDragGhostRelativePos.current.x = event.clientX - elementRect.x;
+      //   // refDragGhostRelativePos.current.y =
+      //   //   event.clientY - elementHandleRect.y;
+      // }
 
       // console.log("refDragGhost.current:", refDragGhost.current);
       forceRender();
@@ -455,11 +502,20 @@ export const useDraggable = <
     [items, onDragStartCb, forceRender, setDragGhostFollowCursor],
   );
 
-  const onMouseMove = useCallback(
+  const onMouseMove = useCallback((event: MouseEvent) => {
+    console.log("[onMouseMove]");
+    refCursorPos.current = { x: event.clientX, y: event.clientY };
+    refCursorDelta.current.x += event.movementX;
+    refCursorDelta.current.y += event.movementY;
+  }, []);
+
+  const idOnMouseMoveThrottled = useMemoizeCallbackId();
+  const onMouseMoveThrottled = useCallback(
     ({ index }: { index: number }) =>
       memoizeCallback({
         fn: throttle((event: MouseEvent) => {
-          console.log("[onMouseMove]");
+          console.log("[onMouseMoveThrottled]");
+
           // console.log("stateIsDragging:", stateIsDragging);
 
           // console.log("MouseMove event.clientX:", event.clientX);
@@ -474,6 +530,11 @@ export const useDraggable = <
           ) {
             refIsDragging.current = true;
             setStateIsDragging(true);
+            setStateActiveItem(items[index]);
+
+            refActiveDrag.current = refDraggables.current[index].element;
+            refActiveDragHandle.current =
+              refDraggables.current[index].elementHandle;
 
             // console.log("MouseDownPos:", refMouseDownPos.current);
             // console.log("MouseMove event.clientX:", event.clientX);
@@ -505,66 +566,120 @@ export const useDraggable = <
             setDragGhostFollowCursor(event);
           }
 
-          // TODO:
-          // onDragMoveCb({active, over});
-        }, 16),
+          onDragMoveCb?.({ active: items[index] });
+        }, 17),
+        id: idOnMouseMoveThrottled,
         deps: [
           index,
+          idOnMouseMoveThrottled,
+          items,
+          onDragMoveCb,
           dragSensitivity,
           onCustomDragStart,
           setStateIsDragging,
+          setStateActiveItem,
           setDragGhostFollowCursor,
           // onDragMoveCb,
         ],
-      }) as (event: MouseEvent) => void,
+      }),
     [
+      idOnMouseMoveThrottled,
+      items,
+      onDragMoveCb,
       dragSensitivity,
       onCustomDragStart,
       setStateIsDragging,
+      setStateActiveItem,
       setDragGhostFollowCursor,
       // onDragMoveCb,
     ],
   );
 
+  const idOnMouseUp = useMemoizeCallbackId();
   const onMouseUp = useCallback(
     ({ index }: { index: number }) =>
-      (event: MouseEvent) => {
-        console.log("[onMouseUp]");
-        if (refIsDragging.current && refDragGhost.current) {
-          refDragGhost.current.style.setProperty("display", "none");
-        }
+      memoizeCallback({
+        fn: (event: MouseEvent) => {
+          console.log("[onMouseUp]");
 
-        document.removeEventListener("mousemove", onMouseMove({ index }));
+          refCursorPos.current = { x: event.clientX, y: event.clientY };
 
-        refIsDragging.current = false;
-        setStateIsDragging(false);
+          if (refIsDragging.current && refDragGhost.current) {
+            refDragGhost.current.style.setProperty("display", "none");
+          }
 
-        refIsMouseDown.current = false;
-        refMouseDownPos.current = null;
+          document.removeEventListener("mousemove", onMouseMove);
+          document.removeEventListener(
+            "mousemove",
+            onMouseMoveThrottled({ index }),
+          );
 
-        // TODO:
-        onDragEndCb;
-      },
-    [setStateIsDragging, onMouseMove, onDragEndCb],
+          refIsDragging.current = false;
+          setStateIsDragging(false);
+          setStateActiveItem(null);
+          refActiveDrag.current = undefined;
+          refActiveDragHandle.current = undefined;
+
+          refIsMouseDown.current = false;
+          refMouseDownPos.current = null;
+
+          refDragGhostPos.current = null;
+          refCursorDelta.current = { x: 0, y: 0 };
+
+          onDragEndCb?.({ active: items[index] });
+        },
+        id: idOnMouseUp,
+        deps: [
+          index,
+          idOnMouseUp,
+          items,
+          setStateIsDragging,
+          setStateActiveItem,
+          onMouseMove,
+          onMouseMoveThrottled,
+          onDragEndCb,
+        ],
+      }),
+    [
+      items,
+      idOnMouseUp,
+      setStateIsDragging,
+      setStateActiveItem,
+      onMouseMove,
+      onMouseMoveThrottled,
+      onDragEndCb,
+    ],
   );
 
+  const idOnMouseDown = useMemoizeCallbackId();
   const onMouseDown = useCallback(
     ({ index }: { index: number }) =>
-      (event: React.MouseEvent<HTMLElement>) => {
-        console.log("[onMouseDown]");
-        refIsMouseDown.current = true;
-        refMouseDownPos.current = {
-          x: event.clientX,
-          y: event.clientY,
-        };
-        // console.log(refMouseDownPos.current);
+      memoizeCallback({
+        fn: (event: React.MouseEvent<HTMLElement>) => {
+          console.log("[onMouseDown]");
 
-        document.addEventListener("mousemove", onMouseMove({ index }));
-        document.addEventListener("mouseup", onMouseUp({ index }), {
-          once: true,
-        });
-      },
-    [onMouseMove, onMouseUp],
+          refCursorPos.current = { x: event.clientX, y: event.clientY };
+
+          refIsMouseDown.current = true;
+          refMouseDownPos.current = {
+            x: event.clientX,
+            y: event.clientY,
+          };
+          // console.log(refMouseDownPos.current);
+
+          document.addEventListener("mousemove", onMouseMove);
+          document.addEventListener(
+            "mousemove",
+            onMouseMoveThrottled({ index }),
+          );
+          document.addEventListener("mouseup", onMouseUp({ index }), {
+            once: true,
+          });
+        },
+        id: idOnMouseDown,
+        deps: [index, idOnMouseDown, onMouseMove, onMouseMoveThrottled, onMouseUp],
+      }),
+    [idOnMouseDown, onMouseMove, onMouseMoveThrottled, onMouseUp],
   );
 
   /////////////////////////////////////////////////////
@@ -581,34 +696,39 @@ export const useDraggable = <
   //   e.dataTransfer.effectAllowed = 'move';
   //   console.log('Drag started');
   // });
+  const idOnDragStart = useMemoizeCallbackId();
   const onDragStart = useCallback(
     ({ index }: { index: number }) =>
-      (event: React.DragEvent<HTMLElement>) => {
-        console.log("[onDragStart]");
-        event.preventDefault();
+      memoizeCallback({
+        fn: (event: React.DragEvent<HTMLElement>) => {
+          console.log("[onDragStart]");
+          event.preventDefault();
 
-        /////////////////////////////////////////////////////
+          /////////////////////////////////////////////////////
 
-        // event.dataTransfer.effectAllowed = stateEffectAllowed;
-        // event.dataTransfer.setData(
-        //   "application/json",
-        //   JSON.stringify({
-        //     index: 1,
-        //   }),
-        // );
+          // event.dataTransfer.effectAllowed = stateEffectAllowed;
+          // event.dataTransfer.setData(
+          //   "application/json",
+          //   JSON.stringify({
+          //     index: 1,
+          //   }),
+          // );
 
-        // // Prevent showing the default ghost preview by showing empty/transparent image (invisible 1x1 pixel image)
-        // const img = new Image();
-        // img.src =
-        //   "data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=";
-        // // event.dataTransfer.setDragImage(
-        // //   refDraggables.current[index].element!,
-        // //   100,
-        // //   100,
-        // // );
-        // event.dataTransfer.setDragImage(img, 0, 0);
-      },
-    [],
+          // // Prevent showing the default ghost preview by showing empty/transparent image (invisible 1x1 pixel image)
+          // const img = new Image();
+          // img.src =
+          //   "data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=";
+          // // event.dataTransfer.setDragImage(
+          // //   refDraggables.current[index].element!,
+          // //   100,
+          // //   100,
+          // // );
+          // event.dataTransfer.setDragImage(img, 0, 0);
+        },
+        id: idOnDragStart,
+        deps: [index, idOnDragStart],
+      }),
+    [idOnDragStart],
   );
 
   // [1] Triggered: While the element is being dragged.
@@ -653,24 +773,26 @@ export const useDraggable = <
   // );
 
   /////////////////////////////////////////////////////
-
+  const idSetDraggableHandleRef = useMemoizeCallbackId();
   const setDraggableHandleRef = useCallback(
     ({ index }: { index: number }) =>
       memoizeCallback({
         fn: (node: HTMLElement | null) => {
           if (node) {
-            // console.log(node);
-            node.setAttribute("draggable", "true");
+            console.log(node);
+            node.setAttribute("draggable", "true"); // 드래그로 텍스트 블록 처리 되는거 방지용도로만 적용시킴
             node.setAttribute("tabindex", "0");
 
             refDraggables.current[index].elementHandle = node;
           }
         },
-        deps: [index],
-      }) as (node: HTMLElement | null) => void,
-    [],
+        id: idSetDraggableHandleRef,
+        deps: [index, idSetDraggableHandleRef],
+      }),
+    [idSetDraggableHandleRef],
   );
 
+  const idSetDraggableRef = useMemoizeCallbackId();
   const setDraggableRef = useCallback(
     ({
       index,
@@ -691,9 +813,15 @@ export const useDraggable = <
             }
           }
         },
-        deps: [index, shouldAttachHandleToThis, setDraggableHandleRef],
-      }) as (node: HTMLElement | null) => void,
-    [setDraggableHandleRef],
+        id: idSetDraggableRef,
+        deps: [
+          index,
+          idSetDraggableRef,
+          shouldAttachHandleToThis,
+          setDraggableHandleRef,
+        ],
+      }),
+    [idSetDraggableRef, setDraggableHandleRef],
   );
 
   const setDragGhostRef = useCallback(
@@ -781,7 +909,7 @@ export const useDroppable = <
 
   const [stateDndRefs, setStateDndRefs] = useRecoilState(dndRefsAtom);
 
-  const refDroppables = useRef<DroppableElement[]>(items.map(() => null));
+  const refDroppables = useRef<DroppableElement[]>(items.map(() => undefined));
   // useEffect(() => {
   //   setStateDndRefs((cur) => ({
   //     ...cur,
@@ -958,7 +1086,7 @@ export type UseDndParams<
   DraggableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
   DroppableItemSpec extends UseDraggableItemBaseSpec = UseDraggableItemBaseSpec,
 > = {
-  useDraggableParams: UseDraggableParams<DraggableItemSpec, DroppableItemSpec>;
+  useDraggableParams: UseDraggableParams<DraggableItemSpec>;
   useDroppableParams: UseDroppableParams<DraggableItemSpec, DroppableItemSpec>;
 };
 
@@ -971,6 +1099,7 @@ export const useDnd = <
   const retUseDraggable = useDraggable({ ...props.useDraggableParams });
   const retUseDroppable = useDroppable({ ...props.useDroppableParams });
 
+  const idSetDraggableAndDroppableRef = useMemoizeCallbackId();
   const setDraggableAndDroppableRef = useCallback(
     ({
       index,
@@ -986,14 +1115,16 @@ export const useDnd = <
           );
           retUseDroppable.setDroppableRef({ index })(node);
         },
+        id: idSetDraggableAndDroppableRef,
         deps: [
           index,
+          idSetDraggableAndDroppableRef,
           shouldAttachHandleToThis,
           retUseDraggable,
           retUseDroppable,
         ],
-      }) as (node: HTMLElement | null) => void,
-    [retUseDraggable, retUseDroppable],
+      }),
+    [idSetDraggableAndDroppableRef, retUseDraggable, retUseDroppable],
   );
 
   const ret = useMemo(

@@ -722,9 +722,7 @@ function App() {
     [],
   );
 
-  const onDragEndCb = useCallback<
-    UseDraggableOnDragEndCb<Category, Category | Task>
-  >(() => {
+  const onDragEndCb = useCallback<UseDraggableOnDragEndCb<Category>>(() => {
     setStateActiveCategory(null);
   }, []);
 
