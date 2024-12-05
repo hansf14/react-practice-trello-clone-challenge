@@ -1,3 +1,5 @@
+import { MultiRefMap } from "@/multimap";
+import React from "react";
 import { v4 as uuidv4 } from "uuid";
 
 export type IsNever<T> = [T] extends [never] ? true : false;
@@ -182,3 +184,50 @@ export type KeyMapping<T> = {
 //     return listToIndexer(categoryList, "text");
 //   },
 // });
+
+// export type NameType<Name extends string, Type> = [Name, Type];
+
+// export const nameType = <Name extends string, Value>(
+//   name: Name,
+//   value: Value,
+// ): NameType<Name, Value> => {
+//   return [name, value];
+// };
+// const a = 42;
+// const b = "hello";
+// type AType = NameType<"a", typeof a>; // ["a", 42]
+// type BType = NameType<"b", typeof b>; // ["b", "hello"]
+
+const memoizedCallbackCache = new MultiRefMap<unknown[], Function>();
+
+export const memoizeCallback = <D extends unknown>({
+  fn,
+  deps,
+}: {
+  fn: Function;
+  deps: D[];
+}) => {
+  if (memoizedCallbackCache.has(deps)) {
+    return memoizedCallbackCache.get(deps)!;
+  }
+
+  memoizedCallbackCache.set(deps, fn);
+  // console.log(memoizedCallbackCache);
+  return fn;
+};
+
+// Not tested
+export function cloneCssPropertiesToCssStyleDeclaration(
+  cssProperties: React.CSSProperties,
+  styleDeclaration: CSSStyleDeclaration,
+) {
+  Object.entries(cssProperties).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      const cssKey = key.replace(
+        /[A-Z]/g,
+        (match) => `-${match.toLowerCase()}`,
+      ); // Convert camelCase to kebab-case
+      styleDeclaration.setProperty(cssKey, String(value));
+    }
+  });
+}

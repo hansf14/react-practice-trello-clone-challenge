@@ -53,10 +53,12 @@ const RAW_RUNTIME_STATE =
           ["eslint-plugin-import", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:2.31.0"],\
           ["eslint-plugin-prettier", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.2.1"],\
           ["eslint-plugin-react-hooks", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.0.0"],\
+          ["fast-memoize", "npm:2.5.2"],\
           ["framer-motion", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:11.13.1"],\
           ["gh-pages", "npm:6.1.1"],\
           ["immutability-helper", "npm:3.1.1"],\
           ["lodash-es", "npm:4.17.21"],\
+          ["many-keys-map", "npm:2.0.1"],\
           ["prettier", "npm:3.4.0"],\
           ["react", "npm:18.3.1"],\
           ["react-bootstrap-icons", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:1.11.4"],\
@@ -69,6 +71,7 @@ const RAW_RUNTIME_STATE =
           ["react-router-dom", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.3.4"],\
           ["react-scripts", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.0.1"],\
           ["recoil", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.7.7"],\
+          ["recoil-nexus", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.5.1"],\
           ["recoil-persist", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.1.0"],\
           ["styled-components", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:6.1.13"],\
           ["styled-reset", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.5.2"],\
@@ -10817,6 +10820,15 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["fast-memoize", [\
+      ["npm:2.5.2", {\
+        "packageLocation": "./.yarn/cache/fast-memoize-npm-2.5.2-f42a7c6940-6f658f182f.zip/node_modules/fast-memoize/",\
+        "packageDependencies": [\
+          ["fast-memoize", "npm:2.5.2"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["fast-uri", [\
       ["npm:3.0.2", {\
         "packageLocation": "./.yarn/cache/fast-uri-npm-3.0.2-d822390ead-8cdd3da7b4.zip/node_modules/fast-uri/",\
@@ -13997,6 +14009,15 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["makeerror", "npm:1.0.12"],\
           ["tmpl", "npm:1.0.5"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["many-keys-map", [\
+      ["npm:2.0.1", {\
+        "packageLocation": "./.yarn/cache/many-keys-map-npm-2.0.1-ba825be2e5-cba5a8f67e.zip/node_modules/many-keys-map/",\
+        "packageDependencies": [\
+          ["many-keys-map", "npm:2.0.1"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -18410,10 +18431,12 @@ const RAW_RUNTIME_STATE =
           ["eslint-plugin-import", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:2.31.0"],\
           ["eslint-plugin-prettier", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.2.1"],\
           ["eslint-plugin-react-hooks", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.0.0"],\
+          ["fast-memoize", "npm:2.5.2"],\
           ["framer-motion", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:11.13.1"],\
           ["gh-pages", "npm:6.1.1"],\
           ["immutability-helper", "npm:3.1.1"],\
           ["lodash-es", "npm:4.17.21"],\
+          ["many-keys-map", "npm:2.0.1"],\
           ["prettier", "npm:3.4.0"],\
           ["react", "npm:18.3.1"],\
           ["react-bootstrap-icons", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:1.11.4"],\
@@ -18426,6 +18449,7 @@ const RAW_RUNTIME_STATE =
           ["react-router-dom", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.3.4"],\
           ["react-scripts", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.0.1"],\
           ["recoil", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.7.7"],\
+          ["recoil-nexus", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.5.1"],\
           ["recoil-persist", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.1.0"],\
           ["styled-components", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:6.1.13"],\
           ["styled-reset", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.5.2"],\
@@ -18715,6 +18739,40 @@ const RAW_RUNTIME_STATE =
           "react-dom",\
           "react-native",\
           "react"\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["recoil-nexus", [\
+      ["npm:0.5.1", {\
+        "packageLocation": "./.yarn/cache/recoil-nexus-npm-0.5.1-801cee2e45-0e7ed67eac.zip/node_modules/recoil-nexus/",\
+        "packageDependencies": [\
+          ["recoil-nexus", "npm:0.5.1"]\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.5.1", {\
+        "packageLocation": "./.yarn/__virtual__/recoil-nexus-virtual-edd2a69f11/0/cache/recoil-nexus-npm-0.5.1-801cee2e45-0e7ed67eac.zip/node_modules/recoil-nexus/",\
+        "packageDependencies": [\
+          ["recoil-nexus", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.5.1"],\
+          ["@types/react", "npm:18.3.11"],\
+          ["@types/react-dom", "npm:18.3.0"],\
+          ["@types/recoil", null],\
+          ["@types/typescript", null],\
+          ["react", "npm:18.3.1"],\
+          ["react-dom", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:18.3.1"],\
+          ["recoil", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.7.7"],\
+          ["typescript", "patch:typescript@npm%3A4.9.5#optional!builtin<compat/typescript>::version=4.9.5&hash=289587"]\
+        ],\
+        "packagePeers": [\
+          "@types/react-dom",\
+          "@types/react",\
+          "@types/recoil",\
+          "@types/typescript",\
+          "react-dom",\
+          "react",\
+          "recoil",\
+          "typescript"\
         ],\
         "linkType": "HARD"\
       }]\

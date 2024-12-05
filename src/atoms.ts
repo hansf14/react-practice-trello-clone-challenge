@@ -1,4 +1,4 @@
-import { Indexer, IndexerKey } from "@/indexer";
+import { NestedIndexer, NestedIndexerKey } from "@/indexer";
 import {
   arrayMoveElement,
   createKebabToCamelMapping,
@@ -26,7 +26,7 @@ const { persistAtom } = recoilPersist({
 });
 
 const recoilKeys = createKeyValueMapping({
-  arr: ["indexer-category-task-atom"],
+  arr: ["indexerCategoryTaskAtom"],
 });
 
 export interface Category {
@@ -134,7 +134,7 @@ const defaultDoneCategory: Category = {
   text: "Done",
 };
 
-const initialEntries: [IndexerKey, any[]][] = [
+const initialEntries: [NestedIndexerKey, any[]][] = [
   [
     ["CategoryIdList"],
     [defaultToDoCategory.id, defaultDoingCategory.id, defaultDoneCategory.id],
@@ -154,36 +154,36 @@ const initialEntries: [IndexerKey, any[]][] = [
   [["CategoryId", defaultToDoCategory.id], [defaultToDoCategory]],
   [["CategoryId", defaultDoingCategory.id], [defaultDoingCategory]],
   [["CategoryId", defaultDoneCategory.id], [defaultDoneCategory]],
-  ...defaultToDoTaskList.map<[IndexerKey, string[]]>((task) => [
+  ...defaultToDoTaskList.map<[NestedIndexerKey, string[]]>((task) => [
     ["TaskId", task.id, "CategoryId"],
     [defaultToDoCategory.id],
   ]),
-  ...defaultDoingTaskList.map<[IndexerKey, string[]]>((task) => [
+  ...defaultDoingTaskList.map<[NestedIndexerKey, string[]]>((task) => [
     ["TaskId", task.id, "CategoryId"],
     [defaultDoingCategory.id],
   ]),
-  ...defaultDoneTaskList.map<[IndexerKey, string[]]>((task) => [
+  ...defaultDoneTaskList.map<[NestedIndexerKey, string[]]>((task) => [
     ["TaskId", task.id, "CategoryId"],
     [defaultDoneCategory.id],
   ]),
-  ...defaultToDoTaskList.map<[IndexerKey, Task[]]>((task) => [
+  ...defaultToDoTaskList.map<[NestedIndexerKey, Task[]]>((task) => [
     ["TaskId", task.id],
     [task],
   ]),
-  ...defaultDoingTaskList.map<[IndexerKey, Task[]]>((task) => [
+  ...defaultDoingTaskList.map<[NestedIndexerKey, Task[]]>((task) => [
     ["TaskId", task.id],
     [task],
   ]),
-  ...defaultDoneTaskList.map<[IndexerKey, Task[]]>((task) => [
+  ...defaultDoneTaskList.map<[NestedIndexerKey, Task[]]>((task) => [
     ["TaskId", task.id],
     [task],
   ]),
 ];
 // console.log(initialEntries);
 
-export const indexerCategoryTaskAtom = atom<Indexer<Category, Task>>({
-  key: recoilKeys["indexer-category-task-atom"],
-  default: new Indexer({
+export const indexerCategoryTaskAtom = atom<NestedIndexer<Category, Task>>({
+  key: recoilKeys["indexerCategoryTaskAtom"],
+  default: new NestedIndexer({
     parentKeyName: "Category",
     childKeyName: "Task",
     entries: initialEntries,

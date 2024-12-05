@@ -7,15 +7,220 @@ export type IndexerBaseItem = {
   id: string;
 };
 
-export type IndexerEntry<
-  Parent extends IndexerBaseItem,
-  Child extends IndexerBaseItem,
-> = [IndexerKey, string[] | Parent[] | Child[]];
+export type IndexerEntry<T extends IndexerBaseItem> = [
+  NestedIndexerKey,
+  string[] | T[],
+];
 
-export class Indexer<
-  Parent extends IndexerBaseItem,
-  Child extends IndexerBaseItem,
-> extends MultiMap<IndexerKey, string | Parent | Child> {
+export class Indexer<T extends IndexerBaseItem> extends MultiMap<
+  IndexerKey,
+  string | T
+> {
+  itemKeyName: string;
+
+  constructor({
+    itemKeyName,
+    entries,
+  }: {
+    itemKeyName: string;
+    entries?: IndexerEntry<T>[];
+  });
+  constructor(original: Indexer<T>);
+
+  constructor(
+    params:
+      | {
+          itemKeyName: string;
+          entries?: IndexerEntry<T>[];
+        }
+      | Indexer<T>,
+  ) {
+    if (params instanceof Indexer<T>) {
+      super(params);
+    } else {
+      super({ entries: params.entries ?? [] });
+    }
+    this.itemKeyName = params.itemKeyName;
+  }
+
+  getItemIdList() {
+    return this.get({
+      keys: [`${this.itemKeyName}IdList`],
+    }) as string[] | undefined;
+  }
+
+  getItemList__MutableItem() {
+    const itemIdList = this.getItemIdList();
+    if (!itemIdList) {
+      console.warn("[getItemList__MutableItem] !parentIdList");
+      return itemIdList;
+    }
+
+    const itemList: T[] = [];
+    itemIdList.forEach((itemId) => {
+      const item = this.getItem({ itemId });
+      if (item) {
+        itemList.push(item);
+      } else {
+        console.warn("[getItemList__MutableItem] !item");
+      }
+    });
+    return itemList;
+  }
+
+  getItem({ itemId }: { itemId: string }) {
+    const item = (
+      this.get({
+        keys: [`${this.itemKeyName}Id`, itemId],
+      }) as T[] | undefined
+    )?.[0];
+    return item;
+  }
+
+  createItem({ item, shouldAppend }: { item: T; shouldAppend?: boolean }) {
+    if (
+      this.has({
+        keys: [`${this.itemKeyName}Id`, item.id],
+      })
+    ) {
+      console.warn(
+        `[createItem] Key "${this.serializeMultiKey({
+          keys: [`${this.itemKeyName}Id`, item.id],
+        })}" already exists.`,
+      );
+      return;
+    }
+    this.set({
+      keys: [`${this.itemKeyName}Id`, item.id],
+      value: [item],
+    });
+
+    const itemIdList = this.getItemIdList();
+    if (!itemIdList) {
+      console.warn("[createItem] !itemIdList");
+      return;
+    }
+    !(shouldAppend ?? false)
+      ? itemIdList.unshift(item.id)
+      : itemIdList.push(item.id);
+  }
+
+  // itemId (prev) and item.id (new) can be different.
+  updateItem({ itemId, item }: { itemId: string; item: T }) {
+    const itemWrappedByArr = this.get({
+      keys: [`${this.itemKeyName}Id`, itemId],
+    });
+    if (!itemWrappedByArr) {
+      console.warn("[updateItem] !itemWrappedByArr");
+      return;
+    }
+
+    if (itemId === item.id) {
+      itemWrappedByArr[0] = item;
+    } else {
+      const itemIdList = this.getItemIdList();
+      if (!itemIdList) {
+        console.warn("[updateItem] !itemIdList");
+        return;
+      }
+      const targetIdx = itemIdList.findIndex((_itemId) => _itemId === itemId);
+      if (targetIdx === -1) {
+        console.warn("[updateItem] targetIdx === -1");
+        return;
+      }
+      itemIdList[targetIdx] = item.id;
+
+      if (
+        !this.has({
+          keys: [`${this.itemKeyName}Id`, itemId],
+        })
+      ) {
+        console.warn(
+          `[updateItem] Key "${this.serializeMultiKey({
+            keys: [`${this.itemKeyName}Id`, itemId],
+          })}" doesn't exist.`,
+        );
+        return;
+      }
+      this.delete({
+        keys: [`${this.itemKeyName}Id`, itemId],
+      });
+      if (
+        this.has({
+          keys: [`${this.itemKeyName}Id`, item.id],
+        })
+      ) {
+        console.warn(
+          `[updateItem] Key "${this.serializeMultiKey({
+            keys: [`${this.itemKeyName}Id`, item.id],
+          })}" already exists.`,
+        );
+        return;
+      }
+      this.set({
+        keys: [`${this.itemKeyName}Id`, item.id],
+        value: [item],
+      });
+    }
+  }
+
+  removeItem({ itemId }: { itemId: string }) {
+    const itemIdList = this.getItemIdList();
+    if (!itemIdList) {
+      console.warn(`[removeItem] !itemIdList`);
+      return;
+    }
+    const targetIdx = itemIdList.findIndex((_itemId) => _itemId === itemId);
+    if (targetIdx === -1) {
+      console.warn("[removeItem] targetIdx === -1");
+      return;
+    }
+    itemIdList.splice(targetIdx, 1);
+
+    if (
+      !this.has({
+        keys: [`${this.itemKeyName}Id`, itemId],
+      })
+    ) {
+      console.warn(
+        `[removeItem] Key "${this.serializeMultiKey({
+          keys: [`${this.itemKeyName}Id`, itemId],
+        })}" doesn't exist.`,
+      );
+      return;
+    }
+    this.delete({
+      keys: [`${this.itemKeyName}Id`, itemId],
+    });
+  }
+
+  moveItem({ idxFrom, idxTo }: { idxFrom: number; idxTo: number }) {
+    const itemIdList = this.getItemIdList();
+    if (!itemIdList) {
+      console.warn("[moveItem] !itemIdList");
+      return;
+    }
+    arrayMoveElement({
+      arr: itemIdList,
+      idxFrom,
+      idxTo,
+    });
+  }
+}
+
+export type NestedIndexerKey = IndexerKey;
+
+export type NestedIndexerBaseItem = IndexerBaseItem;
+
+export type NestedIndexerEntry<
+  Parent extends NestedIndexerBaseItem,
+  Child extends NestedIndexerBaseItem,
+> = [NestedIndexerKey, string[] | Parent[] | Child[]];
+
+export class NestedIndexer<
+  Parent extends NestedIndexerBaseItem,
+  Child extends NestedIndexerBaseItem,
+> extends MultiMap<NestedIndexerKey, string | Parent | Child> {
   parentKeyName: string;
   childKeyName: string;
 
@@ -26,20 +231,20 @@ export class Indexer<
   }: {
     parentKeyName: string;
     childKeyName: string;
-    entries?: IndexerEntry<Parent, Child>[];
+    entries?: NestedIndexerEntry<Parent, Child>[];
   });
-  constructor(original: Indexer<Parent, Child>);
+  constructor(original: NestedIndexer<Parent, Child>);
 
   constructor(
     params:
       | {
           parentKeyName: string;
           childKeyName: string;
-          entries?: IndexerEntry<Parent, Child>[];
+          entries?: NestedIndexerEntry<Parent, Child>[];
         }
-      | Indexer<Parent, Child>,
+      | NestedIndexer<Parent, Child>,
   ) {
-    if (params instanceof Indexer<Parent, Child>) {
+    if (params instanceof NestedIndexer<Parent, Child>) {
       super(params);
     } else {
       super({ entries: params.entries ?? [] });
@@ -162,6 +367,7 @@ export class Indexer<
 
     const childIdList = this.getChildIdListFromParentId({ parentId });
     if (!childIdList) {
+      console.warn("[createChild] !childIdList");
       return;
     }
     // this.set({
@@ -557,7 +763,7 @@ export class Indexer<
         childId,
       });
       if (!parentIdWrappedByArr) {
-        console.warn("[updateParent] !parentIdWrappedByArr");
+        console.warn("[removeParent] !parentIdWrappedByArr");
         return;
       }
       this.delete({

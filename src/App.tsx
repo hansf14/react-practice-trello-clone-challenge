@@ -20,10 +20,7 @@ import { darkTheme } from "./theme";
 import { arrayMoveElement, generateUniqueRandomId } from "@/utils";
 import { FormSubmitHandler, SubmitHandler, useForm } from "react-hook-form";
 import { Category, indexerCategoryTaskAtom, Task } from "@/atoms";
-import { CSS } from "@dnd-kit/utilities";
-import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { createPortal } from "react-dom";
-import { RequiredDeep } from "type-fest";
 import { Input } from "antd";
 import { useWhichPropsChanged } from "@/hooks/useWhichPropsChanged";
 import {
@@ -32,9 +29,14 @@ import {
   UseDraggableItemSpec,
   UseDraggableParams,
   UseDraggableOnDragStartCb,
+  UseDraggableOnDragEndCb,
+  useDroppable,
+  UseDroppableItemSpec,
+  useDnd,
+  UseDraggableListeners,
 } from "@/hooks/useDnd";
 import { CursorFollower } from "@/components/CursorFollower";
-import { Indexer } from "@/indexer";
+import { NestedIndexer } from "@/indexer";
 
 const { TextArea } = Input;
 
@@ -158,18 +160,17 @@ const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
       : ""}// background-color: ${({ theme }) => theme.boardBgColor};
 `;
 
-const DragOverlay = styled.div`
+const DragGhost = styled.div`
   display: flex;
   align-items: stretch;
-
-  ${Board} {
-    background-color: red;
-  }
 `;
 
 export type BoardHeadProps = {
   category: Category;
-  setDragHandleRef?: UseDraggableSetDraggableHandleRef;
+  dragHandle?: {
+    setDragHandleRef: UseDraggableSetDraggableHandleRef;
+    listeners: UseDraggableListeners;
+  };
 } & React.ComponentPropsWithoutRef<"div"> &
   ExecutionProps;
 
@@ -213,7 +214,7 @@ const BoardHeadForm = styled.form`
 
 export const BoardHead = React.memo(
   React.forwardRef<HTMLDivElement, BoardHeadProps>(
-    ({ category, setDragHandleRef }, ref) => {
+    ({ category, dragHandle }, ref) => {
       const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
         useRecoilState(indexerCategoryTaskAtom);
       const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
@@ -236,7 +237,7 @@ export const BoardHead = React.memo(
               text: data.taskText,
             } satisfies Task;
 
-            const newIndexer = new Indexer(curIndexer);
+            const newIndexer = new NestedIndexer(curIndexer);
             newIndexer.createChild({
               parentId: category.id,
               child: newTask,
@@ -277,7 +278,7 @@ export const BoardHead = React.memo(
         (event) => {
           // console.log(event.target.value);
           setStateIndexerCategoryTask((curIndexer) => {
-            const newIndexer = new Indexer(curIndexer);
+            const newIndexer = new NestedIndexer(curIndexer);
             newIndexer.updateParent({
               parentId: category.id,
               parent: {
@@ -314,7 +315,7 @@ export const BoardHead = React.memo(
               })}
             />
           </BoardHeadForm>
-          <div ref={setDragHandleRef}>
+          <div ref={dragHandle?.setDragHandleRef} {...dragHandle?.listeners}>
             DOH!<br></br>DOH!
           </div>
         </div>
@@ -699,6 +700,16 @@ function App() {
     [categoryList],
   );
 
+  const droppableCategories = useMemo<UseDroppableItemSpec<Category>[]>(
+    () =>
+      categoryList.map((category, idx) => ({
+        acceptableTypes: ["category"],
+        index: idx,
+        data: category,
+      })),
+    [categoryList],
+  );
+
   const [stateActiveCategory, setStateActiveCategory] =
     useState<UseDraggableItemSpec<Category> | null>(null);
   // const [stateActiveTask, setStateActiveTask] = useState<Task | null>(null);
@@ -711,15 +722,47 @@ function App() {
     [],
   );
 
+  const onDragEndCb = useCallback<
+    UseDraggableOnDragEndCb<Category, Category | Task>
+  >(() => {
+    setStateActiveCategory(null);
+  }, []);
+
+  // const {
+  //   draggableProvided,
+  //   setDraggableRef,
+  //   setDraggableHandleRef,
+  //   setDragGhostRef,
+  //   isDragging,
+  // } = useDraggable({
+  //   items: draggableCategories,
+  //   onDragStartCb,
+  //   onDragEndCb,
+  // });
+  // const { setDroppableRef, droppableProvided } = useDroppable({
+  //   items: droppableCategories,
+  // });
+
   const {
-    draggableProvided,
-    setDraggableRef,
-    setDraggableHandleRef,
-    setDragGhostRef,
-    isDragging,
-  } = useDraggable({
-    items: draggableCategories,
-    onDragStartCb,
+    setDraggableAndDroppableRef,
+    retUseDraggable: {
+      // Draggables,
+      listeners: draggableListeners,
+      setDraggableRef,
+      setDraggableHandleRef,
+      setDragGhostRef,
+      isDragging,
+    },
+    retUseDroppable: { droppableProvided },
+  } = useDnd({
+    useDraggableParams: {
+      items: draggableCategories,
+      onDragStartCb,
+      onDragEndCb,
+    },
+    useDroppableParams: {
+      items: droppableCategories,
+    },
   });
 
   // console.log(categoryList);
@@ -742,44 +785,43 @@ function App() {
             {categoryList.length === 0 ? (
               <div>Empty!</div>
             ) : (
+              // <Draggables>
               <>
                 {categoryList.map((category, idx) => {
                   return (
-                    <BoardBase
+                    <Board
                       key={category.id}
-                      ref={setDraggableRef({ index: idx })}
-                      {...draggableProvided({ index: idx })}
+                      ref={setDraggableAndDroppableRef({
+                        index: idx,
+                        shouldAttachHandleToThis: false,
+                      })}
+                      {...droppableProvided({ index: idx })}
                     >
                       <BoardHead
                         category={category}
-                        setDragHandleRef={setDraggableHandleRef({ index: idx })}
+                        dragHandle={{
+                          setDragHandleRef: setDraggableHandleRef({
+                            index: idx,
+                          }),
+                          listeners: draggableListeners({ index: idx }),
+                        }}
                       />
                       <BoardBody category={category} />
-                    </BoardBase>
+                    </Board>
                   );
                 })}
-                {/* {createPortal(
-                        <DragOverlay adjustScale={false}>
-                          {stateActiveCategory && (
-                            <Board style={stateActiveCategoryDomStyle}>
-                              <BoardHead category={stateActiveCategory} />
-                              <BoardBody category={stateActiveCategory} />
-                            </Board>
-                          )}
-                        </DragOverlay>,
-                        document.body,
-                      )} */}
               </>
+              // </Draggables>
             )}
           </Boards>
           {!!stateActiveCategory &&
             createPortal(
-              <DragOverlay ref={setDragGhostRef}>
+              <DragGhost ref={setDragGhostRef}>
                 <Board isDragging={isDragging}>
                   <BoardHead category={stateActiveCategory.data} />
                   <BoardBody category={stateActiveCategory.data} />
                 </Board>
-              </DragOverlay>,
+              </DragGhost>,
               document.body,
             )}
           {/* <div

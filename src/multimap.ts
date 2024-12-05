@@ -1,3 +1,5 @@
+export { default as MultiRefMap } from "many-keys-map";
+
 // Multi-key
 // Multi-value
 export class MultiMap<K extends string[], A extends any, V extends A[] = A[]> {

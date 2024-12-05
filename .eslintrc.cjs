@@ -20,6 +20,11 @@ module.exports = {
     node: true,
     es6: true,
   },
+  globals: {
+    // https://github.com/Chatie/eslint-config/issues/45#issuecomment-885507652
+    // eslint error 'NodeJS' is not defined no-undef
+    NodeJS: true,
+  },
   parserOptions: {
     // ecmaVersion: 8,
     // requireConfigFile: false,

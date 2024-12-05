@@ -7395,6 +7395,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fast-memoize@npm:^2.5.2":
+  version: 2.5.2
+  resolution: "fast-memoize@npm:2.5.2"
+  checksum: 10c0/6f658f182f6eaf25a8ecdaf49affee4cac20df4e61e7ef3f04145fb86e887e7a0bd9975740ce88a9015da99459d7386eaf1342ac15be820f72f4be1ecf934d95
+  languageName: node
+  linkType: hard
+
 "fast-uri@npm:^3.0.1":
   version: 3.0.2
   resolution: "fast-uri@npm:3.0.2"
@@ -10202,6 +10209,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"many-keys-map@npm:^2.0.1":
+  version: 2.0.1
+  resolution: "many-keys-map@npm:2.0.1"
+  checksum: 10c0/cba5a8f67e847441fdff77cf584301e8f2bd91851690dbfabd0561f083c6acccbf34655a951b1e793d63547599b2c279ddf1185547ea0fc1d169e95b38ba2634
+  languageName: node
+  linkType: hard
+
 "match-sorter@npm:^6.0.2":
   version: 6.3.4
   resolution: "match-sorter@npm:6.3.4"
@@ -13000,10 +13014,12 @@ __metadata:
     eslint-plugin-import: "npm:^2.31.0"
     eslint-plugin-prettier: "npm:^5.2.1"
     eslint-plugin-react-hooks: "npm:^5.0.0"
+    fast-memoize: "npm:^2.5.2"
     framer-motion: "npm:^11.13.1"
     gh-pages: "npm:^6.1.1"
     immutability-helper: "npm:^3.1.1"
     lodash-es: "npm:^4.17.21"
+    many-keys-map: "npm:^2.0.1"
     prettier: "npm:^3.3.3"
     react: "npm:^18.3.1"
     react-bootstrap-icons: "npm:^1.11.4"
@@ -13016,6 +13032,7 @@ __metadata:
     react-router-dom: "npm:^5.3.0"
     react-scripts: "npm:5.0.1"
     recoil: "npm:^0.7.7"
+    recoil-nexus: "npm:^0.5.1"
     recoil-persist: "npm:^5.1.0"
     styled-components: "npm:^6.1.11"
     styled-reset: "npm:^4.3.4"
@@ -13206,6 +13223,19 @@ __metadata:
   dependencies:
     picomatch: "npm:^2.2.1"
   checksum: 10c0/6fa848cf63d1b82ab4e985f4cf72bd55b7dcfd8e0a376905804e48c3634b7e749170940ba77b32804d5fe93b3cc521aa95a8d7e7d725f830da6d93f3669ce66b
+  languageName: node
+  linkType: hard
+
+"recoil-nexus@npm:^0.5.1":
+  version: 0.5.1
+  resolution: "recoil-nexus@npm:0.5.1"
+  peerDependencies:
+    "@types/react": ">=16.8.0"
+    react: ">=16.8.0"
+    react-dom: ">=16.8.0"
+    recoil: ">=0.2.0"
+    typescript: ">=4.1.0"
+  checksum: 10c0/0e7ed67eac5f06de64ea64331f72d53e6b96a2860ffccdbb43ba8e25ed818e28278907de24687a1b45733356aa2743c9c20fa3f571399f62e215c4b398b6271a
   languageName: node
   linkType: hard
 
