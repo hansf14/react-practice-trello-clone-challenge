@@ -155,7 +155,7 @@ const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
       ? css`
           transform: ${(transform ?? "") + "translateZ(10px) !important"};
           opacity: 0.85;
-          border: 3px solid yellow;
+          border: 1px solid yellow;
         `
       : ""}// background-color: ${({ theme }) => theme.boardBgColor};
 `;

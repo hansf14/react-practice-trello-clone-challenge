@@ -1,13 +1,9 @@
 import { useBeforeRender } from "@/hooks/useBeforeRender";
 import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
-import { useLikeConstructor } from "@/hooks/useLikeConstructor";
-import { Indexer, NestedIndexer } from "@/indexer";
-import { MultiMap } from "@/multimap";
+import { Indexer } from "@/indexer";
 import { memoizeCallback } from "@/utils";
-import memoize from "fast-memoize";
-import { debounce, throttle } from "lodash-es";
+import { throttle } from "lodash-es";
 import React, {
-  cloneElement,
   useCallback,
   useEffect,
   useMemo,
@@ -15,9 +11,6 @@ import React, {
   useState,
 } from "react";
 import { atom, useRecoilState } from "recoil";
-import { getRecoil } from "recoil-nexus";
-import { styled } from "styled-components";
-import { useIsomorphicLayoutEffect } from "usehooks-ts";
 
 ////////////////////////////////////
 
@@ -439,8 +432,8 @@ export const useDraggable = <
           refDraggables.current[index].element!.getBoundingClientRect();
         const elementHandleRect =
           refDraggables.current[index].elementHandle!.getBoundingClientRect();
-        console.log(elementRect);
-        console.log(elementHandleRect);
+        // console.log(elementRect);
+        // console.log(elementHandleRect);
 
         // console.log(mouseEvent.pageX);
         // console.log(mouseEvent.clientX);
@@ -455,7 +448,7 @@ export const useDraggable = <
         //   event.clientY - elementHandleRect.y;
       }
 
-      console.log("refDragGhost.current:", refDragGhost.current);
+      // console.log("refDragGhost.current:", refDragGhost.current);
       forceRender();
       setDragGhostFollowCursor(mouseEvent);
     },
@@ -564,7 +557,7 @@ export const useDraggable = <
           x: event.clientX,
           y: event.clientY,
         };
-        console.log(refMouseDownPos.current);
+        // console.log(refMouseDownPos.current);
 
         document.addEventListener("mousemove", onMouseMove({ index }));
         document.addEventListener("mouseup", onMouseUp({ index }), {
@@ -706,7 +699,7 @@ export const useDraggable = <
   const setDragGhostRef = useCallback(
     (node: HTMLElement | null) => {
       if (node) {
-        console.log(node);
+        // console.log(node);
         refDragGhost.current = node;
 
         setDragGhostStyle({ node });
