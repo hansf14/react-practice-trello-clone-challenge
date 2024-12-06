@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { ExecutionProps, styled } from "styled-components";
 import { atom, useRecoilState, useSetRecoilState } from "recoil";
 import { Category, indexerCategoryTaskAtom, Task } from "@/atoms";
@@ -10,16 +10,26 @@ import {
   PlusCircleFill,
 } from "react-bootstrap-icons";
 import { SubmitHandler, useForm } from "react-hook-form";
-import { generateUniqueRandomId } from "@/utils";
+import {
+  checkHasScrollbar,
+  generateUniqueRandomId,
+  memoizeCallback,
+} from "@/utils";
 import { NestedIndexer } from "@/indexer";
 import { Input } from "antd";
+import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
+import { CssScrollbar } from "@/css/scrollbar";
+import { throttle } from "lodash-es";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
+  height: 100%;
   transform-style: preserve-3d;
   height: inherit;
   flex-grow: 1;
-
+  
+  /* display: grid;
+  grid-template-rows: 1fr auto; */
   display: flex;
   flex-direction: column;
 `;
@@ -35,7 +45,11 @@ const BoardMainContentContainer = styled.div`
 `;
 
 const BoardMainContent = styled.div`
-  overflow: auto;
+  ${CssScrollbar}
+
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -185,6 +199,64 @@ export const BoardMain = React.memo(
         behavior: "smooth",
       });
     }, []);
+
+    const idCheckHasVerticalScrollbar = useMemoizeCallbackId();
+    const checkHasVerticalScrollbar = useCallback(
+      ({ element }: { element: HTMLElement }) =>
+        memoizeCallback({
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          fn: throttle(
+            ((entries, observer) => {
+              const hasVerticalScrollbar = checkHasScrollbar({
+                element,
+                condition: "vertical",
+              });
+              if (hasVerticalScrollbar) {
+                element.style.setProperty("padding-right", "10px");
+              } else {
+                element.style.removeProperty("padding-right");
+              }
+            }) satisfies ResizeObserverCallback,
+            17,
+          ),
+          id: idCheckHasVerticalScrollbar,
+          deps: [element, idCheckHasVerticalScrollbar],
+        }),
+      [idCheckHasVerticalScrollbar],
+    );
+
+    // const idCheckHasVerticalScrollbar = useMemoizeCallbackId();
+    // const checkHasVerticalScrollbar = useCallback<ResizeObserverCallback>(
+    //   (entries, observer) => {
+    //     const element = entries[0].target as HTMLElement;
+    //     const hasVerticalScrollbar = checkHasScrollbar({
+    //       element,
+    //       condition: "vertical",
+    //     });
+    //     if (hasVerticalScrollbar) {
+    //       element.style.setProperty("padding-right", "10px");
+    //     } else {
+    //       element.style.removeProperty("padding-right");
+    //     }
+    //   },
+    //   [],
+    // );
+
+    useEffect(() => {
+      let resizeObserver: ResizeObserver | null = null;
+      if (refCardsContainer.current) {
+        // resizeObserver = new ResizeObserver(checkHasVerticalScrollbar);
+        resizeObserver = new ResizeObserver(
+          checkHasVerticalScrollbar({ element: refCardsContainer.current }),
+        );
+        resizeObserver.observe(refCardsContainer.current, {
+          box: "border-box",
+        });
+      }
+      return () => {
+        resizeObserver?.disconnect();
+      };
+    }, [checkHasVerticalScrollbar]);
 
     return (
       <BoardMainBase ref={ref}>

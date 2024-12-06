@@ -20,6 +20,7 @@ import { BoardMain, cardsContainerAtom } from "@/components/BoardMain";
 import { BoardFooter } from "@/components/BoardFooter";
 import { cardDragHandlesAtom, cardsAtom } from "@/components/Card";
 import { useDeviceDetector } from "@/hooks/useDeviceDetector";
+import { CssScrollbar } from "@/css/scrollbar";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -94,6 +95,7 @@ const GlobalStyle = createGlobalStyle`
     word-break: break-word;
   }
   #root {
+    width: 100%;
     height: 100%;
   }
   a {
@@ -110,7 +112,7 @@ const Main = styled.main`
   background-size: cover;
   color: black;
   gap: 10px;
-  padding: 10px;
+  padding: 0 10px 0;
 
   display: flex;
   flex-direction: column;
@@ -119,7 +121,11 @@ const Main = styled.main`
 `;
 
 const Dashboard = styled.div`
-  width: max-content;
+  ${CssScrollbar}
+
+  overflow: auto;
+  scroll-behavior: smooth;
+  width: 100%;
   height: 100%;
   display: flex;
   justify-content: stretch;
@@ -127,9 +133,8 @@ const Dashboard = styled.div`
   gap: 10px;
 `;
 
-const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
+const Board = styled.div`
   height: 85%;
-  flex-shrink: 0;
   width: min(100%, 300px);
   min-height: 300px;
   padding: 10px;
@@ -144,21 +149,12 @@ const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
 
-  // DragOverlay + Ghost
-  /* .sortable-chosen */
-
-  // DragOverlay
-  /* .sortable-drag */
-
-  // Ghost
-  /* .sortable-ghost */
-
-  // Handle
-  /* .sortable-handle */
-
   // DragOverlay
   &.sortable-drag {
     opacity: 0.7 !important;
+    > div {
+      /* height: 100%; */
+    }
   }
 
   // Ghost
@@ -472,15 +468,45 @@ function App() {
       // https://github.com/SortableJS/Sortable
       const sortable = Sortable.create(refBoardsContainer.current, {
         group: "categories",
-        animation: 150,
-        scroll: true,
+        // animation: 150,
+        animation: 0,
         forceFallback: true, // Show ghost image without default's opacity gradient in desktop
         direction: "horizontal",
         handle: ".boards-container-sortable-handle",
+        // ㄴ Drag handle selector within list items
+
+        // filter: ".ignore-elements",
+        // ㄴ  Selectors that do not lead to dragging (String or Function)
+
+        // draggable: ".item",
+        // ㄴ Specifies which items inside the element should be draggable
+
+        // dragClass: "sortable-drag",
+        // ㄴ DragOverlay
+        // .sortable-drag
+        // Class name for the dragging item
+
+        // ghostClass: "boards-container-sortable-ghost",
+        // ㄴ Ghost
+        // .sortable-ghost
+        // Class name for the drop placeholder
+
+        // chosenClass: "boards-container-sortable-chosen",
+        // ㄴ DragOverlay + Ghost
+        // .sortable-chosen
+        // Class name for the chosen item
+
         // https://github.com/SortableJS/Sortable/blob/master/plugins/AutoScroll/README.md
+        // `AutoScroll`, `OnSpill` are already included, so no need to import. (Only need to import `MultiDrag`, `Swap` as extra-plugin when needed.)
+
+        revertOnSpill: true,
+        scroll: true,
+        scrollSensitivity: 50, // px, how near the mouse must be to an edge to start scrolling.
+        scrollSpeed: 10, // px, speed of the scrolling
+        // forceAutoScrollFallback: false,
         // bubbleScroll: true,
-        // scrollSensitivity: 500, // px, how near the mouse must be to an edge to start scrolling.
-        // scrollSpeed: 10, // px, speed of the scrolling
+
+        delayOnTouchOnly: false,
       });
       sortables.push(sortable);
     }
@@ -495,10 +521,15 @@ function App() {
       const sortable = Sortable.create(cardsContainer, {
         group: "tasks",
         animation: 150,
-        scroll: true,
+        // animation: 0,
         forceFallback: true,
         fallbackOnBody: true, // For correct positioning of the drag ghost element
         handle: ".cards-container-sortable-handle",
+
+        revertOnSpill: true,
+        scroll: true,
+        scrollSensitivity: 30,
+        scrollSpeed: 5,
         onEnd: (event) => {
           console.log(event);
         },
@@ -507,19 +538,18 @@ function App() {
     });
 
     // https://www.npmjs.com/package/dom-autoscroller
-    const scroll = autoScroll(
-      [document.body, ...Object.values(stateCardsContainer)],
-      {
-        margin: 50,
-        maxSpeed: 5,
-        scrollWhenOutside: true,
-        autoScroll: function () {
-          //Only scroll when the pointer is down, and there is a child being dragged.
-          return this.down;
-          // return this.down && stateIsDragging;
-        },
-      },
-    );
+    // const scroll = autoScroll(
+    //   [document.body, ...Object.values(stateCardsContainer)],
+    //   {
+    //     margin: 100,
+    //     maxSpeed: 30,
+    //     scrollWhenOutside: true,
+    //     autoScroll: function () {
+    //       //Only scroll when the pointer is down, and there is a child being dragged.
+    //       return this.down;
+    //     },
+    //   },
+    // );
 
     return () => {
       sortables.forEach((sortable) => sortable.destroy());

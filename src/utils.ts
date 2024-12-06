@@ -245,3 +245,34 @@ export function getCursorRelativePosToElement({
   const y = cursorPos.y - rect.y;
   return { x, y };
 }
+
+export const checkHasScrollbar = ({
+  element,
+  condition,
+}: {
+  element: HTMLElement;
+  condition: "horizontal" | "vertical" | "or" | "xor" | "and";
+}) => {
+  const hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
+  const hasVerticalScrollbar = element.scrollHeight > element.clientHeight;
+  if (condition === "horizontal") {
+    return hasHorizontalScrollbar;
+  }
+  if (condition === "vertical") {
+    return hasVerticalScrollbar;
+  }
+  if (condition === "or") {
+    return hasHorizontalScrollbar || hasVerticalScrollbar;
+  }
+  if (condition === "xor") {
+    return (
+      (hasHorizontalScrollbar && !hasVerticalScrollbar) ||
+      (!hasHorizontalScrollbar && hasVerticalScrollbar)
+    );
+  }
+  if (condition === "and") {
+    return hasHorizontalScrollbar && hasVerticalScrollbar;
+  }
+  console.warn("[checkHasScrollbar] Wrong condition type.");
+  return false;
+};

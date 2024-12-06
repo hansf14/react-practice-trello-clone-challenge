@@ -9,6 +9,12 @@
 1. input 꾸미기, 스타일 꾸미기
 2. 모든 task state를 local storage에 저장 및 로드
 
+cursor: grab -> grabbing (isDragging)
+toolbar button -> pointer
+ghost placeholder: orange-ish filter
+
+task adder -> resize 속성 없애기
+
 closestEdge
 DragIndicator
 horizontalRestrict

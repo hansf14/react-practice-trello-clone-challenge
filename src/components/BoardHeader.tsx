@@ -63,9 +63,8 @@ const BoardDragHandle = styled.div`
   display: flex;
   align-items: center;
 
-  // Handle
   &.boards-container-sortable-handle {
-    cursor: grabbing;
+    cursor: grab;
   }
 `;
 
