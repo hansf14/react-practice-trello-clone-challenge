@@ -1,49 +1,25 @@
 import React, {
-  FormEventHandler,
   MutableRefObject,
   useCallback,
   useEffect,
-  useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from "react";
-import {
-  ThemeProvider,
-  createGlobalStyle,
-  styled,
-  css,
-  ExecutionProps,
-} from "styled-components";
+import { ThemeProvider, createGlobalStyle, styled } from "styled-components";
 import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
-import { atom, useRecoilState } from "recoil";
+import { useRecoilState } from "recoil";
 import { darkTheme } from "./theme";
-import { arrayMoveElement, generateUniqueRandomId } from "@/utils";
-import { FormSubmitHandler, SubmitHandler, useForm } from "react-hook-form";
 import { Category, indexerCategoryTaskAtom, Task } from "@/atoms";
-import { createPortal } from "react-dom";
-import { Input } from "antd";
-import { useWhichPropsChanged } from "@/hooks/useWhichPropsChanged";
-import {
-  useDraggable,
-  UseDraggableSetDraggableHandleRef,
-  UseDraggableItemSpec,
-  UseDraggableParams,
-  UseDraggableOnDragStartCb,
-  UseDraggableOnDragEndCb,
-  useDroppable,
-  UseDroppableItemSpec,
-  useDnd,
-  UseDraggableListeners,
-} from "@/hooks/useDnd";
-import { CursorFollower } from "@/components/CursorFollower";
-import { NestedIndexer } from "@/indexer";
-import dragula from "dragula";
 import autoScroll from "dom-autoscroller";
-import Sortable, { AutoScroll, MultiDrag, Swap } from "sortablejs";
-
-const { TextArea } = Input;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import Sortable, { MultiDrag, Swap } from "sortablejs";
+import { boardDragHandlesAtom, BoardHeader } from "@/components/BoardHeader";
+import { BoardMain } from "@/components/BoardMain";
+import { BoardFooter } from "@/components/BoardFooter";
+import { cardDragHandlesAtom, cardsAtom } from "@/components/Card";
+import { useDeviceDetector } from "@/hooks/useDeviceDetector";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -122,44 +98,6 @@ const GlobalStyle = createGlobalStyle`
     text-decoration: none;
     color: inherit;
   }
-
-  /* // .gu-mirror{position:fixed!important;margin:0!important;z-index:9999!important;opacity:.8}.gu-hide{display:none!important}.gu-unselectable{-webkit-user-select:none!important;-moz-user-select:none!important;-ms-user-select:none!important;user-select:none!important}.gu-transit{opacity:.2}
-  .gu-transit {
-    && {
-      opacity: 0.7;
-      border: 1px solid orange;
-    }
-  }
-
-  .gu-mirror {
-    position: fixed;
-  }
-
-  .gu-hide{
-    display:none !important
-  } */
-
-  /* .sortable-ghost {
-    -webkit-user-select:none !important;
-    -moz-user-select:none!important;
-    -ms-user-select:none!important;
-    user-select:none!important
-  } */
-
-  // DragOverlay + Ghost
-  .sortable-chosen {
-    background: blue;
-  }
-
-  // DragOverlay
-  .sortable-drag {
-    background: green;
-  }
-
-  // Ghost
-  .sortable-ghost {
-    background: red;
-  }
 `;
 
 const Main = styled.main`
@@ -201,328 +139,33 @@ const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
   -webkit-backdrop-filter: blur(13.5px);
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-`;
 
-const DragGhost = styled.div`
-  display: flex;
-  align-items: stretch;
-`;
+  // DragOverlay + Ghost
+  /* .sortable-chosen */
 
-export type BoardHeadProps = {
-  category: Category;
-  dragHandle?: {
-    setDragHandleRef: UseDraggableSetDraggableHandleRef;
-    listeners: UseDraggableListeners;
-  };
-} & React.ComponentPropsWithoutRef<"div"> &
-  ExecutionProps;
+  // DragOverlay
+  /* .sortable-drag */
 
-const BoardHeadTitle = styled.h2`
-  width: 100%;
-  margin: 10px 0 15px;
-  text-align: center;
-  font-weight: bold;
-  font-size: 22px;
-`;
+  // Ghost
+  /* .sortable-ghost */
 
-const BoardHeadTitleInput = styled(TextArea)`
-  && {
-    width: 100%;
-    min-height: auto;
-    padding: 0;
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
+  // Handle
+  /* .sortable-handle */
 
-    font-weight: bold;
-    font-size: 22px;
-    text-align: center;
-    line-height: 1;
+  // DragOverlay
+  &.sortable-drag {
+    opacity: 0.7 !important;
+  }
 
-    transition: none;
-
-    &:focus {
-      outline: 2px solid yellow;
-    }
+  // Ghost
+  &.sortable-ghost {
+    opacity: 0.7;
+    border: 1px solid orange;
   }
 `;
 
-const BoardHeadForm = styled.form`
-  width: 100%;
-
-  input {
-    width: 100%;
-  }
-`;
-
-const boardDragHandlesAtom = atom<{
-  [id: string]: HTMLDivElement | null;
-}>({
-  key: "categoryDragHandlesAtom",
-  default: {},
-});
-
-const cardsAtom = atom<{
-  [id: string]: HTMLDivElement | null;
-}>({
-  key: "cardsAtom",
-  default: {},
-});
-
-const cardDragHandlesAtom = atom<{
-  [id: string]: HTMLDivElement | null;
-}>({
-  key: "taskDragHandlesAtom",
-  default: {},
-});
-
-export const BoardHead = React.memo(
-  React.forwardRef<HTMLDivElement, BoardHeadProps>(
-    ({ category, dragHandle }, ref) => {
-      const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
-        useRecoilState(indexerCategoryTaskAtom);
-      const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
-
-      const {
-        register,
-        handleSubmit,
-        // setValue,
-        reset, // setValue("taskText", "")
-        formState: { errors },
-      } = useForm<FormData>();
-
-      const onValid = useCallback<SubmitHandler<FormData>>(
-        (data: FormData, event) => {
-          // console.log(data);
-
-          setStateIndexerCategoryTask((curIndexer) => {
-            const newTask = {
-              id: generateUniqueRandomId(),
-              text: data.taskText,
-            } satisfies Task;
-
-            const newIndexer = new NestedIndexer(curIndexer);
-            newIndexer.createChild({
-              parentId: category.id,
-              child: newTask,
-              shouldAppend: false,
-            });
-            return newIndexer;
-          });
-
-          reset();
-        },
-        [setStateIndexerCategoryTask, category.id, reset],
-      );
-
-      const boardHeadTitleEditEnableHandler = useCallback<
-        React.MouseEventHandler<HTMLTextAreaElement>
-      >(() => {
-        setStateIsEditMode(true);
-      }, []);
-
-      const boardHeadTitleEditDisableHandler = useCallback<
-        React.FocusEventHandler<HTMLTextAreaElement>
-      >(() => {
-        setStateIsEditMode(false);
-      }, []);
-
-      const boardHeadTitleEditFinishHandler = useCallback<
-        React.KeyboardEventHandler<HTMLTextAreaElement>
-      >((event) => {
-        if (event.key !== "Enter") {
-          return;
-        }
-        setStateIsEditMode(false);
-      }, []);
-
-      const boardHeadTitleEditHandler = useCallback<
-        React.ChangeEventHandler<HTMLTextAreaElement>
-      >(
-        (event) => {
-          // console.log(event.target.value);
-          setStateIndexerCategoryTask((curIndexer) => {
-            const newIndexer = new NestedIndexer(curIndexer);
-            newIndexer.updateParent({
-              parentId: category.id,
-              parent: {
-                id: category.id,
-                text: event.target.value,
-              },
-            });
-            return newIndexer;
-          });
-        },
-        [setStateIndexerCategoryTask, category.id],
-      );
-
-      const [stateBoardDragHandles, setStateBoardDragHandles] =
-        useRecoilState(boardDragHandlesAtom);
-      const refDragHandle = useRef<HTMLDivElement | null>(null);
-      useEffect(() => {
-        if (refDragHandle.current) {
-          setStateBoardDragHandles((cur) => ({
-            ...cur,
-            [category.id]: refDragHandle.current,
-          }));
-        }
-      }, [category.id, setStateBoardDragHandles]);
-
-      return (
-        <div ref={ref}>
-          <BoardHeadTitle>
-            <BoardHeadTitleInput
-              value={category.text}
-              // autoFocus
-              autoSize
-              readOnly={!stateIsEditMode}
-              onClick={boardHeadTitleEditEnableHandler}
-              onBlur={boardHeadTitleEditDisableHandler}
-              onKeyDown={boardHeadTitleEditFinishHandler}
-              onChange={boardHeadTitleEditHandler}
-            />
-          </BoardHeadTitle>
-          <BoardHeadForm onSubmit={handleSubmit(onValid)}>
-            <input
-              type="text"
-              placeholder={`Add a task on ${category.text}`}
-              {...register("taskText", {
-                required: true,
-              })}
-            />
-          </BoardHeadForm>
-          <div ref={refDragHandle}>
-            DOH!<br></br>DOH!
-          </div>
-        </div>
-      );
-    },
-  ),
-);
-BoardHead.displayName = "BoardHead";
-
-export type BoardBaseProps = {} & React.ComponentPropsWithoutRef<"div"> &
-  ExecutionProps;
-
-export const BoardBase = React.memo(
-  React.forwardRef<HTMLDivElement, BoardBaseProps>(
-    (props: BoardBaseProps, ref) => {
-      const { ...otherProps } = props;
-      return <Board ref={ref} {...otherProps}></Board>;
-    },
-  ),
-);
-
-// export const BoardBase = React.memo(
-//   React.forwardRef<HTMLDivElement, BoardBaseProps>(
-//     (props: BoardBaseProps, ref) => {
-//       const { category, ...otherProps } = props;
-//       return (
-//         <Board ref={ref} {...otherProps}>
-//           <BoardHead category={category} />
-//           <BoardBody category={category} />
-//         </Board>
-//       );
-//     },
-//   ),
-// );
-
-export const Card = React.memo(
-  React.forwardRef<HTMLDivElement, { task: Task }>(
-    ({ task }: { task: Task }, ref) => {
-      console.log("[CardBase]");
-
-      const [stateCardDragHandles, setStateCardDragHandles] =
-        useRecoilState(cardDragHandlesAtom);
-      const refDragHandle = useRef<HTMLDivElement | null>(null);
-      useEffect(() => {
-        if (refDragHandle.current) {
-          setStateCardDragHandles((cur) => ({
-            ...cur,
-            [task.id]: refDragHandle.current,
-          }));
-        }
-      }, [task.id, setStateCardDragHandles]);
-
-      const [stateCards, setStateCards] = useRecoilState(cardsAtom);
-      const refCard = useRef<HTMLDivElement | null>(null);
-      useEffect(() => {
-        if (refCard.current) {
-          setStateCards((cur) => ({
-            ...cur,
-            [task.id]: refCard.current,
-          }));
-        }
-      }, [task.id, setStateCards]);
-
-      return (
-        <div
-          ref={(el) => {
-            if (el) {
-              refCard.current = el;
-              if (ref) {
-                (ref as MutableRefObject<HTMLDivElement>).current = el;
-              }
-            }
-          }}
-        >
-          {task.text}
-          <div ref={refDragHandle}>DOH!</div>
-        </div>
-      );
-    },
-  ),
-);
-
-const BoardBodyBase = styled.div``;
-
-export type BoardBodyProps = {
-  category: Category;
-} & React.ComponentPropsWithoutRef<"div"> &
-  ExecutionProps;
-
-export const BoardBody = React.memo(
-  React.forwardRef<HTMLDivElement, BoardBodyProps>((props, ref) => {
-    const { category } = props;
-    const [stateIndexer, setStateIndexer] = useRecoilState(
-      indexerCategoryTaskAtom,
-    );
-
-    const taskList = useMemo<Task[]>(
-      () =>
-        stateIndexer.getChildListFromParentId__MutableChild({
-          parentId: category.id,
-        }) ?? [],
-      [category.id, stateIndexer],
-    );
-
-    return (
-      <BoardBodyBase ref={ref}>
-        {!taskList || taskList.length === 0 ? (
-          <div>Empty!</div>
-        ) : (
-          taskList.map((task, idx) => {
-            return <Card key={task.id} task={task} {...props} />;
-          })
-        )}
-      </BoardBodyBase>
-    );
-  }),
-);
-BoardBody.displayName = "BoardBody";
-
-// export type DraggableContextPropsDataCustomType = "category" | "task";
-
-// export type DraggableContextPropsDataCustomData = RequiredDeep<
-//   DraggableContextPropsData<
-//     DraggableContextPropsDataCustomType,
-//     Category | Task
-//   >
-// >;
-
-export interface FormData {
-  taskText: string;
-}
+// Sortable extra-plugins
+// Sortable.mount(new MultiDrag(), new Swap());
 
 function App() {
   const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
@@ -800,79 +443,6 @@ function App() {
     [stateIndexerCategoryTask],
   );
 
-  const draggableCategories = useMemo<UseDraggableItemSpec<Category>[]>(
-    () =>
-      categoryList.map((category, idx) => ({
-        type: "category",
-        index: idx,
-        data: category,
-      })),
-    [categoryList],
-  );
-
-  const droppableCategories = useMemo<UseDroppableItemSpec<Category>[]>(
-    () =>
-      categoryList.map((category, idx) => ({
-        acceptableTypes: ["category"],
-        index: idx,
-        data: category,
-      })),
-    [categoryList],
-  );
-
-  const [stateActiveCategory, setStateActiveCategory] =
-    useState<UseDraggableItemSpec<Category> | null>(null);
-  // const [stateActiveTask, setStateActiveTask] = useState<Task | null>(null);
-
-  const onDragStartCb = useCallback<UseDraggableOnDragStartCb<Category>>(
-    ({ active }) => {
-      // console.log("active:", active);
-      setStateActiveCategory(active);
-    },
-    [],
-  );
-
-  const onDragEndCb = useCallback<UseDraggableOnDragEndCb<Category>>(() => {
-    setStateActiveCategory(null);
-  }, []);
-
-  // const {
-  //   draggableProvided,
-  //   setDraggableRef,
-  //   setDraggableHandleRef,
-  //   setDragGhostRef,
-  //   isDragging,
-  // } = useDraggable({
-  //   items: draggableCategories,
-  //   onDragStartCb,
-  //   onDragEndCb,
-  // });
-  // const { setDroppableRef, droppableProvided } = useDroppable({
-  //   items: droppableCategories,
-  // });
-
-  // const {
-  //   setDraggableAndDroppableRef,
-  //   retUseDraggable: {
-  //     // Draggables,
-  //     listeners: draggableListeners,
-  //     setDraggableRef,
-  //     setDraggableHandleRef,
-  //     setDragGhostRef,
-  //     isDragging,
-  //   },
-  //   retUseDroppable: { droppableProvided },
-  // } = useDnd({
-  //   useDraggableParams: {
-  //     items: draggableCategories,
-  //     onDragStartCb,
-  //     onDragEndCb,
-  //   },
-  //   useDroppableParams: {
-  //     items: droppableCategories,
-  //   },
-  // });
-
   const refDashboard = useRef<HTMLDivElement | null>(null);
   const refBoards = useRef<HTMLDivElement[]>([]);
   const refBoardBodies = useRef<HTMLDivElement[]>([]);
@@ -882,10 +452,13 @@ function App() {
   const [stateCardDragHandles, setStateCardDragHandles] =
     useRecoilState(cardDragHandlesAtom);
 
+  // const { getDeviceDetector } = useDeviceDetector();
+  // const { getIsTouchDevice } = getDeviceDetector();
+
   // console.log(refDashboard.current);
   // console.log(refBoards.current);
   // console.log(stateBoardDragHandles);
-  console.log(stateCardDragHandles);
+  // console.log(stateCardDragHandles);
 
   const [stateIsDragging, setStateIsDragging] = useState(false);
 
@@ -897,6 +470,9 @@ function App() {
         group: "categories",
         animation: 150,
         scroll: true,
+        forceFallback: true, // Show ghost image without default's opacity gradient in desktop
+        direction: "horizontal",
+        handle: ".board-sortable-handle",
         // https://github.com/SortableJS/Sortable/blob/master/plugins/AutoScroll/README.md
         // bubbleScroll: true,
         // scrollSensitivity: 500, // px, how near the mouse must be to an edge to start scrolling.
@@ -910,22 +486,9 @@ function App() {
         group: "tasks",
         animation: 150,
         scroll: true,
-        fallbackOnBody: true, // Fore correct positioning of the drag ghost element
-        ghostClass: "doh",
-        // onStart: (event) => {
-        //   // setStateIsDragging(true);
-        //   event.target.classList.remove("sortable-ghost");
-        // },
-        // onUpdate: (event) => {
-        //   // setStateIsDragging(true);
-        //   event.target.classList.remove("sortable-ghost");
-        // },
-        // onChange:  (event) => {
-        //   // setStateIsDragging(true);
-        //   event.target.classList.remove("sortable-ghost");
-        // },
+        forceFallback: true,
+        fallbackOnBody: true, // For correct positioning of the drag ghost element
         onEnd: (event) => {
-          console.log("task moved");
           console.log(event);
         },
       });
@@ -980,8 +543,8 @@ function App() {
                         }
                       }}
                     >
-                      <BoardHead category={category} />
-                      <BoardBody
+                      <BoardHeader category={category} />
+                      <BoardMain
                         ref={(el) => {
                           if (el) {
                             refBoardBodies.current[idx] = el;
@@ -989,35 +552,13 @@ function App() {
                         }}
                         category={category}
                       />
+                      <BoardFooter category={category} />
                     </Board>
                   );
                 })}
               </>
             )}
           </Dashboard>
-          {/* {!!stateActiveCategory &&
-            createPortal(
-              <DragGhost ref={setDragGhostRef}>
-                <Board isDragging={isDragging}>
-                  <BoardHead category={stateActiveCategory.data} />
-                  <BoardBody category={stateActiveCategory.data} />
-                </Board>
-              </DragGhost>,
-              document.body,
-            )} */}
-          {/* <div
-            ref={setDragGhostRef}
-            // onDragEnter={onDragEnter}
-            // onDragLeave={onDragLeave}
-            // onDragOver={onDragOver({ category: { id: "123", text: "1234" } })}
-            // onDrop={onDrop({ category: { id: "123", text: "1234" } })}
-          >
-            AAA
-            <br />
-            BBB
-            <br />
-            CCC
-          </div> */}
         </Main>
         <ReactQueryDevtools initialIsOpen={true} />
       </ThemeProvider>

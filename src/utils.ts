@@ -150,7 +150,6 @@ export type KeyMapping<T> = {
 // }
 // export type CategoryIndexer = Indexer<Category, "text">;
 // export type CategoryIndexerBad = Indexer<Category, "taskKeyList">;
-
 // export function listToIndexer<
 //   T extends Record<Index, string>,
 //   Index extends keyof T,
@@ -167,26 +166,7 @@ export type KeyMapping<T> = {
 // export type CategoryIndexer = Indexer<Category, "text">;
 // export type CategoryMapping = KeyMapping<Category>;
 
-// const categoryIndexerSelector = selector<CategoryIndexer>({
-//   key: "categoryIndexerSelector",
-//   get: ({ get }) => {
-//     const categoryList = get(categoryListAtom);
-//     return categoryList.reduce<CategoryIndexer>((acc, cur) => {
-//       acc[cur.text] = cur;
-//       return acc;
-//     }, {});
-//   },
-// });
-// const categoryIndexerSelector = selector<CategoryIndexer>({
-//   key: "categoryIndexerSelector",
-//   get: ({ get }) => {
-//     const categoryList = get(categoryListAtom);
-//     return listToIndexer(categoryList, "text");
-//   },
-// });
-
 // export type NameType<Name extends string, Type> = [Name, Type];
-
 // export const nameType = <Name extends string, Value>(
 //   name: Name,
 //   value: Value,
