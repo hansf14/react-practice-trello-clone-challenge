@@ -3605,6 +3605,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/sortablejs@npm:^1":
+  version: 1.15.8
+  resolution: "@types/sortablejs@npm:1.15.8"
+  checksum: 10c0/cac9c8279ead93b5fc6b0dde6bf4b1c4fe067d40d7b2b3415880df823f2efe5779616009488f940a003687ace70cb3d52bda168dfad2b5f4242403cd8f4ed500
+  languageName: node
+  linkType: hard
+
 "@types/stack-utils@npm:^2.0.0":
   version: 2.0.3
   resolution: "@types/stack-utils@npm:2.0.3"
@@ -13133,6 +13140,7 @@ __metadata:
     "@types/react-dom": "npm:^18.3.0"
     "@types/react-query": "npm:^1.2.9"
     "@types/react-router-dom": "npm:^5.3.1"
+    "@types/sortablejs": "npm:^1"
     "@types/uuid": "npm:^10"
     "@typescript-eslint/eslint-plugin": "npm:^8.15.0"
     "@typescript-eslint/parser": "npm:^8.15.0"
@@ -13165,6 +13173,7 @@ __metadata:
     recoil: "npm:^0.7.7"
     recoil-nexus: "npm:^0.5.1"
     recoil-persist: "npm:^5.1.0"
+    sortablejs: "npm:^1.15.6"
     styled-components: "npm:^6.1.11"
     styled-reset: "npm:^4.3.4"
     tsconfig-paths-webpack-plugin: "npm:^4.1.0"
@@ -14187,6 +14196,13 @@ __metadata:
     ip-address: "npm:^9.0.5"
     smart-buffer: "npm:^4.2.0"
   checksum: 10c0/d54a52bf9325165770b674a67241143a3d8b4e4c8884560c4e0e078aace2a728dffc7f70150660f51b85797c4e1a3b82f9b7aa25e0a0ceae1a243365da5c51a7
+  languageName: node
+  linkType: hard
+
+"sortablejs@npm:^1.15.6":
+  version: 1.15.6
+  resolution: "sortablejs@npm:1.15.6"
+  checksum: 10c0/a75dcf53e5613b4106d46434e40114830f9c6449b3b439bc1925c1fbf0a0c1f044727a8f3d4ae1759fa7beaa33e7eb0c4a413e6aa88d6026577b59f3658ff727
   languageName: node
   linkType: hard
 

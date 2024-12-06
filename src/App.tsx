@@ -41,6 +41,7 @@ import { CursorFollower } from "@/components/CursorFollower";
 import { NestedIndexer } from "@/indexer";
 import dragula from "dragula";
 import autoScroll from "dom-autoscroller";
+import Sortable, { AutoScroll, MultiDrag, Swap } from "sortablejs";
 
 const { TextArea } = Input;
 
@@ -122,7 +123,7 @@ const GlobalStyle = createGlobalStyle`
     color: inherit;
   }
 
-  // .gu-mirror{position:fixed!important;margin:0!important;z-index:9999!important;opacity:.8}.gu-hide{display:none!important}.gu-unselectable{-webkit-user-select:none!important;-moz-user-select:none!important;-ms-user-select:none!important;user-select:none!important}.gu-transit{opacity:.2}
+  /* // .gu-mirror{position:fixed!important;margin:0!important;z-index:9999!important;opacity:.8}.gu-hide{display:none!important}.gu-unselectable{-webkit-user-select:none!important;-moz-user-select:none!important;-ms-user-select:none!important;user-select:none!important}.gu-transit{opacity:.2}
   .gu-transit {
     && {
       opacity: 0.7;
@@ -136,13 +137,28 @@ const GlobalStyle = createGlobalStyle`
 
   .gu-hide{
     display:none !important
-  }
+  } */
 
-  .gu-unselectable {
+  /* .sortable-ghost {
     -webkit-user-select:none !important;
     -moz-user-select:none!important;
     -ms-user-select:none!important;
     user-select:none!important
+  } */
+
+  // DragOverlay + Ghost
+  .sortable-chosen {
+    background: blue;
+  }
+
+  // DragOverlay
+  .sortable-drag {
+    background: green;
+  }
+
+  // Ghost
+  .sortable-ghost {
+    background: red;
   }
 `;
 
@@ -871,67 +887,67 @@ function App() {
   // console.log(stateBoardDragHandles);
   console.log(stateCardDragHandles);
 
+  const [stateIsDragging, setStateIsDragging] = useState(false);
+
   useEffect(() => {
-    let drake: dragula.Drake | null = null;
-    if (refDashboard.current && refBoardBodies.current) {
-      drake = dragula({
-        containers: [refDashboard.current, ...refBoardBodies.current],
-        moves: (el, source, handle, sibling) => {
-          console.log(el);
-          console.log(handle);
-
-          if (!source || !handle) {
-            return false;
-          }
-
-          // Board movement
-          const isBoardMovement =
-            refBoards.current.includes(el as HTMLDivElement) &&
-            Object.values(stateBoardDragHandles).includes(
-              handle as HTMLDivElement,
-            );
-
-          // Card movement
-          const isCardMovement =
-            Object.values(stateCards).includes(el as HTMLDivElement) &&
-            Object.values(stateCardDragHandles).includes(
-              handle as HTMLDivElement,
-            );
-
-          return isBoardMovement || isCardMovement;
-        },
-        accepts: (el, target, source, sibling) => {
-          if (!el || !target) {
-            return false;
-          }
-
-          // Board movement
-          if (target === refDashboard.current) {
-            return refBoards.current.includes(el as HTMLDivElement);
-          }
-
-          // Card movement
-
-          return false;
-        },
-        revertOnSpill: true,
+    const sortables: Sortable[] = [];
+    if (refDashboard.current) {
+      // https://github.com/SortableJS/Sortable
+      const sortable = Sortable.create(refDashboard.current, {
+        group: "categories",
+        animation: 150,
+        scroll: true,
+        // https://github.com/SortableJS/Sortable/blob/master/plugins/AutoScroll/README.md
+        // bubbleScroll: true,
+        // scrollSensitivity: 500, // px, how near the mouse must be to an edge to start scrolling.
+        // scrollSpeed: 10, // px, speed of the scrolling
       });
+      sortables.push(sortable);
     }
 
+    refBoardBodies.current.forEach((boardBody) => {
+      const sortable = Sortable.create(boardBody, {
+        group: "tasks",
+        animation: 150,
+        scroll: true,
+        fallbackOnBody: true, // Fore correct positioning of the drag ghost element
+        ghostClass: "doh",
+        // onStart: (event) => {
+        //   // setStateIsDragging(true);
+        //   event.target.classList.remove("sortable-ghost");
+        // },
+        // onUpdate: (event) => {
+        //   // setStateIsDragging(true);
+        //   event.target.classList.remove("sortable-ghost");
+        // },
+        // onChange:  (event) => {
+        //   // setStateIsDragging(true);
+        //   event.target.classList.remove("sortable-ghost");
+        // },
+        onEnd: (event) => {
+          console.log("task moved");
+          console.log(event);
+        },
+      });
+      sortables.push(sortable);
+    });
+
+    // https://www.npmjs.com/package/dom-autoscroller
     const scroll = autoScroll([document.body], {
-      margin: 20,
+      margin: 50,
       maxSpeed: 5,
       scrollWhenOutside: true,
       autoScroll: function () {
         //Only scroll when the pointer is down, and there is a child being dragged.
-        return this.down && drake?.dragging;
+        return this.down;
+        // return this.down && stateIsDragging;
       },
     });
 
     return () => {
-      drake?.destroy();
+      sortables.forEach((sortable) => sortable.destroy());
     };
-  }, [stateBoardDragHandles]);
+  }, [stateIsDragging]);
 
   // console.log(categoryList);
   // console.log(stateIndexerCategoryTask);

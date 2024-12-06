@@ -44,6 +44,7 @@ const RAW_RUNTIME_STATE =
           ["@types/react-dom", "npm:18.3.0"],\
           ["@types/react-query", "npm:1.2.9"],\
           ["@types/react-router-dom", "npm:5.3.3"],\
+          ["@types/sortablejs", "npm:1.15.8"],\
           ["@types/uuid", "npm:10.0.0"],\
           ["@typescript-eslint/eslint-plugin", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:8.16.0"],\
           ["@typescript-eslint/parser", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:8.16.0"],\
@@ -76,6 +77,7 @@ const RAW_RUNTIME_STATE =
           ["recoil", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.7.7"],\
           ["recoil-nexus", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.5.1"],\
           ["recoil-persist", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.1.0"],\
+          ["sortablejs", "npm:1.15.6"],\
           ["styled-components", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:6.1.13"],\
           ["styled-reset", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.5.2"],\
           ["tsconfig-paths-webpack-plugin", "npm:4.1.0"],\
@@ -5926,6 +5928,15 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["@types/sockjs", "npm:0.3.36"],\
           ["@types/node", "npm:22.7.4"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["@types/sortablejs", [\
+      ["npm:1.15.8", {\
+        "packageLocation": "./.yarn/cache/@types-sortablejs-npm-1.15.8-72981d09e4-cac9c8279e.zip/node_modules/@types/sortablejs/",\
+        "packageDependencies": [\
+          ["@types/sortablejs", "npm:1.15.8"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -18576,6 +18587,7 @@ const RAW_RUNTIME_STATE =
           ["@types/react-dom", "npm:18.3.0"],\
           ["@types/react-query", "npm:1.2.9"],\
           ["@types/react-router-dom", "npm:5.3.3"],\
+          ["@types/sortablejs", "npm:1.15.8"],\
           ["@types/uuid", "npm:10.0.0"],\
           ["@typescript-eslint/eslint-plugin", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:8.16.0"],\
           ["@typescript-eslint/parser", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:8.16.0"],\
@@ -18608,6 +18620,7 @@ const RAW_RUNTIME_STATE =
           ["recoil", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.7.7"],\
           ["recoil-nexus", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:0.5.1"],\
           ["recoil-persist", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.1.0"],\
+          ["sortablejs", "npm:1.15.6"],\
           ["styled-components", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:6.1.13"],\
           ["styled-reset", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.5.2"],\
           ["tsconfig-paths-webpack-plugin", "npm:4.1.0"],\
@@ -19830,6 +19843,15 @@ const RAW_RUNTIME_STATE =
           ["agent-base", "npm:7.1.1"],\
           ["debug", "virtual:1ff4b5f90832ba0a9c93ba1223af226e44ba70c1126a3740d93562b97bc36544e896a5e95908196f7458713e6a6089a34bfc67362fc6df7fa093bd06c878be47#npm:4.3.7"],\
           ["socks", "npm:2.8.3"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["sortablejs", [\
+      ["npm:1.15.6", {\
+        "packageLocation": "./.yarn/cache/sortablejs-npm-1.15.6-37322850a4-a75dcf53e5.zip/node_modules/sortablejs/",\
+        "packageDependencies": [\
+          ["sortablejs", "npm:1.15.6"]\
         ],\
         "linkType": "HARD"\
       }]\
