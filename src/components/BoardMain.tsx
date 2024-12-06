@@ -23,13 +23,10 @@ import { throttle } from "lodash-es";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
-  height: 100%;
   transform-style: preserve-3d;
-  height: inherit;
-  flex-grow: 1;
-  
-  /* display: grid;
-  grid-template-rows: 1fr auto; */
+  contain: size;
+  height: 100%;
+  gap: 10px;
   display: flex;
   flex-direction: column;
 `;
@@ -37,7 +34,7 @@ const BoardMainBase = styled.div`
 const BoardMainContentContainer = styled.div`
   overflow: hidden;
   height: 100%;
-  margin-top: 10px;
+  /* margin-top: 10px; */
   padding: 10px;
 
   background-color: rgba(255, 255, 255, 0.3);
@@ -49,7 +46,6 @@ const BoardMainContent = styled.div`
 
   overflow-y: auto;
   overflow-x: hidden;
-  scroll-behavior: smooth;
   height: 100%;
   display: flex;
   flex-direction: column;

@@ -85,7 +85,6 @@ const GlobalStyle = createGlobalStyle`
   }
   body {
     overflow: auto;
-    scroll-behavior: smooth;
     height: 100%;
     min-height: 100%;
     font-family: "Source Sans 3", sans-serif;
@@ -120,11 +119,12 @@ const Main = styled.main`
   align-items: center;
 `;
 
-const Dashboard = styled.div`
+const BoardsContainer = styled.div`
   ${CssScrollbar}
 
   overflow: auto;
-  scroll-behavior: smooth;
+  /* scroll-behavior: smooth; */
+  /* ㄴ Not compatible with Sortable.js */
   width: 100%;
   height: 100%;
   display: flex;
@@ -134,12 +134,14 @@ const Dashboard = styled.div`
 `;
 
 const Board = styled.div`
+  flex-shrink: 0;
   height: 85%;
   width: min(100%, 300px);
   min-height: 300px;
   padding: 10px;
   display: flex;
   flex-direction: column;
+  gap: 10px;
 
   // Glassmorphism
   background-color: rgba(255, 255, 255, 0.3);
@@ -503,7 +505,7 @@ function App() {
         scroll: true,
         scrollSensitivity: 50, // px, how near the mouse must be to an edge to start scrolling.
         scrollSpeed: 10, // px, speed of the scrolling
-        // forceAutoScrollFallback: false,
+        forceAutoScrollFallback: true, // 이거 하니까 좀 빨라지네
         // bubbleScroll: true,
 
         delayOnTouchOnly: false,
@@ -530,6 +532,7 @@ function App() {
         scroll: true,
         scrollSensitivity: 30,
         scrollSpeed: 5,
+        forceAutoScrollFallback: true,
         onEnd: (event) => {
           console.log(event);
         },
@@ -572,7 +575,7 @@ function App() {
         </Helmet>
         <GlobalStyle />
         <Main>
-          <Dashboard ref={refBoardsContainer}>
+          <BoardsContainer ref={refBoardsContainer}>
             {categoryList.length === 0 ? (
               <div>Empty!</div>
             ) : (
@@ -588,7 +591,7 @@ function App() {
                 })}
               </>
             )}
-          </Dashboard>
+          </BoardsContainer>
         </Main>
         <ReactQueryDevtools initialIsOpen={true} />
       </ThemeProvider>
