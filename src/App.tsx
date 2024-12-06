@@ -2,6 +2,8 @@ import React, {
   FormEventHandler,
   MutableRefObject,
   useCallback,
+  useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -15,7 +17,7 @@ import {
 } from "styled-components";
 import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
-import { useRecoilState } from "recoil";
+import { atom, useRecoilState } from "recoil";
 import { darkTheme } from "./theme";
 import { arrayMoveElement, generateUniqueRandomId } from "@/utils";
 import { FormSubmitHandler, SubmitHandler, useForm } from "react-hook-form";
@@ -37,6 +39,8 @@ import {
 } from "@/hooks/useDnd";
 import { CursorFollower } from "@/components/CursorFollower";
 import { NestedIndexer } from "@/indexer";
+import dragula from "dragula";
+import autoScroll from "dom-autoscroller";
 
 const { TextArea } = Input;
 
@@ -98,26 +102,53 @@ const GlobalStyle = createGlobalStyle`
     box-sizing: border-box;
   }
   html {
+    height: 100%;
     overflow: auto;
-    user-select: none;
   }
   body {
+    height: 100%;
+    min-height: 100%;
     overflow: auto;
     font-family: "Source Sans 3", sans-serif;
     font-optical-sizing: auto;
     font-weight: 500;
     font-style: normal;
   }
+  #root {
+    height: 100%;
+  }
   a {
     text-decoration: none;
     color: inherit;
+  }
+
+  // .gu-mirror{position:fixed!important;margin:0!important;z-index:9999!important;opacity:.8}.gu-hide{display:none!important}.gu-unselectable{-webkit-user-select:none!important;-moz-user-select:none!important;-ms-user-select:none!important;user-select:none!important}.gu-transit{opacity:.2}
+  .gu-transit {
+    && {
+      opacity: 0.7;
+      border: 1px solid orange;
+    }
+  }
+
+  .gu-mirror {
+    position: fixed;
+  }
+
+  .gu-hide{
+    display:none !important
+  }
+
+  .gu-unselectable {
+    -webkit-user-select:none !important;
+    -moz-user-select:none!important;
+    -ms-user-select:none!important;
+    user-select:none!important
   }
 `;
 
 const Main = styled.main`
   min-width: fit-content;
   height: 100%;
-  min-height: 100vh;
   background: ${({ theme }) => theme.background};
   background-repeat: no-repeat;
   background-size: cover;
@@ -131,8 +162,7 @@ const Main = styled.main`
   align-items: center;
 `;
 
-const Boards = styled.div`
-  transform-style: preserve-3d;
+const Dashboard = styled.div`
   width: max-content;
   display: flex;
   justify-content: stretch;
@@ -140,6 +170,7 @@ const Boards = styled.div`
 `;
 
 const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
+  touch-action: none;
   flex-shrink: 0;
   width: min(100%, 300px);
   min-height: 300px;
@@ -154,16 +185,6 @@ const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
   -webkit-backdrop-filter: blur(13.5px);
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-
-  transform-style: preserve-3d;
-  ${({ isDragging, transform }) =>
-    isDragging
-      ? css`
-          transform: ${(transform ?? "") + "translateZ(10px) !important"};
-          opacity: 0.85;
-          border: 1px solid yellow;
-        `
-      : ""}// background-color: ${({ theme }) => theme.boardBgColor};
 `;
 
 const DragGhost = styled.div`
@@ -217,6 +238,27 @@ const BoardHeadForm = styled.form`
     width: 100%;
   }
 `;
+
+const boardDragHandlesAtom = atom<{
+  [id: string]: HTMLDivElement | null;
+}>({
+  key: "categoryDragHandlesAtom",
+  default: {},
+});
+
+const cardsAtom = atom<{
+  [id: string]: HTMLDivElement | null;
+}>({
+  key: "cardsAtom",
+  default: {},
+});
+
+const cardDragHandlesAtom = atom<{
+  [id: string]: HTMLDivElement | null;
+}>({
+  key: "taskDragHandlesAtom",
+  default: {},
+});
 
 export const BoardHead = React.memo(
   React.forwardRef<HTMLDivElement, BoardHeadProps>(
@@ -298,6 +340,18 @@ export const BoardHead = React.memo(
         [setStateIndexerCategoryTask, category.id],
       );
 
+      const [stateBoardDragHandles, setStateBoardDragHandles] =
+        useRecoilState(boardDragHandlesAtom);
+      const refDragHandle = useRef<HTMLDivElement | null>(null);
+      useEffect(() => {
+        if (refDragHandle.current) {
+          setStateBoardDragHandles((cur) => ({
+            ...cur,
+            [category.id]: refDragHandle.current,
+          }));
+        }
+      }, [category.id, setStateBoardDragHandles]);
+
       return (
         <div ref={ref}>
           <BoardHeadTitle>
@@ -321,7 +375,7 @@ export const BoardHead = React.memo(
               })}
             />
           </BoardHeadForm>
-          <div ref={dragHandle?.setDragHandleRef} {...dragHandle?.listeners}>
+          <div ref={refDragHandle}>
             DOH!<br></br>DOH!
           </div>
         </div>
@@ -362,15 +416,49 @@ export const Card = React.memo(
     ({ task }: { task: Task }, ref) => {
       console.log("[CardBase]");
 
+      const [stateCardDragHandles, setStateCardDragHandles] =
+        useRecoilState(cardDragHandlesAtom);
+      const refDragHandle = useRef<HTMLDivElement | null>(null);
+      useEffect(() => {
+        if (refDragHandle.current) {
+          setStateCardDragHandles((cur) => ({
+            ...cur,
+            [task.id]: refDragHandle.current,
+          }));
+        }
+      }, [task.id, setStateCardDragHandles]);
+
+      const [stateCards, setStateCards] = useRecoilState(cardsAtom);
+      const refCard = useRef<HTMLDivElement | null>(null);
+      useEffect(() => {
+        if (refCard.current) {
+          setStateCards((cur) => ({
+            ...cur,
+            [task.id]: refCard.current,
+          }));
+        }
+      }, [task.id, setStateCards]);
+
       return (
-        <div ref={ref}>
+        <div
+          ref={(el) => {
+            if (el) {
+              refCard.current = el;
+              if (ref) {
+                (ref as MutableRefObject<HTMLDivElement>).current = el;
+              }
+            }
+          }}
+        >
           {task.text}
-          <div>DOH!</div>
+          <div ref={refDragHandle}>DOH!</div>
         </div>
       );
     },
   ),
 );
+
+const BoardBodyBase = styled.div``;
 
 export type BoardBodyProps = {
   category: Category;
@@ -393,15 +481,15 @@ export const BoardBody = React.memo(
     );
 
     return (
-      <>
+      <BoardBodyBase ref={ref}>
         {!taskList || taskList.length === 0 ? (
           <div>Empty!</div>
         ) : (
           taskList.map((task, idx) => {
-            return <Card ref={ref} key={task.id} task={task} {...props} />;
+            return <Card key={task.id} task={task} {...props} />;
           })
         )}
-      </>
+      </BoardBodyBase>
     );
   }),
 );
@@ -747,32 +835,108 @@ function App() {
   //   items: droppableCategories,
   // });
 
-  const {
-    setDraggableAndDroppableRef,
-    retUseDraggable: {
-      // Draggables,
-      listeners: draggableListeners,
-      setDraggableRef,
-      setDraggableHandleRef,
-      setDragGhostRef,
-      isDragging,
-    },
-    retUseDroppable: { droppableProvided },
-  } = useDnd({
-    useDraggableParams: {
-      items: draggableCategories,
-      onDragStartCb,
-      onDragEndCb,
-    },
-    useDroppableParams: {
-      items: droppableCategories,
-    },
-  });
+  // const {
+  //   setDraggableAndDroppableRef,
+  //   retUseDraggable: {
+  //     // Draggables,
+  //     listeners: draggableListeners,
+  //     setDraggableRef,
+  //     setDraggableHandleRef,
+  //     setDragGhostRef,
+  //     isDragging,
+  //   },
+  //   retUseDroppable: { droppableProvided },
+  // } = useDnd({
+  //   useDraggableParams: {
+  //     items: draggableCategories,
+  //     onDragStartCb,
+  //     onDragEndCb,
+  //   },
+  //   useDroppableParams: {
+  //     items: droppableCategories,
+  //   },
+  // });
+
+  const refDashboard = useRef<HTMLDivElement | null>(null);
+  const refBoards = useRef<HTMLDivElement[]>([]);
+  const refBoardBodies = useRef<HTMLDivElement[]>([]);
+  const [stateBoardDragHandles, setStateBoardDragHandles] =
+    useRecoilState(boardDragHandlesAtom);
+  const [stateCards, setStateCards] = useRecoilState(cardsAtom);
+  const [stateCardDragHandles, setStateCardDragHandles] =
+    useRecoilState(cardDragHandlesAtom);
+
+  // console.log(refDashboard.current);
+  // console.log(refBoards.current);
+  // console.log(stateBoardDragHandles);
+  console.log(stateCardDragHandles);
+
+  useEffect(() => {
+    let drake: dragula.Drake | null = null;
+    if (refDashboard.current && refBoardBodies.current) {
+      drake = dragula({
+        containers: [refDashboard.current, ...refBoardBodies.current],
+        moves: (el, source, handle, sibling) => {
+          console.log(el);
+          console.log(handle);
+
+          if (!source || !handle) {
+            return false;
+          }
+
+          // Board movement
+          const isBoardMovement =
+            refBoards.current.includes(el as HTMLDivElement) &&
+            Object.values(stateBoardDragHandles).includes(
+              handle as HTMLDivElement,
+            );
+
+          // Card movement
+          const isCardMovement =
+            Object.values(stateCards).includes(el as HTMLDivElement) &&
+            Object.values(stateCardDragHandles).includes(
+              handle as HTMLDivElement,
+            );
+
+          return isBoardMovement || isCardMovement;
+        },
+        accepts: (el, target, source, sibling) => {
+          if (!el || !target) {
+            return false;
+          }
+
+          // Board movement
+          if (target === refDashboard.current) {
+            return refBoards.current.includes(el as HTMLDivElement);
+          }
+
+          // Card movement
+
+          return false;
+        },
+        revertOnSpill: true,
+      });
+    }
+
+    const scroll = autoScroll([document.body], {
+      margin: 20,
+      maxSpeed: 5,
+      scrollWhenOutside: true,
+      autoScroll: function () {
+        //Only scroll when the pointer is down, and there is a child being dragged.
+        return this.down && drake?.dragging;
+      },
+    });
+
+    return () => {
+      drake?.destroy();
+    };
+  }, [stateBoardDragHandles]);
 
   // console.log(categoryList);
   // console.log(stateIndexerCategoryTask);
-  console.log("stateActiveCategory:", stateActiveCategory);
-  console.log("isDragging:", isDragging);
+  // console.log("stateActiveCategory:", stateActiveCategory);
+  // console.log("isDragging:", isDragging);
 
   return (
     <>
@@ -785,40 +949,37 @@ function App() {
         </Helmet>
         <GlobalStyle />
         <Main>
-          <Boards>
+          <Dashboard ref={refDashboard}>
             {categoryList.length === 0 ? (
               <div>Empty!</div>
             ) : (
-              // <Draggables>
               <>
                 {categoryList.map((category, idx) => {
                   return (
                     <Board
                       key={category.id}
-                      ref={setDraggableAndDroppableRef({
-                        index: idx,
-                        shouldAttachHandleToThis: false,
-                      })}
-                      {...droppableProvided({ index: idx })}
+                      ref={(el) => {
+                        if (el) {
+                          refBoards.current[idx] = el;
+                        }
+                      }}
                     >
-                      <BoardHead
-                        category={category}
-                        dragHandle={{
-                          setDragHandleRef: setDraggableHandleRef({
-                            index: idx,
-                          }),
-                          listeners: draggableListeners({ index: idx }),
+                      <BoardHead category={category} />
+                      <BoardBody
+                        ref={(el) => {
+                          if (el) {
+                            refBoardBodies.current[idx] = el;
+                          }
                         }}
+                        category={category}
                       />
-                      <BoardBody category={category} />
                     </Board>
                   );
                 })}
               </>
-              // </Draggables>
             )}
-          </Boards>
-          {!!stateActiveCategory &&
+          </Dashboard>
+          {/* {!!stateActiveCategory &&
             createPortal(
               <DragGhost ref={setDragGhostRef}>
                 <Board isDragging={isDragging}>
@@ -827,7 +988,7 @@ function App() {
                 </Board>
               </DragGhost>,
               document.body,
-            )}
+            )} */}
           {/* <div
             ref={setDragGhostRef}
             // onDragEnter={onDragEnter}

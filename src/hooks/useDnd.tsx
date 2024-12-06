@@ -235,7 +235,7 @@ const droppableEventHandlersAtom = atom<DroppableEventHandlers>({
 
 export type CustomDragStartEvent = CustomEvent<{
   mouseEvent: MouseEvent | null;
-  touchEvent: TouchEvent | null;
+  touchEvent: PointerEvent | null;
   index: number;
 }>;
 
@@ -525,7 +525,8 @@ export const useDraggable = <
       if (mouseEvent) {
         refCursorPos.current = { x: mouseEvent.clientX, y: mouseEvent.clientY };
       } else if (touchEvent) {
-        const touch = touchEvent.touches[0];
+        // const touch = touchEvent.touches[0];
+        const touch = touchEvent;
         refCursorPos.current = { x: touch.clientX, y: touch.clientY };
       }
 
@@ -603,7 +604,7 @@ export const useDraggable = <
   );
 
   const onTouchMove = useCallback(
-    (event: TouchEvent) => {
+    (event: PointerEvent) => {
       // console.log("[onTouchMove]");
 
       // event.preventDefault();
@@ -620,7 +621,8 @@ export const useDraggable = <
       // targetTouches: length 1
       // changedTouches: length 1
 
-      const touch = event.touches[0];
+      // const touch = event.touches[0];
+      const touch = event;
       const { x: curTouchX, y: curTouchY } = (refCursorPos.current = {
         x: touch.clientX,
         y: touch.clientY,
@@ -657,7 +659,7 @@ export const useDraggable = <
   const onTouchMoveThrottled = useCallback(
     ({ index }: { index: number }) =>
       memoizeCallback({
-        fn: (event: TouchEvent) => {
+        fn: (event: PointerEvent) => {
           // console.log("[onTouchMoveThrottled]");
 
           // event.preventDefault();
@@ -672,7 +674,7 @@ export const useDraggable = <
 
           cancelAnimationFrame(refIdAfOnTouchMoveThrottled.current);
           refIdAfOnTouchMoveThrottled.current = requestAnimationFrame(() => {
-            const touch = event.touches[0];
+            const touch = event;
 
             if (
               !refIsDragging.current &&
@@ -841,7 +843,7 @@ export const useDraggable = <
   const onTouchEnd = useCallback(
     ({ index }: { index: number }) =>
       memoizeCallback({
-        fn: (event: TouchEvent) => {
+        fn: (event: PointerEvent) => {
           console.log("[onTouchEnd]");
 
           if (!sensorsConfig.touch.enable) {
@@ -864,9 +866,9 @@ export const useDraggable = <
             refDragGhost.current.style.setProperty("display", "none");
           }
 
-          document.body.removeEventListener("touchmove", onTouchMove);
+          document.body.removeEventListener("pointermove", onTouchMove);
           document.body.removeEventListener(
-            "touchmove",
+            "pointermove",
             onTouchMoveThrottled({ index }),
           );
 
@@ -978,7 +980,7 @@ export const useDraggable = <
   const onTouchStart = useCallback(
     ({ index }: { index: number }) =>
       memoizeCallback({
-        fn: (event: React.TouchEvent) => {
+        fn: (event: React.PointerEvent) => {
           console.log("[onTouchStart]");
 
           if (!sensorsConfig.touch.enable) {
@@ -993,7 +995,8 @@ export const useDraggable = <
           // targetTouches: length 1
           // changedTouches: length 1
 
-          const touch = event.touches[0];
+          // const touch = event.touches[0];
+          const touch = event;
           refIsMouseDown.current = true;
 
           refPrevTouchPos.current = { x: touch.clientX, y: touch.clientY };
@@ -1005,19 +1008,19 @@ export const useDraggable = <
           };
           // console.log(refMouseDownPos.current);
 
-          document.body.addEventListener("touchmove", onTouchMove, {
+          document.body.addEventListener("pointermove", onTouchMove, {
             passive: false,
             capture: true,
           });
           document.body.addEventListener(
-            "touchmove",
+            "pointermove",
             onTouchMoveThrottled({ index }),
             {
               passive: false,
               capture: true,
             },
           );
-          document.body.addEventListener("touchend", onTouchEnd({ index }), {
+          document.body.addEventListener("pointerup", onTouchEnd({ index }), {
             once: true,
           });
         },
@@ -1257,7 +1260,7 @@ export const useDraggable = <
         onMouseDown: onMouseDown({ index }),
         // onMouseMove: onMouseMove({ index }),
         // onMouseUp: onMouseUp,
-        onTouchStart: onTouchStart({ index }),
+        onPointerDown: onTouchStart({ index }),
         onDragStart: onDragStart({ index }),
         // onDrag: onDrag({ index }),
         // onDragEnd: onDragEnd({ index }),
