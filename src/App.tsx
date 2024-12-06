@@ -16,7 +16,7 @@ import autoScroll from "dom-autoscroller";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import Sortable, { MultiDrag, Swap } from "sortablejs";
 import { boardDragHandlesAtom, BoardHeader } from "@/components/BoardHeader";
-import { BoardMain } from "@/components/BoardMain";
+import { BoardMain, cardsContainerAtom } from "@/components/BoardMain";
 import { BoardFooter } from "@/components/BoardFooter";
 import { cardDragHandlesAtom, cardsAtom } from "@/components/Card";
 import { useDeviceDetector } from "@/hooks/useDeviceDetector";
@@ -79,17 +79,19 @@ const GlobalStyle = createGlobalStyle`
     box-sizing: border-box;
   }
   html {
-    height: 100%;
     overflow: auto;
+    height: 100%;
   }
   body {
+    overflow: auto;
+    scroll-behavior: smooth;
     height: 100%;
     min-height: 100%;
-    overflow: auto;
     font-family: "Source Sans 3", sans-serif;
     font-optical-sizing: auto;
     font-weight: 500;
     font-style: normal;
+    word-break: break-word;
   }
   #root {
     height: 100%;
@@ -118,13 +120,15 @@ const Main = styled.main`
 
 const Dashboard = styled.div`
   width: max-content;
+  height: 100%;
   display: flex;
   justify-content: stretch;
+  align-items: center;
   gap: 10px;
 `;
 
 const Board = styled.div<{ isDragging?: boolean; transform?: string }>`
-  touch-action: none;
+  height: 85%;
   flex-shrink: 0;
   width: min(100%, 300px);
   min-height: 300px;
@@ -443,9 +447,9 @@ function App() {
     [stateIndexerCategoryTask],
   );
 
-  const refDashboard = useRef<HTMLDivElement | null>(null);
-  const refBoards = useRef<HTMLDivElement[]>([]);
-  const refBoardBodies = useRef<HTMLDivElement[]>([]);
+  const refBoardsContainer = useRef<HTMLDivElement | null>(null);
+  const [stateCardsContainer, setStateCardsContainer] =
+    useRecoilState(cardsContainerAtom);
   const [stateBoardDragHandles, setStateBoardDragHandles] =
     useRecoilState(boardDragHandlesAtom);
   const [stateCards, setStateCards] = useRecoilState(cardsAtom);
@@ -464,15 +468,15 @@ function App() {
 
   useEffect(() => {
     const sortables: Sortable[] = [];
-    if (refDashboard.current) {
+    if (refBoardsContainer.current) {
       // https://github.com/SortableJS/Sortable
-      const sortable = Sortable.create(refDashboard.current, {
+      const sortable = Sortable.create(refBoardsContainer.current, {
         group: "categories",
         animation: 150,
         scroll: true,
         forceFallback: true, // Show ghost image without default's opacity gradient in desktop
         direction: "horizontal",
-        handle: ".board-sortable-handle",
+        handle: ".boards-container-sortable-handle",
         // https://github.com/SortableJS/Sortable/blob/master/plugins/AutoScroll/README.md
         // bubbleScroll: true,
         // scrollSensitivity: 500, // px, how near the mouse must be to an edge to start scrolling.
@@ -481,13 +485,20 @@ function App() {
       sortables.push(sortable);
     }
 
-    refBoardBodies.current.forEach((boardBody) => {
-      const sortable = Sortable.create(boardBody, {
+    categoryList.forEach((category) => {
+      // console.log(stateCardsContainer);
+      // console.log(category.id);
+      const cardsContainer = stateCardsContainer[category.id];
+      if (!cardsContainer) {
+        return;
+      }
+      const sortable = Sortable.create(cardsContainer, {
         group: "tasks",
         animation: 150,
         scroll: true,
         forceFallback: true,
         fallbackOnBody: true, // For correct positioning of the drag ghost element
+        handle: ".cards-container-sortable-handle",
         onEnd: (event) => {
           console.log(event);
         },
@@ -496,21 +507,24 @@ function App() {
     });
 
     // https://www.npmjs.com/package/dom-autoscroller
-    const scroll = autoScroll([document.body], {
-      margin: 50,
-      maxSpeed: 5,
-      scrollWhenOutside: true,
-      autoScroll: function () {
-        //Only scroll when the pointer is down, and there is a child being dragged.
-        return this.down;
-        // return this.down && stateIsDragging;
+    const scroll = autoScroll(
+      [document.body, ...Object.values(stateCardsContainer)],
+      {
+        margin: 50,
+        maxSpeed: 5,
+        scrollWhenOutside: true,
+        autoScroll: function () {
+          //Only scroll when the pointer is down, and there is a child being dragged.
+          return this.down;
+          // return this.down && stateIsDragging;
+        },
       },
-    });
+    );
 
     return () => {
       sortables.forEach((sortable) => sortable.destroy());
     };
-  }, [stateIsDragging]);
+  }, [categoryList, stateCardsContainer, stateIsDragging]);
 
   // console.log(categoryList);
   // console.log(stateIndexerCategoryTask);
@@ -528,31 +542,17 @@ function App() {
         </Helmet>
         <GlobalStyle />
         <Main>
-          <Dashboard ref={refDashboard}>
+          <Dashboard ref={refBoardsContainer}>
             {categoryList.length === 0 ? (
               <div>Empty!</div>
             ) : (
               <>
-                {categoryList.map((category, idx) => {
+                {categoryList.map((category) => {
                   return (
-                    <Board
-                      key={category.id}
-                      ref={(el) => {
-                        if (el) {
-                          refBoards.current[idx] = el;
-                        }
-                      }}
-                    >
+                    <Board key={category.id}>
                       <BoardHeader category={category} />
-                      <BoardMain
-                        ref={(el) => {
-                          if (el) {
-                            refBoardBodies.current[idx] = el;
-                          }
-                        }}
-                        category={category}
-                      />
-                      <BoardFooter category={category} />
+                      <BoardMain category={category} />
+                      {/* <BoardFooter category={category} /> */}
                     </Board>
                   );
                 })}

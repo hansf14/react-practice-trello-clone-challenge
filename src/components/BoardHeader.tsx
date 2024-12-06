@@ -64,7 +64,7 @@ const BoardDragHandle = styled.div`
   align-items: center;
 
   // Handle
-  &.board-sortable-handle {
+  &.boards-container-sortable-handle {
     cursor: grabbing;
   }
 `;
@@ -155,7 +155,7 @@ export const BoardHeader = React.memo(
           />
           <BoardDragHandle
             ref={refDragHandle}
-            className="board-sortable-handle"
+            className="boards-container-sortable-handle"
           >
             <GripVertical />
           </BoardDragHandle>

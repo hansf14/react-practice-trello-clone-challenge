@@ -1,6 +1,7 @@
 import React, { MutableRefObject, useRef } from "react";
 import { atom, useRecoilState } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
+import { styled } from "styled-components";
 import { Task } from "@/atoms";
 
 export const cardsAtom = atom<{
@@ -16,6 +17,17 @@ export const cardDragHandlesAtom = atom<{
   key: "taskDragHandlesAtom",
   default: {},
 });
+
+const CardBase = styled.div`
+  padding: 10px;
+
+  background-color: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(13.5px);
+
+  &.cards-container-sortable-handle {
+    cursor: grabbing;
+  }
+`;
 
 export const Card = React.memo(
   React.forwardRef<HTMLDivElement, { task: Task }>(
@@ -46,7 +58,7 @@ export const Card = React.memo(
       }, [task.id, setStateCardDragHandles]);
 
       return (
-        <div
+        <CardBase
           ref={(el) => {
             if (el) {
               refCard.current = el;
@@ -57,10 +69,10 @@ export const Card = React.memo(
           }}
         >
           {task.text}
-          <div ref={refDragHandle} className="sortable-handle">
+          <div ref={refDragHandle} className="cards-container-sortable-handle">
             DOH!
           </div>
-        </div>
+        </CardBase>
       );
     },
   ),
