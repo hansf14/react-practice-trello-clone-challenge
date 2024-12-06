@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/react-practice-trello-clone-challenge/static/js/main.29183012.js",
+    "main.js": "/react-practice-trello-clone-challenge/static/js/main.d393147e.js",
     "index.html": "/react-practice-trello-clone-challenge/index.html",
-    "main.29183012.js.map": "/react-practice-trello-clone-challenge/static/js/main.29183012.js.map"
+    "main.d393147e.js.map": "/react-practice-trello-clone-challenge/static/js/main.d393147e.js.map"
   },
   "entrypoints": [
-    "static/js/main.29183012.js"
+    "static/js/main.d393147e.js"
   ]
 }
