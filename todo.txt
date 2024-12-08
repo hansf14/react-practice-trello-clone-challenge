@@ -1,31 +1,10 @@
 3. 쓰레기통 - task 삭제기능 & 삭제버튼
-4. board 자체의 순서를 서로 바꿀 수 있는 기능
-5. board 생성 할 수 있는 form
-6. board 삭제
-7. board의 모든 task 삭제
 8. task 수정
+
+5. board 생성 할 수 있는 form
 9. board 수정
+6. board 삭제
+4. board 자체의 순서를 서로 바꿀 수 있는 기능
+7. board의 모든 task 삭제
 
-1. input 꾸미기, 스타일 꾸미기
 2. 모든 task state를 local storage에 저장 및 로드
-
-cursor: grab -> grabbing (isDragging)
-toolbar button -> pointer
-ghost placeholder: orange-ish filter
-
-task adder -> resize 속성 없애기
-
-closestEdge
-DragIndicator
-horizontalRestrict
-touch events
-
-0번째 드래그 후 1번째 드래그하면 0번째가 드래그되는 버그
-
-optimize touch at mobile
-drag scroll
-darg trigger when only mouse down (hold)
-
-useDnd
-  useDroppable
-    useDraggable

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { ExecutionProps, styled } from "styled-components";
 import { atom, useRecoilState, useSetRecoilState } from "recoil";
-import { Category, indexerCategoryTaskAtom, Task } from "@/atoms";
+import { Category, nestedIndexerCategoryTaskAtom, Task } from "@/atoms";
 import { Card } from "@/components/Card";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import {
@@ -20,10 +20,13 @@ import { Input } from "antd";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { CssScrollbar } from "@/css/scrollbar";
 import { throttle } from "lodash-es";
+import {
+  ItemCustomDataAttributes,
+  ItemListCustomDataAttributes,
+} from "@/sortable";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
-  transform-style: preserve-3d;
   contain: size;
   height: 100%;
   gap: 10px;
@@ -53,9 +56,9 @@ const BoardMainContent = styled.div`
 `;
 
 const Toolbar = styled.div`
-  transform: translateZ(10px);
   width: 100%;
   display: flex;
+  gap: 10px;
 `;
 
 const TaskAdder = styled.form`
@@ -70,6 +73,7 @@ const TaskAdderInput = styled(TextArea)`
     font-weight: bold;
     font-size: 14px;
 
+    resize: none;
     transition: none;
   }
 `;
@@ -88,11 +92,13 @@ const ScrollButtons = styled.div`
 const ScrollDownButton = styled(ArrowDownCircleFill)`
   width: 25px;
   height: 25px;
+  cursor: pointer;
 `;
 
 const ScrollUpButton = styled(ArrowUpCircleFill)`
   width: 25px;
   height: 25px;
+  cursor: pointer;
 `;
 
 const TaskButtons = styled.div`
@@ -103,6 +109,7 @@ const TaskButtons = styled.div`
 const TaskAddButton = styled(PlusCircleFill)`
   width: 25px;
   height: 25px;
+  cursor: pointer;
 `;
 
 export interface FormData {
@@ -126,7 +133,7 @@ export const BoardMain = React.memo(
     const { category } = props;
 
     const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
-      useRecoilState(indexerCategoryTaskAtom);
+      useRecoilState(nestedIndexerCategoryTaskAtom);
 
     const setStateCardsContainer = useSetRecoilState(cardsContainerAtom);
     const refCardsContainer = useRef<HTMLDivElement | null>(null);
@@ -254,15 +261,31 @@ export const BoardMain = React.memo(
       };
     }, [checkHasVerticalScrollbar]);
 
+    const customDataAttributes: ItemListCustomDataAttributes = {
+      "data-item-list-type": "tasks",
+      "data-item-list-id": category.id,
+    };
+
     return (
       <BoardMainBase ref={ref}>
         <BoardMainContentContainer>
-          <BoardMainContent ref={refCardsContainer}>
+          <BoardMainContent ref={refCardsContainer} {...customDataAttributes}>
             {!taskList || taskList.length === 0 ? (
               <div>Empty!</div>
             ) : (
               taskList.map((task) => {
-                return <Card key={task.id} task={task} {...props} />;
+                const customDataAttributes: ItemCustomDataAttributes = {
+                  "data-item-type": "task",
+                  "data-item-id": task.id,
+                };
+                return (
+                  <Card
+                    key={task.id}
+                    task={task}
+                    {...props}
+                    {...customDataAttributes}
+                  />
+                );
               })
             )}
           </BoardMainContent>

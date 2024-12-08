@@ -6,7 +6,9 @@
   },
   "typescript.tsdk": ".yarn/sdks/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "eslint.packageManager": "yarn",
   "eslint.nodePath": ".yarn/sdks",
-  "prettier.prettierPath": ".yarn/sdks/prettier/index.cjs"
+  "prettier.prettierPath": ".yarn/sdks/prettier/index.cjs",
+  "eslint.packageManager": "yarn",
+  "prettier.packageManager": "yarn",
+  "npm.packageManager": "yarn"
 }

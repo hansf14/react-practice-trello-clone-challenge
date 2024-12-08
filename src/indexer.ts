@@ -1,3 +1,5 @@
+import "reflect-metadata";
+import { Expose, instanceToPlain } from "class-transformer";
 import { MultiMap } from "@/multimap";
 import { arrayMoveElement } from "@/utils";
 
@@ -16,6 +18,7 @@ export class Indexer<T extends IndexerBaseItem> extends MultiMap<
   IndexerKey,
   string | T
 > {
+  @Expose()
   itemKeyName: string;
 
   constructor({
@@ -35,12 +38,22 @@ export class Indexer<T extends IndexerBaseItem> extends MultiMap<
         }
       | Indexer<T>,
   ) {
-    if (params instanceof Indexer<T>) {
+    if (params instanceof Indexer) {
       super(params);
     } else {
       super({ entries: params.entries ?? [] });
     }
     this.itemKeyName = params.itemKeyName;
+  }
+
+  // Convert to a plain object
+  override toPlain(): object {
+    return instanceToPlain(this, { strategy: "excludeAll" });
+  }
+
+  // Convert to a JSON string
+  override toString(): string {
+    return JSON.stringify(this.toPlain());
   }
 
   getItemIdList() {
@@ -221,7 +234,9 @@ export class NestedIndexer<
   Parent extends NestedIndexerBaseItem,
   Child extends NestedIndexerBaseItem,
 > extends MultiMap<NestedIndexerKey, string | Parent | Child> {
+  @Expose()
   parentKeyName: string;
+  @Expose()
   childKeyName: string;
 
   constructor({
@@ -244,13 +259,26 @@ export class NestedIndexer<
         }
       | NestedIndexer<Parent, Child>,
   ) {
-    if (params instanceof NestedIndexer<Parent, Child>) {
+    if (params instanceof NestedIndexer) {
       super(params);
     } else {
       super({ entries: params.entries ?? [] });
     }
     this.parentKeyName = params.parentKeyName;
     this.childKeyName = params.childKeyName;
+  }
+
+  // Convert to a plain object
+  override toPlain(): object {
+    return instanceToPlain(
+      this,
+      //{ strategy: "excludeAll" }
+    );
+  }
+
+  // Convert to a JSON string
+  override toString(): string {
+    return JSON.stringify(this.toPlain());
   }
 
   getParentIdList() {

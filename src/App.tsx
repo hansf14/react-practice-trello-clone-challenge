@@ -1,26 +1,25 @@
-import React, {
-  MutableRefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ThemeProvider, createGlobalStyle, styled } from "styled-components";
 import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
 import { useRecoilState } from "recoil";
 import { darkTheme } from "./theme";
-import { Category, indexerCategoryTaskAtom, Task } from "@/atoms";
-import autoScroll from "dom-autoscroller";
+import { nestedIndexerCategoryTaskAtom } from "@/atoms";
+// import autoScroll from "dom-autoscroller";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import Sortable, { MultiDrag, Swap } from "sortablejs";
-import { boardDragHandlesAtom, BoardHeader } from "@/components/BoardHeader";
+import { BoardHeader } from "@/components/BoardHeader";
 import { BoardMain, cardsContainerAtom } from "@/components/BoardMain";
-import { BoardFooter } from "@/components/BoardFooter";
-import { cardDragHandlesAtom, cardsAtom } from "@/components/Card";
-import { useDeviceDetector } from "@/hooks/useDeviceDetector";
+// import { BoardFooter } from "@/components/BoardFooter";
 import { CssScrollbar } from "@/css/scrollbar";
+import { NestedIndexer } from "@/indexer";
+import {
+  customDataAttributeNameKvMapping,
+  dataItemListTypeValueKvMapping,
+  dataItemTypeValueKvMapping,
+  ItemCustomDataAttributes,
+  ItemListCustomDataAttributes,
+} from "@/sortable";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -101,6 +100,10 @@ const GlobalStyle = createGlobalStyle`
     text-decoration: none;
     color: inherit;
   }
+
+  .sortable-grabbing * {
+    cursor: grabbing !important;
+  }
 `;
 
 const Main = styled.main`
@@ -154,15 +157,12 @@ const Board = styled.div`
   // DragOverlay
   &.sortable-drag {
     opacity: 0.7 !important;
-    > div {
-      /* height: 100%; */
-    }
   }
 
   // Ghost
   &.sortable-ghost {
     opacity: 0.7;
-    border: 1px solid orange;
+    border: 2px solid yellow;
   }
 `;
 
@@ -170,289 +170,22 @@ const Board = styled.div`
 // Sortable.mount(new MultiDrag(), new Swap());
 
 function App() {
-  const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
-    useRecoilState(indexerCategoryTaskAtom);
-
-  // const [stateActiveCategoryDomStyle, setStateActiveCategoryDomStyle] =
-  //   useState({});
-
-  // const onDragStart = (event: DragStartEvent) => {
-  //   const { active } = event;
-  //   setActiveId(active.id);
-  // };
-
-  // const onDragMove = (event: DragMoveEvent) => {
-  //   const { active, over } = event;
-
-  //   // Handle items sorting
-  //   if (
-  //     active &&
-  //     over &&
-  //     active.id.toString().includes("item") &&
-  //     over.id.toString().includes("item") &&
-  //     active.id !== over.id
-  //   ) {
-  //     // Find the active container and over container
-  //     // const activeContainer =
-  //     //       const findValueOfItems =
-  //     // Cid: UniqueIdentifier | undefined, type:
-  //     // if (tpe === 'container') {
-  //     // return containers.find((container) => container.id === id);
-  //     // if (type === 'item') {
-  //     // return containers.find((container) =>
-  //     // container.items.find((item) => item.id === id),
-  //     // string)
-  //     // => {
-  //     const activeContainer = findValueOfItems(active.id, "item");
-  //     const overContainer = findValueOfItems(over.id, "item");
-
-  //     if (!activeContainer || !overContainer) {
-  //       return;
-  //     }
-
-  //     // Find the active and over container index
-  //     const activeContainerIdx = containers.findIndex(
-  //       (container) => container.id === activeContainer.id,
-  //     );
-  //     const overContainerIdx = containers.findIndex(
-  //       (container) => container.id === overContainer.id,
-  //     );
-
-  //     // Find the active and over item
-  //     // ...
-
-  //     // In the same container
-  //     if (activeContainerIdx === overContainerIdx) {
-  //       let newItems = [...containers];
-  //       newItems[activeContainerIdx].items = arrayMove(
-  //         newItems[activeContainerIdx].items,
-  //         activeItemIdx,
-  //         overItemIdx,
-  //       );
-
-  //       setContainers(newItems);
-  //     } else {
-  //       let newITems = [...containers];
-  //       const [removedItem] = newItems[activeContainerIdx].items.splice(
-  //         activeItemIdx,
-  //         1,
-  //       );
-  //       newItems[overContainerIdx].items.splice(overItemIdx, 0, removedItem);
-  //       setContainers(newItems);
-  //     }
-  //   }
-
-  //   // Handle item drop into a container
-  //   if (
-  //     active &&
-  //     over &&
-  //     active.id.toString().includes("item") &&
-  //     over.id.toString().includes("container") &&
-  //     active.id !== over.id
-  //   ) {
-  //     // Find the active and over container
-  //     const activeContainer = findValueOfItems(active.id, "item");
-  //     const overContainer = findValueOfItems(over.id, "container");
-
-  //     // If the active or over container is undefined, return
-  //     if (!activeContainer || !overContainer) {
-  //       return;
-  //     }
-
-  //     // Find the active and over container index
-  //     const activeContainerIdx = containers.findIndex(
-  //       (container) => container.id === activeContainer.id,
-  //     );
-  //     const overContainerIdx = containers.findIndex(
-  //       (container) => container.id === overContainer.id,
-  //     );
-
-  //     // Find the index of the active item in the active container
-  //     const activeItemIndex = activeContainer.items.findIndex(
-  //       (item) => item.id === active.id,
-  //     );
-  //     const overItemIndex = overContainer.items.findIndex(
-  //       (item) => item.id === over.id,
-  //     );
-
-  //     // Remove the active item from the active container and add it to the over container
-  //     let newItems = [...containers];
-  //     const [removedItem] = newItems[activeContainerIdx].items.splice(
-  //       activeItemIndex,
-  //       1,
-  //     );
-  //     newItems[overContainerIndex].items.push(removedItem);
-  //     setContainers(newItems);
-  //   }
-  // };
-
-  // const onValid = useCallback<
-  //   ({ categoryId }: { categoryId: string }) => SubmitHandler<FormData>
-  // >(
-  //   ({ categoryId }) => {
-  //     return (data: FormData, event) => {
-  //       // console.log(data);
-
-  //       setStateIndexer((curIndexer) => {
-  //         const newTask = {
-  //           id: generateUniqueRandomId(),
-  //           text: data.taskText,
-  //         } satisfies Task;
-
-  //         const newIndexer = new Indexer(curIndexer);
-  //         newIndexer.createTask({
-  //           categoryId,
-  //           task: newTask,
-  //           shouldAppend: false,
-  //         });
-  //         return newIndexer;
-  //       });
-
-  //       reset();
-  //     };
-  //   },
-  //   [setStateIndexer, reset],
-  // );
-
-  // const onSubmit = useCallback<
-  //   ({
-  //     categoryId,
-  //   }: {
-  //     categoryId: string;
-  //   }) => FormEventHandler<HTMLFormElement>
-  // >(
-  //   ({ categoryId }) => {
-  //     return (event) => {
-  //       return handleSubmit((data, event) => onValid({ categoryId }));
-  //     };
-  //   },
-  //   [handleSubmit, onValid],
-  // );
-
-  // const onDragEnd: OnDragEndResponder<TypeId> = useCallback<OnDragEndResponder>(
-  //   (
-  //     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  //     { source, destination, draggableId, ...otherParams },
-  //     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  //     responderProvided,
-  //   ) => {
-  //     console.log("source:", source);
-  //     console.log("destination:", destination);
-  //     // console.log("draggableId:", draggableId);
-  //     // // console.log("otherParams:", otherParams);
-
-  //     if (!destination) {
-  //       return;
-  //     }
-
-  //     setStateIndexer((curIndexer) => {
-  //       const newIndexer = new Indexer(curIndexer);
-  //       newIndexer.moveTask({
-  //         categoryIdFrom: source.droppableId,
-  //         categoryIdTo: destination.droppableId,
-  //         idxFrom: source.index,
-  //         idxTo: destination.index,
-  //       });
-  //       return newIndexer;
-  //     });
-  //   },
-  //   [setStateIndexer],
-  // );
-
-  // const onDragEnd = (event: DragEndEvent) => {
-  //   // Handle container sorting
-  //   if (
-  //     active &&
-  //     over &&
-  //     active.id.toString().includes("container") &&
-  //     over.id.toString().includes("container") &&
-  //     active.id !== over.id
-  //   ) {
-  //     const activeContainerIdx = containers.findIndex(
-  //       (container) => container.id === active.id,
-  //     );
-  //     const overContainerIdx = containers.findIndex(
-  //       (container) => container.id === over.id,
-  //     );
-
-  //     // Swap the active and over container
-  //     let newItems = [...containers];
-  //     newItems = arrayMove(newItems, activeContainerIndex, overContainerIndex);
-  //     setContainers(newItems);
-  //   }
-
-  //   // Handle item sorting
-  //   if (
-  //     active &&
-  //     over &&
-  //     active.id.toString().includes("item") &&
-  //     over.id.toString().includes("item") &&
-  //     active.id !== over.id
-  //   ) {
-  //     const activeContainer = findValueOfItems(active.id, "item");
-  //     const overContainer = findValueOfItems(over.id, "item");
-
-  //     if (!activeContainer || !overContainer) {
-  //       return;
-  //     }
-
-  //     // Find the active and over container index
-  //     const activeContainerIdx = containers.findIndex(
-  //       (container) => container.id === activeContainer.id,
-  //     );
-  //     const overContainerIdx = containers.findIndex(
-  //       (container) => container.id === overContainer.id,
-  //     );
-
-  //     // Find the index of the active item in the active container
-  //     const activeItemIndex = activeContainer.items.findIndex(
-  //       (item) => item.id === active.id,
-  //     );
-  //     const overItemIndex = overContainer.items.findIndex(
-  //       (item) => item.id === over.id,
-  //     );
-
-  //     // In the same container
-  //     if (activeContainerIdx === overContainerIdx) {
-  //       let newItems = [...containers];
-  //       newItems[activeContainerIdx].items = arrayMove(
-  //         newItems[activeContainerIdx].items,
-  //         activeItemIdx,
-  //         overItemIdx,
-  //       );
-
-  //       setContainers(newItems);
-  //     } else {
-  //       let newITems = [...containers];
-  //       const [removedItem] = newItems[activeContainerIdx].items.splice(
-  //         activeItemIdx,
-  //         1,
-  //       );
-  //       newItems[overContainerIdx].items.splice(overItemIdx, 0, removedItem);
-  //       setContainers(newItems);
-  //     }
-
-  //     //Handle item drop into a container
-  //     // ...
-  //   }
-  //   setActiveId(null);
-  // };
-
-  /////////////////////////////////////////////////////
+  const [stateNestedIndexerCategoryTask, setStateNestedIndexerCategoryTask] =
+    useRecoilState(nestedIndexerCategoryTaskAtom);
 
   const categoryList = useMemo(
-    () => stateIndexerCategoryTask.getParentList__MutableParent() ?? [],
-    [stateIndexerCategoryTask],
+    () => stateNestedIndexerCategoryTask.getParentList__MutableParent() ?? [],
+    [stateNestedIndexerCategoryTask],
   );
 
   const refBoardsContainer = useRef<HTMLDivElement | null>(null);
   const [stateCardsContainer, setStateCardsContainer] =
     useRecoilState(cardsContainerAtom);
-  const [stateBoardDragHandles, setStateBoardDragHandles] =
-    useRecoilState(boardDragHandlesAtom);
-  const [stateCards, setStateCards] = useRecoilState(cardsAtom);
-  const [stateCardDragHandles, setStateCardDragHandles] =
-    useRecoilState(cardDragHandlesAtom);
+  // const [stateBoardDragHandles, setStateBoardDragHandles] =
+  //   useRecoilState(boardDragHandlesAtom);
+  // const [stateCards, setStateCards] = useRecoilState(cardsAtom);
+  // const [stateCardDragHandles, setStateCardDragHandles] =
+  //   useRecoilState(cardDragHandlesAtom);
 
   // const { getDeviceDetector } = useDeviceDetector();
   // const { getIsTouchDevice } = getDeviceDetector();
@@ -469,7 +202,7 @@ function App() {
     if (refBoardsContainer.current) {
       // https://github.com/SortableJS/Sortable
       const sortable = Sortable.create(refBoardsContainer.current, {
-        group: "categories",
+        group: dataItemListTypeValueKvMapping["categories"],
         // animation: 150,
         animation: 0,
         forceFallback: true, // Show ghost image without default's opacity gradient in desktop
@@ -509,6 +242,112 @@ function App() {
         // bubbleScroll: true,
 
         delayOnTouchOnly: false,
+        // onStart: (evt) => {
+        //   document.body.style.cursor = "grabbing !important";
+        //   // evt.item.style.pointerEvents = "auto !Important";
+        //   // evt.item.style.userSelect = "initial !important";
+        // },
+        onChoose: (evt) => {
+          evt.target.classList.add("sortable-grabbing");
+        },
+        onUnchoose: (evt) => {
+          evt.target.classList.remove("sortable-grabbing");
+        },
+        onStart: (evt) => {
+          evt.target.classList.add("sortable-grabbing");
+        },
+        onEnd: (evt) => {
+          evt.target.classList.remove("sortable-grabbing");
+
+          console.log(evt);
+          const {
+            oldIndex: idxFrom,
+            newIndex: idxTo,
+            item: target,
+            from: elementContainerFrom,
+            to: elementContainerTo,
+          } = evt;
+
+          const itemType = target.getAttribute(
+            customDataAttributeNameKvMapping["data-item-type"],
+          );
+          const id = target.getAttribute(
+            customDataAttributeNameKvMapping["data-item-id"],
+          );
+
+          const containerFrom = elementContainerFrom.getAttribute(
+            customDataAttributeNameKvMapping["data-item-list-type"],
+          );
+          const containerFromId = elementContainerFrom.getAttribute(
+            customDataAttributeNameKvMapping["data-item-list-id"],
+          );
+
+          const containerTo = elementContainerTo.getAttribute(
+            customDataAttributeNameKvMapping["data-item-list-type"],
+          );
+          const containerToId = elementContainerTo.getAttribute(
+            customDataAttributeNameKvMapping["data-item-list-id"],
+          );
+
+          console.log("containerFrom:", containerFrom);
+          console.log("containerTo:", containerTo);
+          console.log("itemType:", itemType);
+          console.log("id:", id);
+
+          if (
+            !itemType ||
+            (typeof id !== "number" && typeof id !== "bigint" && !id) ||
+            typeof idxFrom === "undefined" ||
+            typeof idxTo === "undefined" ||
+            !containerFrom ||
+            (typeof containerFromId !== "number" &&
+              typeof containerFromId !== "bigint" &&
+              !containerFromId) ||
+            !containerTo ||
+            (typeof containerToId !== "number" &&
+              typeof containerToId !== "bigint" &&
+              !containerToId)
+          ) {
+            return;
+          }
+
+          if (
+            containerFrom === containerTo &&
+            containerFrom === dataItemListTypeValueKvMapping["categories"] &&
+            itemType === dataItemTypeValueKvMapping["category"]
+          ) {
+            setStateNestedIndexerCategoryTask((cur) => {
+              const newNestedIndexer = new NestedIndexer(cur);
+              newNestedIndexer.moveParent({
+                idxFrom,
+                idxTo,
+              });
+              return newNestedIndexer;
+            });
+            return;
+          }
+
+          if (
+            containerFrom === containerTo &&
+            containerFrom === dataItemListTypeValueKvMapping["tasks"] &&
+            itemType === dataItemTypeValueKvMapping["task"]
+          ) {
+            setStateNestedIndexerCategoryTask((cur) => {
+              const newNestedIndexer = new NestedIndexer(cur);
+              newNestedIndexer.moveChild({
+                idxFrom,
+                idxTo,
+                parentIdFrom: containerFromId,
+                parentIdTo: containerToId,
+              });
+              return newNestedIndexer;
+            });
+            return;
+          }
+        },
+        onMove: (evt) => {
+          (evt.target as HTMLElement).classList.add("sortable-grabbing");
+        },
       });
       sortables.push(sortable);
     }
@@ -521,7 +360,7 @@ function App() {
         return;
       }
       const sortable = Sortable.create(cardsContainer, {
-        group: "tasks",
+        group: dataItemListTypeValueKvMapping["tasks"],
         animation: 150,
         // animation: 0,
         forceFallback: true,
@@ -557,10 +396,20 @@ function App() {
     return () => {
       sortables.forEach((sortable) => sortable.destroy());
     };
-  }, [categoryList, stateCardsContainer, stateIsDragging]);
+  }, [
+    categoryList,
+    stateCardsContainer,
+    stateIsDragging,
+    setStateNestedIndexerCategoryTask,
+  ]);
+
+  const customDataAttributes: ItemListCustomDataAttributes = {
+    "data-item-list-type": "categories",
+    "data-item-list-id": "root",
+  };
 
   // console.log(categoryList);
-  // console.log(stateIndexerCategoryTask);
+  console.log(stateNestedIndexerCategoryTask);
   // console.log("stateActiveCategory:", stateActiveCategory);
   // console.log("isDragging:", isDragging);
 
@@ -575,14 +424,18 @@ function App() {
         </Helmet>
         <GlobalStyle />
         <Main>
-          <BoardsContainer ref={refBoardsContainer}>
+          <BoardsContainer ref={refBoardsContainer} {...customDataAttributes}>
             {categoryList.length === 0 ? (
               <div>Empty!</div>
             ) : (
               <>
                 {categoryList.map((category) => {
+                  const customDataAttributes: ItemCustomDataAttributes = {
+                    "data-item-type": "category",
+                    "data-item-id": category.id,
+                  };
                   return (
-                    <Board key={category.id}>
+                    <Board key={category.id} {...customDataAttributes}>
                       <BoardHeader category={category} />
                       <BoardMain category={category} />
                       {/* <BoardFooter category={category} /> */}

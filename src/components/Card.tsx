@@ -1,7 +1,7 @@
 import React, { MutableRefObject, useRef } from "react";
-import { atom, useRecoilState } from "recoil";
+import { atom, useSetRecoilState } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
-import { styled } from "styled-components";
+import { ExecutionProps, styled } from "styled-components";
 import { Task } from "@/atoms";
 
 export const cardsAtom = atom<{
@@ -29,12 +29,17 @@ const CardBase = styled.div`
   }
 `;
 
+export type BoardFooterProps = {
+  task: Task;
+} & React.ComponentPropsWithoutRef<"div"> &
+  ExecutionProps;
+
 export const Card = React.memo(
   React.forwardRef<HTMLDivElement, { task: Task }>(
     ({ task }: { task: Task }, ref) => {
       console.log("[CardBase]");
 
-      const [stateCards, setStateCards] = useRecoilState(cardsAtom);
+      const setStateCards = useSetRecoilState(cardsAtom);
       const refCard = useRef<HTMLDivElement | null>(null);
       useIsomorphicLayoutEffect(() => {
         if (refCard.current) {
@@ -45,8 +50,7 @@ export const Card = React.memo(
         }
       }, [task.id, setStateCards]);
 
-      const [stateCardDragHandles, setStateCardDragHandles] =
-        useRecoilState(cardDragHandlesAtom);
+      const setStateCardDragHandles = useSetRecoilState(cardDragHandlesAtom);
       const refDragHandle = useRef<HTMLDivElement | null>(null);
       useIsomorphicLayoutEffect(() => {
         if (refDragHandle.current) {

@@ -3,9 +3,10 @@ import { ExecutionProps, styled } from "styled-components";
 import { atom, useRecoilState } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import { GripVertical } from "react-bootstrap-icons";
-import { Category, indexerCategoryTaskAtom } from "@/atoms";
+import { Category, nestedIndexerCategoryTaskAtom } from "@/atoms";
 import { NestedIndexer } from "@/indexer";
 import { Input } from "antd";
+import { boardDragHandlesAtom } from "@/components/BoardAtoms";
 const { TextArea } = Input;
 
 const BoardHeaderBase = styled.div``;
@@ -68,13 +69,6 @@ const BoardDragHandle = styled.div`
   }
 `;
 
-export const boardDragHandlesAtom = atom<{
-  [id: string]: HTMLDivElement | null;
-}>({
-  key: "categoryDragHandlesAtom",
-  default: {},
-});
-
 export type BoardHeaderProps = {
   category: Category;
 } & React.ComponentPropsWithoutRef<"div"> &
@@ -83,7 +77,7 @@ export type BoardHeaderProps = {
 export const BoardHeader = React.memo(
   React.forwardRef<HTMLDivElement, BoardHeaderProps>(({ category }, ref) => {
     const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
-      useRecoilState(indexerCategoryTaskAtom);
+      useRecoilState(nestedIndexerCategoryTaskAtom);
     const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
 
     const boardHeaderTitleEditEnableHandler = useCallback<

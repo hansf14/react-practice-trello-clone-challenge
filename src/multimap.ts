@@ -1,25 +1,29 @@
+import "reflect-metadata";
 export { default as MultiRefMap } from "many-keys-map";
+import { Expose, instanceToPlain } from "class-transformer";
 
 // Multi-key
 // Multi-value
 export class MultiMap<K extends string[], A extends any, V extends A[] = A[]> {
-  protected map = new Map<string, V>();
+  // @Type(() => Map)
+  @Expose()
+  public _map = new Map<string, V>();
 
   constructor();
   constructor({ entries }: { entries: [K, V][] });
   constructor(original: MultiMap<K, A, V>);
 
   constructor(params?: { entries: [K, V][] } | MultiMap<K, A, V>) {
-    this.map = new Map<string, V>();
+    this._map = new Map<string, V>();
 
-    if (params instanceof MultiMap<K, A, V>) {
-      for (const [serializedKey, value] of params.map.entries()) {
-        this.map.set(serializedKey, value);
+    if (params instanceof MultiMap) {
+      for (const [serializedKey, value] of params._map.entries()) {
+        this._map.set(serializedKey, value);
       }
     } else if (params?.entries) {
       for (const [keys, value] of params.entries) {
         const serializedKey = this.serializeMultiKey({ keys });
-        this.map.set(serializedKey, value);
+        this._map.set(serializedKey, value);
       }
     }
   }
@@ -39,14 +43,25 @@ export class MultiMap<K extends string[], A extends any, V extends A[] = A[]> {
     // ('["key1","key2"]');
   }
 
+  // Convert to a plain object
+  toPlain(): object {
+    return instanceToPlain(this, { strategy: "excludeAll" });
+    // The strategy option in the transformation settings controls the default behavior for including or excluding properties. The "excludeAll" strategy means only properties explicitly marked with @Expose will be included in the resulting plain object.
+  }
+
+  // Convert to a JSON string
+  toString(): string {
+    return JSON.stringify(this.toPlain());
+  }
+
   // unshift({ keys, value }: { keys: K; value: A | V }) {
   unshift({ keys, value }: { keys: K; value: V }) {
     const serializedKey = this.serializeMultiKey({ keys });
-    if (!this.map.has(serializedKey)) {
-      this.map.set(serializedKey, [] as unknown as V);
+    if (!this._map.has(serializedKey)) {
+      this._map.set(serializedKey, [] as unknown as V);
     }
 
-    this.map.get(serializedKey)?.unshift(...value);
+    this._map.get(serializedKey)?.unshift(...value);
     // if (Array.isArray(value)) {
     //   this.map.get(serializedKey)?.unshift(...value);
     // } else {
@@ -57,11 +72,11 @@ export class MultiMap<K extends string[], A extends any, V extends A[] = A[]> {
   // push({ keys, value }: { keys: K; value: A | V }) {
   push({ keys, value }: { keys: K; value: V }) {
     const serializedKey = this.serializeMultiKey({ keys });
-    if (!this.map.has(serializedKey)) {
-      this.map.set(serializedKey, [] as unknown as V);
+    if (!this._map.has(serializedKey)) {
+      this._map.set(serializedKey, [] as unknown as V);
     }
 
-    this.map.get(serializedKey)?.push(...value);
+    this._map.get(serializedKey)?.push(...value);
     // if (Array.isArray(value)) {
     //   this.map.get(serializedKey)?.push(...value);
     // } else {
@@ -71,19 +86,19 @@ export class MultiMap<K extends string[], A extends any, V extends A[] = A[]> {
 
   shift({ keys }: { keys: K }) {
     const serializedKey = this.serializeMultiKey({ keys });
-    return this.map.get(serializedKey)?.shift();
+    return this._map.get(serializedKey)?.shift();
   }
 
   pop({ keys }: { keys: K }) {
     const serializedKey = this.serializeMultiKey({ keys });
-    return this.map.get(serializedKey)?.pop();
+    return this._map.get(serializedKey)?.pop();
   }
 
   // set({ keys, value }: { keys: K; value: A | V }) {
   set({ keys, value }: { keys: K; value: V }) {
     const serializedKey = this.serializeMultiKey({ keys });
 
-    this.map.set(serializedKey, value);
+    this._map.set(serializedKey, value);
     // if (Array.isArray(value)) {
     //   this.map.set(serializedKey, value);
     // } else {
@@ -93,39 +108,39 @@ export class MultiMap<K extends string[], A extends any, V extends A[] = A[]> {
 
   get({ keys }: { keys: K }) {
     const serializedKey = this.serializeMultiKey({ keys });
-    return this.map.get(serializedKey);
+    return this._map.get(serializedKey);
   }
 
   clear({ keys }: { keys: K }) {
     const serializedKey = this.serializeMultiKey({ keys });
-    this.map.set(serializedKey, [] as unknown as V);
+    this._map.set(serializedKey, [] as unknown as V);
   }
 
   clearAll() {
-    this.map.forEach((value, key) => {
-      this.map.set(key, [] as unknown as V);
+    this._map.forEach((value, key) => {
+      this._map.set(key, [] as unknown as V);
     });
   }
 
   delete({ keys }: { keys: K }) {
     const serializedKey = this.serializeMultiKey({ keys });
-    this.map.delete(serializedKey);
+    this._map.delete(serializedKey);
   }
 
   deleteAll() {
     // this.map = new Map<string, V[]>();
-    this.map.forEach((value, key) => {
-      this.map.delete(key);
+    this._map.forEach((value, key) => {
+      this._map.delete(key);
     });
   }
 
   has({ keys }: { keys: K }) {
     const serializedKey = this.serializeMultiKey({ keys });
-    return this.map.has(serializedKey);
+    return this._map.has(serializedKey);
   }
 
   *entries(): IterableIterator<[K, V]> {
-    for (const [serializedKey, value] of this.map.entries()) {
+    for (const [serializedKey, value] of this._map.entries()) {
       const deserializedKey = JSON.parse(serializedKey) as K;
       yield [deserializedKey, value];
     }
@@ -140,7 +155,7 @@ export class MultiMap<K extends string[], A extends any, V extends A[] = A[]> {
   // }
 
   *keys(): IterableIterator<K> {
-    for (const serializedKey of this.map.keys()) {
+    for (const serializedKey of this._map.keys()) {
       yield JSON.parse(serializedKey) as K;
     }
   }
@@ -153,7 +168,7 @@ export class MultiMap<K extends string[], A extends any, V extends A[] = A[]> {
   // }
 
   *values(): IterableIterator<V> {
-    yield* this.map.values();
+    yield* this._map.values();
   }
   // values(): V[] {
   //   return this.map.values();
