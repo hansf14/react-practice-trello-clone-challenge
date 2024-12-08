@@ -1,5 +1,6 @@
 import { MultiRefMap } from "@/multimap";
 import React from "react";
+import { ExecutionProps } from "styled-components";
 import { v4 as uuidv4 } from "uuid";
 
 export type IsNever<T> = [T] extends [never] ? true : false;
@@ -276,3 +277,42 @@ export const checkHasScrollbar = ({
   console.warn("[checkHasScrollbar] Wrong condition type.");
   return false;
 };
+
+export type StyledComponentProps<E extends React.ElementType> =
+  React.ComponentPropsWithoutRef<E> & ExecutionProps;
+
+// export type WithMemoAndRef<
+//   E extends
+//     keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
+//   Ref = React.ElementRef<E>,
+//   Props extends {} = {},
+// > = (
+//   component: React.ForwardRefRenderFunction<Ref, React.PropsWithoutRef<Props>>,
+// ) => ReturnType<
+//   typeof React.memo<ReturnType<typeof React.forwardRef<Ref, Props>>>
+// >;
+
+// export const withMemoAndRef = <
+//   E extends
+//     keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
+//   Ref = React.ElementRef<E>,
+//   Props extends {} = {},
+// >(
+//   component: React.ForwardRefRenderFunction<Ref, React.PropsWithoutRef<Props>>,
+// ) => React.memo(React.forwardRef<Ref, Props>(component));
+
+export type WithMemoAndRef<
+  E extends
+    keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
+  Ref = React.ElementRef<E>,
+  Props extends {} = {},
+> = typeof React.memo<ReturnType<typeof React.forwardRef<Ref, Props>>>;
+
+export const withMemoAndRef = <
+  E extends
+    keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
+  Ref = React.ForwardedRef<E>,
+  Props extends {} = {},
+>(
+  component: React.ForwardRefRenderFunction<Ref, React.PropsWithoutRef<Props>>,
+) => React.memo(React.forwardRef<Ref, Props>(component));

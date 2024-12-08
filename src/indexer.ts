@@ -7,7 +7,7 @@ export type IndexerKey = string[];
 
 export type IndexerBaseItem = {
   id: string;
-};
+} & Record<any, any>;
 
 export type IndexerEntry<T extends IndexerBaseItem> = [
   NestedIndexerKey,
@@ -223,7 +223,8 @@ export class Indexer<T extends IndexerBaseItem> extends MultiMap<
 
 export type NestedIndexerKey = IndexerKey;
 
-export type NestedIndexerBaseItem = IndexerBaseItem;
+export type NestedIndexerBaseItem = IndexerBaseItem & {};
+// ㄴ {}: For intellisense
 
 export type NestedIndexerEntry<
   Parent extends NestedIndexerBaseItem,
