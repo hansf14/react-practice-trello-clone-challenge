@@ -1,17 +1,6 @@
-import React, {
-  ComponentType,
-  ForwardRefRenderFunction,
-  FunctionComponent,
-  FunctionComponentFactory,
-  useImperativeHandle,
-  useMemo,
-} from "react";
-import { BoardHeader } from "@/components/BoardHeader";
-import { BoardMain } from "@/components/BoardMain";
-import { ExecutionProps, styled } from "styled-components";
-import { NestedIndexer, NestedIndexerBaseItem } from "@/indexer";
-import { SmartMerge, WithMemoAndRef, withMemoAndRef } from "@/utils";
-import { Category, initialEntries, Task } from "@/atoms";
+import { styled } from "styled-components";
+import { StyledComponentProps, withMemoAndRef } from "@/utils";
+import { ChildItem } from "@/components/BoardContext";
 
 const BoardBase = styled.div`
   flex-shrink: 0;
@@ -48,48 +37,13 @@ export interface BoardItem {
   // text:
 }
 
-export type BoardProps<
-  Parent extends NestedIndexerBaseItem,
-  Child extends NestedIndexerBaseItem,
-> = {
-  indexer: NestedIndexer<Parent, Child>;
-} & React.ComponentPropsWithoutRef<"div"> &
-  ExecutionProps;
+export type BoardProps = {
+  items?: ChildItem[];
+} & StyledComponentProps<"div">;
 
-export type BoardType<
-  Parent extends NestedIndexerBaseItem,
-  Child extends NestedIndexerBaseItem,
-> = WithMemoAndRef<"div", HTMLDivElement, BoardProps<Parent, Child>>;
-
-export const Board = (<
-  Parent extends NestedIndexerBaseItem,
-  Child extends NestedIndexerBaseItem,
->() =>
-  withMemoAndRef<"div", HTMLDivElement, BoardProps<Parent, Child>>(
-    (
-      props,
-      ref,
-    ) => {
-
-      return (
-        <BoardBase ref={ref} {...props}>
-          {/* Add child components */}
-          <BoardHeader category={indexer} />
-          <BoardMain category={category} />
-          {/* <BoardFooter category={category} /> */}
-        </BoardBase>
-      );
-    },
-  ) as <
-    Parent extends NestedIndexerBaseItem,
-    Child extends NestedIndexerBaseItem,
-  >(
-    props: BoardProps<Parent, Child> & React.RefAttributes<HTMLDivElement>,
-  ) => React.ReactNode)();
-
-// const B = () => (
-//   <div>
-//     <Board indexer={new NestedIndexer<Category, Task>()} />
-//     {/* <A<{id: string;}, {id: string;}> /> */}
-//   </div>
-// );
+export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
+  displayName: "Board",
+  Component: (props, ref) => {
+    return <BoardBase ref={ref} {...props} />;
+  },
+});

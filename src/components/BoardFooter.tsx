@@ -1,16 +1,15 @@
 import React from "react";
 import { ExecutionProps, styled } from "styled-components";
+import { withMemoAndRef } from "@/utils";
 
 const BoardFooterBase = styled.div``;
 
 export type BoardFooterProps = {} & React.ComponentPropsWithoutRef<"div"> &
   ExecutionProps;
 
-export const BoardFooter = React.memo(
-  React.forwardRef<HTMLDivElement, BoardFooterProps>(
-    (props: BoardFooterProps, ref) => {
-      return <BoardFooterBase ref={ref} {...props} />;
-    },
-  ),
-);
-BoardFooter.displayName = "BoardFooter";
+export const BoardFooter = withMemoAndRef({
+  displayName: "BoardFooter",
+  Component: (props: BoardFooterProps, ref) => {
+    return <BoardFooterBase ref={ref} {...props} />;
+  },
+});

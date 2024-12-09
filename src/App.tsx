@@ -3,6 +3,8 @@ import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
 import { darkTheme } from "./theme";
 import { BoardList } from "@/components/BoardList";
+import { CategoryTaskBoardList } from "@/components/CategoryTaskBoardList";
+import { defaultCategoryTaskItems } from "@/data";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -117,7 +119,12 @@ function App() {
         </Helmet>
         <GlobalStyle />
         <Main>
-          <BoardList />
+          <CategoryTaskBoardList
+            boardListId="category-task-board"
+            parentItems={defaultCategoryTaskItems}
+            parentKeyName="Category"
+            childKeyName="Task"
+          />
         </Main>
         <ReactQueryDevtools initialIsOpen={true} />
       </ThemeProvider>

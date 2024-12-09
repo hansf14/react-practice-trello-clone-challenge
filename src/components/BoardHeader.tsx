@@ -1,12 +1,16 @@
 import React, { useCallback, useRef, useState } from "react";
-import { ExecutionProps, styled } from "styled-components";
-import { atom, useRecoilState } from "recoil";
+import { styled } from "styled-components";
+import { useRecoilState } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import { GripVertical } from "react-bootstrap-icons";
-import { Category, nestedIndexerCategoryTaskAtom } from "@/atoms";
 import { NestedIndexer } from "@/indexer";
 import { Input } from "antd";
-import { boardDragHandlesAtom } from "@/components/BoardAtoms";
+import { StyledComponentProps, withMemoAndRef } from "@/utils";
+import {
+  boardDragHandlesAtom,
+  nestedIndexerAtom,
+  ParentItem,
+} from "@/components/BoardContext";
 const { TextArea } = Input;
 
 const BoardHeaderBase = styled.div``;
@@ -70,14 +74,22 @@ const BoardDragHandle = styled.div`
 `;
 
 export type BoardHeaderProps = {
-  category: Category;
-} & React.ComponentPropsWithoutRef<"div"> &
-  ExecutionProps;
+  parentItem: ParentItem;
+  // onUpdateParent?: <P extends ParentItem>({
+  //   newValue,
+  // }: {
+  //   newValue: P;
+  // }) => void;
+} & StyledComponentProps<"div">;
 
-export const BoardHeader = React.memo(
-  React.forwardRef<HTMLDivElement, BoardHeaderProps>(({ category }, ref) => {
-    const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
-      useRecoilState(nestedIndexerCategoryTaskAtom);
+export const BoardHeader = withMemoAndRef<
+  "div",
+  HTMLDivElement,
+  BoardHeaderProps
+>({
+  displayName: "BoardHeader",
+  Component: ({ parentItem }, ref) => {
+    const [stateIndexer, setStateIndexer] = useRecoilState(nestedIndexerAtom);
     const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
 
     const boardHeaderTitleEditEnableHandler = useCallback<
@@ -106,19 +118,19 @@ export const BoardHeader = React.memo(
     >(
       (event) => {
         // console.log(event.target.value);
-        setStateIndexerCategoryTask((curIndexer) => {
+        setStateIndexer((curIndexer) => {
           const newIndexer = new NestedIndexer(curIndexer);
           newIndexer.updateParent({
-            parentId: category.id,
+            parentId: parentItem.id,
             parent: {
-              id: category.id,
-              text: event.target.value,
+              id: parentItem.id,
+              title: event.target.value,
             },
           });
           return newIndexer;
         });
       },
-      [setStateIndexerCategoryTask, category.id],
+      [setStateIndexer, parentItem.id],
     );
 
     const [stateBoardDragHandles, setStateBoardDragHandles] =
@@ -128,16 +140,16 @@ export const BoardHeader = React.memo(
       if (refDragHandle.current) {
         setStateBoardDragHandles((cur) => ({
           ...cur,
-          [category.id]: refDragHandle.current,
+          [parentItem.id]: refDragHandle.current,
         }));
       }
-    }, [category.id, setStateBoardDragHandles]);
+    }, [parentItem.id, setStateBoardDragHandles]);
 
     return (
       <BoardHeaderBase ref={ref}>
         <BoardHeaderTitle>
           <BoardHeaderTitleInput
-            value={category.text}
+            value={parentItem.title}
             // autoFocus
             autoSize
             readOnly={!stateIsEditMode}
@@ -155,6 +167,6 @@ export const BoardHeader = React.memo(
         </BoardHeaderTitle>
       </BoardHeaderBase>
     );
-  }),
-);
+  },
+});
 BoardHeader.displayName = "BoardHeader";

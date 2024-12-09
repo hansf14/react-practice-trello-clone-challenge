@@ -1,13 +1,13 @@
 import "reflect-metadata";
 import { Expose, instanceToPlain } from "class-transformer";
 import { MultiMap } from "@/multimap";
-import { arrayMoveElement } from "@/utils";
+import { arrayMoveElement, SmartMerge } from "@/utils";
 
 export type IndexerKey = string[];
 
 export type IndexerBaseItem = {
   id: string;
-} & Record<any, any>;
+}; // & Record<any, any>;
 
 export type IndexerEntry<T extends IndexerBaseItem> = [
   NestedIndexerKey,
@@ -221,6 +221,55 @@ export class Indexer<T extends IndexerBaseItem> extends MultiMap<
   }
 }
 
+// export const initialEntries: [
+//   NestedIndexerKey,
+//   string[] | ParentItem[] | ChildItem[],
+// ][] = [
+//   [
+//     ["CategoryIdList"],
+//     [defaultToDoCategory.id, defaultDoingCategory.id, defaultDoneCategory.id],
+//   ],
+//   [
+//     ["CategoryId", defaultToDoCategory.id, "TaskIdList"],
+//     defaultToDoTaskList.map((task) => task.id),
+//   ],
+//   [
+//     ["CategoryId", defaultDoingCategory.id, "TaskIdList"],
+//     defaultDoingTaskList.map((task) => task.id),
+//   ],
+//   [
+//     ["CategoryId", defaultDoneCategory.id, "TaskIdList"],
+//     defaultDoneTaskList.map((task) => task.id),
+//   ],
+//   [["CategoryId", defaultToDoCategory.id], [defaultToDoCategory]],
+//   [["CategoryId", defaultDoingCategory.id], [defaultDoingCategory]],
+//   [["CategoryId", defaultDoneCategory.id], [defaultDoneCategory]],
+//   ...defaultToDoTaskList.map<[NestedIndexerKey, string[]]>((task) => [
+//     ["TaskId", task.id, "CategoryId"],
+//     [defaultToDoCategory.id],
+//   ]),
+//   ...defaultDoingTaskList.map<[NestedIndexerKey, string[]]>((task) => [
+//     ["TaskId", task.id, "CategoryId"],
+//     [defaultDoingCategory.id],
+//   ]),
+//   ...defaultDoneTaskList.map<[NestedIndexerKey, string[]]>((task) => [
+//     ["TaskId", task.id, "CategoryId"],
+//     [defaultDoneCategory.id],
+//   ]),
+//   ...defaultToDoTaskList.map<[NestedIndexerKey, ChildItem[]]>((task) => [
+//     ["TaskId", task.id],
+//     [task],
+//   ]),
+//   ...defaultDoingTaskList.map<[NestedIndexerKey, ChildItem[]]>((task) => [
+//     ["TaskId", task.id],
+//     [task],
+//   ]),
+//   ...defaultDoneTaskList.map<[NestedIndexerKey, ChildItem[]]>((task) => [
+//     ["TaskId", task.id],
+//     [task],
+//   ]),
+// ];
+
 export type NestedIndexerKey = IndexerKey;
 
 export type NestedIndexerBaseItem = IndexerBaseItem & {};
@@ -229,7 +278,13 @@ export type NestedIndexerBaseItem = IndexerBaseItem & {};
 export type NestedIndexerEntry<
   Parent extends NestedIndexerBaseItem,
   Child extends NestedIndexerBaseItem,
-> = [NestedIndexerKey, string[] | Parent[] | Child[]];
+> = [NestedIndexerKey, string[] | [string] | [Parent] | [Child]];
+
+export type NestedIndexerItem = SmartMerge<
+  NestedIndexerBaseItem & {
+    items?: NestedIndexerBaseItem[];
+  }
+>;
 
 export class NestedIndexer<
   Parent extends NestedIndexerBaseItem,
@@ -244,10 +299,12 @@ export class NestedIndexer<
     parentKeyName,
     childKeyName,
     entries,
+    items,
   }: {
     parentKeyName: string;
     childKeyName: string;
     entries?: NestedIndexerEntry<Parent, Child>[];
+    items?: NestedIndexerItem[];
   });
   constructor(original: NestedIndexer<Parent, Child>);
 
@@ -257,13 +314,59 @@ export class NestedIndexer<
           parentKeyName: string;
           childKeyName: string;
           entries?: NestedIndexerEntry<Parent, Child>[];
+          items?: NestedIndexerItem[];
         }
       | NestedIndexer<Parent, Child>,
   ) {
     if (params instanceof NestedIndexer) {
       super(params);
     } else {
-      super({ entries: params.entries ?? [] });
+      if (params.entries) {
+        super({ entries: params.entries ?? [] });
+      } else if (params.items) {
+        const parents = params.items;
+
+        const parentKeyName = params.parentKeyName;
+        const childKeyName = params.childKeyName;
+        const entries: NestedIndexerEntry<Parent, Child>[] = [];
+
+        const parentIdList = [
+          [`${parentKeyName}IdList`],
+          parents.map((parent) => parent.id),
+        ] as [[string], string[]];
+        entries.push(parentIdList);
+
+        // const
+        parents.forEach((parent) => {
+          entries.push([[`${parentKeyName}Id`, parent.id], [parent]] as [
+            string[],
+            [Parent],
+          ]);
+
+          if (parent.items) {
+            entries.push([
+              [`${parentKeyName}Id`, parent.id, `${childKeyName}IdList`],
+              parent.items.map((child) => child.id),
+            ] as [string[], string[]]);
+
+            parent.items.forEach((child) => {
+              entries.push([[`${childKeyName}Id`, child.id], [child]] as [
+                string[],
+                [Child],
+              ]);
+
+              entries.push([
+                [`${childKeyName}Id`, child.id, `${parentKeyName}Id`],
+                [parent.id],
+              ] as [string[], [string]]);
+            });
+          }
+        });
+
+        super({ entries });
+      } else {
+        super();
+      }
     }
     this.parentKeyName = params.parentKeyName;
     this.childKeyName = params.childKeyName;

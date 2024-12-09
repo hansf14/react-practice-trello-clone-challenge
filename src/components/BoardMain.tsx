@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { ExecutionProps, styled } from "styled-components";
 import { atom, useRecoilState, useSetRecoilState } from "recoil";
-import { Category, nestedIndexerCategoryTaskAtom, Task } from "@/atoms";
+import { Category, Task } from "@/atoms";
 import { Card } from "@/components/Card";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import {
@@ -14,6 +14,8 @@ import {
   checkHasScrollbar,
   generateUniqueRandomId,
   memoizeCallback,
+  StyledComponentProps,
+  withMemoAndRef,
 } from "@/utils";
 import { NestedIndexer } from "@/indexer";
 import { Input } from "antd";
@@ -21,9 +23,12 @@ import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { CssScrollbar } from "@/css/scrollbar";
 import { throttle } from "lodash-es";
 import {
-  ItemCustomDataAttributes,
-  ItemListCustomDataAttributes,
-} from "@/sortable";
+  ChildItem,
+  DataAttributesOfItem,
+  DataAttributesOfItemList,
+  nestedIndexerAtom,
+  ParentItem,
+} from "@/components/BoardContext";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
@@ -123,17 +128,27 @@ export const cardsContainerAtom = atom<{
   default: {},
 });
 
+export type ForEachChildItem = ({
+  idx,
+  item,
+  items,
+}: {
+  idx: number;
+  item: ChildItem;
+  items: ChildItem[];
+}) => React.ReactElement<typeof Card>;
+
 export type BoardMainProps = {
-  category: Category;
-} & React.ComponentPropsWithoutRef<"div"> &
-  ExecutionProps;
+  boardListId: string;
+  forEachChildItem: ForEachChildItem;
+  parentItem: ParentItem;
+} & StyledComponentProps<"div">;
 
-export const BoardMain = React.memo(
-  React.forwardRef<HTMLDivElement, BoardMainProps>((props, ref) => {
-    const { category } = props;
-
-    const [stateIndexerCategoryTask, setStateIndexerCategoryTask] =
-      useRecoilState(nestedIndexerCategoryTaskAtom);
+export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
+  displayName: "BoardMain",
+  Component: ({ boardListId, parentItem, forEachChildItem }, ref) => {
+    const [stateNestedIndexer, setNestedStateIndexer] =
+      useRecoilState(nestedIndexerAtom);
 
     const setStateCardsContainer = useSetRecoilState(cardsContainerAtom);
     const refCardsContainer = useRef<HTMLDivElement | null>(null);
@@ -141,17 +156,17 @@ export const BoardMain = React.memo(
       if (refCardsContainer.current) {
         setStateCardsContainer((cur) => ({
           ...cur,
-          [category.id]: refCardsContainer.current,
+          [parentItem.id]: refCardsContainer.current,
         }));
       }
-    }, [category.id, setStateCardsContainer]);
+    }, [parentItem.id, setStateCardsContainer]);
 
-    const taskList = useMemo<Task[]>(
+    const taskList = useMemo<ChildItem[]>(
       () =>
-        stateIndexerCategoryTask.getChildListFromParentId__MutableChild({
-          parentId: category.id,
+        stateNestedIndexer.getChildListFromParentId__MutableChild({
+          parentId: parentItem.id,
         }) ?? [],
-      [category.id, stateIndexerCategoryTask],
+      [parentItem.id, stateNestedIndexer],
     );
 
     const {
@@ -167,16 +182,16 @@ export const BoardMain = React.memo(
       (data: FormData, event) => {
         // console.log(data);
 
-        setStateIndexerCategoryTask((curIndexer) => {
-          const newTask = {
+        setNestedStateIndexer((cur) => {
+          const newItem = {
             id: generateUniqueRandomId(),
-            text: data.taskText,
-          } satisfies Task;
+            content: data.taskText,
+          } satisfies ChildItem;
 
-          const newIndexer = new NestedIndexer(curIndexer);
+          const newIndexer = new NestedIndexer(cur);
           newIndexer.createChild({
-            parentId: category.id,
-            child: newTask,
+            parentId: parentItem.id,
+            child: newItem,
             shouldAppend: false,
           });
           return newIndexer;
@@ -184,7 +199,7 @@ export const BoardMain = React.memo(
 
         reset();
       },
-      [setStateIndexerCategoryTask, category.id, reset],
+      [parentItem.id, setNestedStateIndexer, reset],
     );
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -228,23 +243,6 @@ export const BoardMain = React.memo(
       [idCheckHasVerticalScrollbar],
     );
 
-    // const idCheckHasVerticalScrollbar = useMemoizeCallbackId();
-    // const checkHasVerticalScrollbar = useCallback<ResizeObserverCallback>(
-    //   (entries, observer) => {
-    //     const element = entries[0].target as HTMLElement;
-    //     const hasVerticalScrollbar = checkHasScrollbar({
-    //       element,
-    //       condition: "vertical",
-    //     });
-    //     if (hasVerticalScrollbar) {
-    //       element.style.setProperty("padding-right", "10px");
-    //     } else {
-    //       element.style.removeProperty("padding-right");
-    //     }
-    //   },
-    //   [],
-    // );
-
     useEffect(() => {
       let resizeObserver: ResizeObserver | null = null;
       if (refCardsContainer.current) {
@@ -261,9 +259,10 @@ export const BoardMain = React.memo(
       };
     }, [checkHasVerticalScrollbar]);
 
-    const customDataAttributes: ItemListCustomDataAttributes = {
+    const customDataAttributes: DataAttributesOfItemList = {
+      "data-board-list-id": boardListId,
       "data-item-list-type": "tasks",
-      "data-item-list-id": category.id,
+      "data-item-list-id": parentItem.id,
     };
 
     return (
@@ -273,18 +272,21 @@ export const BoardMain = React.memo(
             {!taskList || taskList.length === 0 ? (
               <div>Empty!</div>
             ) : (
-              taskList.map((task) => {
-                const customDataAttributes: ItemCustomDataAttributes = {
+              taskList.map((task, idx) => {
+                const customDataAttributes: DataAttributesOfItem = {
+                  "data-board-list-id": boardListId,
                   "data-item-type": "task",
                   "data-item-id": task.id,
                 };
-                return (
-                  <Card
-                    key={task.id}
-                    task={task}
-                    {...props}
-                    {...customDataAttributes}
-                  />
+                return React.Children.map(
+                  forEachChildItem({ idx, item: task, items: taskList }),
+                  (child) =>
+                    React.isValidElement(child)
+                      ? React.cloneElement(
+                          child as React.ReactElement,
+                          customDataAttributes,
+                        )
+                      : child,
                 );
               })
             )}
@@ -294,7 +296,7 @@ export const BoardMain = React.memo(
           <TaskAdder onSubmit={handleSubmit(onValid)}>
             <TaskAdderInput
               rows={2}
-              placeholder={`Add a task on ${category.text}`}
+              placeholder={`Add a task on ${parentItem.title}`}
               {...register("taskText", {
                 required: true,
               })}
@@ -312,6 +314,6 @@ export const BoardMain = React.memo(
         </Toolbar>
       </BoardMainBase>
     );
-  }),
-);
+  },
+});
 BoardMain.displayName = "BoardMain";
