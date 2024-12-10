@@ -1,6 +1,22 @@
 import { styled } from "styled-components";
-import { StyledComponentProps, withMemoAndRef } from "@/utils";
-import { boardClassNameKvMapping, ChildItem } from "@/components/BoardContext";
+import {
+  isFunction,
+  SmartOmit,
+  StyledComponentProps,
+  withMemoAndRef,
+} from "@/utils";
+import {
+  boardClassNameKvMapping,
+  ChildItem,
+  ParentItem,
+} from "@/components/BoardContext";
+import {
+  Draggable,
+  DraggableProvided,
+  DraggableProvidedDragHandleProps,
+  DraggableRubric,
+  DraggableStateSnapshot,
+} from "@hello-pangea/dnd";
 
 const BoardBase = styled.div`
   flex-shrink: 0;
@@ -32,18 +48,60 @@ const BoardBase = styled.div`
   }
 `;
 
-export interface BoardItem {
-  id: string;
-  // text:
-}
+export type BoardPropsChildren = ({
+  draggableProvidedDragHandleProps,
+  draggableStateSnapshot,
+  draggableRubric,
+}: {
+  draggableProvidedDragHandleProps: DraggableProvidedDragHandleProps | null;
+  draggableStateSnapshot: DraggableStateSnapshot;
+  draggableRubric: DraggableRubric;
+}) => React.ReactNode;
 
-export type BoardProps = {
-  items?: ChildItem[];
-} & StyledComponentProps<"div">;
+export type BoardProps = SmartOmit<
+  {
+    id: string;
+    index: number;
+  } & StyledComponentProps<"div">,
+  "children"
+> & {
+  children: BoardPropsChildren;
+};
 
 export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
-  Component: (props, ref) => {
-    return <BoardBase ref={ref} {...props} />;
+  Component: ({ id, index, children, ...otherProps }, ref) => {
+    if (!isFunction(children)) {
+      throw new Error("`children` is mandatory and needs to be a function!");
+    }
+
+    return (
+      <Draggable draggableId={id} index={index}>
+        {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
+          return (
+            <BoardBase
+              ref={(el: React.ElementRef<typeof BoardBase> | null) => {
+                if (el) {
+                  draggableProvided.innerRef(el);
+                  if (ref) {
+                    (ref as React.MutableRefObject<HTMLDivElement>).current =
+                      el;
+                  }
+                }
+              }}
+              {...draggableProvided.draggableProps}
+              {...otherProps}
+            >
+              {children({
+                draggableProvidedDragHandleProps:
+                  draggableProvided.dragHandleProps,
+                draggableStateSnapshot,
+                draggableRubric,
+              })}
+            </BoardBase>
+          );
+        }}
+      </Draggable>
+    );
   },
 });

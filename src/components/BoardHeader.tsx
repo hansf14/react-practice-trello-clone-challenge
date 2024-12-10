@@ -138,6 +138,7 @@ export const BoardHeader = withMemoAndRef<
       onEditCancelParentItem,
       onEditingParentItem,
       onEditFinishParentItem,
+      ...otherProps
     },
     ref,
   ) => {
@@ -247,7 +248,7 @@ export const BoardHeader = withMemoAndRef<
     }, [parentItem.id, setStateBoardDragHandles]);
 
     return (
-      <BoardHeaderBase ref={ref}>
+      <BoardHeaderBase ref={ref} {...otherProps}>
         <BoardHeaderTitle>
           {stateIsEditMode && (
             <BoardHeaderTitleEditCancelButton

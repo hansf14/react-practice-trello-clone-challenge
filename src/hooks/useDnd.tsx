@@ -256,22 +256,9 @@ export const useDraggable = <
   const { getDeviceDetector } = useDeviceDetector();
   const getSensorsConfig = useCallback(() => {
     const {
-      getIsEmulatorWebkit,
-      getIsMobile,
-      getIsTablet,
-      getIsDesktop,
       getIsTouchDevice,
     } = getDeviceDetector();
-    // const isMobile = getIsMobile();
-    // const isTablet = getIsTablet();
-    // const isEmulatorWebkit = getIsEmulatorWebkit();
-    // const isDesktop = getIsDesktop();
     const isTouchDevice = getIsTouchDevice();
-    // console.log("isMobile:", isMobile);
-    // console.log("isTablet:", isTablet);
-    // console.log("isEmulatorWebkit:", isEmulatorWebkit);
-    // console.log("isDesktop:", isDesktop);
-    // console.log("isTouchDevice:", isTouchDevice);
 
     const sensorsDefaultConfig: UseDraggableSensorsConfig = {
       mouse: isTouchDevice
@@ -302,7 +289,6 @@ export const useDraggable = <
 
     return sensorsConfig as RequiredDeep<UseDraggableSensorsConfig>;
   }, [getDeviceDetector, _sensorsConfig, dragSensitivity]);
-
   const sensorsConfig = getSensorsConfig();
 
   const [stateDroppableEventHandlers, setStateDroppableEventHandlers] =

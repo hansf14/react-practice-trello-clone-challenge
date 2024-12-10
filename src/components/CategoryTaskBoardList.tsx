@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import React, { useCallback } from "react";
 import { RecoilRoot, useRecoilState } from "recoil";
 import { Board } from "@/components/Board";
 import {
@@ -9,21 +9,28 @@ import {
 import {
   BoardList,
   BoardListExtendProps,
-  ForEachParentItem,
+  BoardListProps,
+  BoardListPropsChildren,
 } from "@/components/BoardList";
-import { withMemoAndRef } from "@/utils";
+import { SmartOmit, withMemoAndRef } from "@/utils";
 import { nestedIndexerAtom } from "@/components/BoardContext";
 import { NestedIndexer } from "@/indexer";
 import { BoardMain, ForEachChildItem } from "@/components/BoardMain";
 import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
+import { Droppable } from "@hello-pangea/dnd";
 
-const CategoryTaskBoardListInternalBase = styled(BoardList)`
+const CategoryTaskBoardListInternalBase = styled(BoardList)<BoardListProps>`
   height: 100%;
   padding: 0 10px;
-`;
+` as ReturnType<
+  typeof React.forwardRef<React.ElementRef<typeof BoardList>, BoardListProps>
+>; // <- Casting for `children` render props intellisense.
 
-export type CategoryBoardListInternalProps = BoardListExtendProps;
+export type CategoryBoardListInternalProps = SmartOmit<
+  BoardListExtendProps,
+  "children"
+>;
 
 export const CategoryTaskBoardListInternal = withMemoAndRef<
   "div",
@@ -106,67 +113,149 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       [onUpdateChildItem],
     );
 
-    const forEachParentItem = useCallback<ForEachParentItem>(
-      ({ idx, item, items }) => {
-        return (
-          <Board
-          // key={item.id}
-          >
-            <BoardHeader
-              parentItem={item}
-              onEditStartParentItem={onEditStartParentItem}
-              onEditFinishParentItem={onEditFinishParentItem}
-            />
-            <BoardMain
-              boardListId={boardListId}
-              parentItem={item}
-              forEachChildItem={forEachChildItem}
-            />
-          </Board>
-        );
+    // const forEachParentItem = useCallback<ForEachParentItem>(
+    //   ({ idx, item, items, droppableProvided, droppableStateSnapshot }) => {
+    //     return (
+    //       // <Droppable droppableId={item.id}>
+    //       //   {(droppableProvided, droppableStateSnapshot) => (
+    //       <Board
+    //         ref={droppableProvided.innerRef}
+    //         {...droppableProvided.droppableProps}
+    //         // key={item.id}
+    //       >
+    //         <BoardHeader
+    //           parentItem={item}
+    //           onEditStartParentItem={onEditStartParentItem}
+    //           onEditFinishParentItem={onEditFinishParentItem}
+    //         />
+    //         <BoardMain
+    //           boardListId={boardListId}
+    //           parentItem={item}
+    //           forEachChildItem={forEachChildItem}
+    //         />
+    //       </Board>
+    //       //   )}
+    //       // </Droppable>
+    //     );
 
-        // return items.map((item) => {
-        //   return (
-        //     <Board
-        //     // key={item.id}
-        //     >
-        //       <BoardHeader
-        //         parentItem={item}
-        //         onEditStartParentItem={onEditStartParentItem}
-        //         onEditFinishParentItem={onEditFinishParentItem}
-        //       />
-        //       <BoardMain
-        //         boardListId={boardListId}
-        //         parentItem={item}
-        //         forEachChildItem={forEachChildItem}
-        //       />
-        //     </Board>
-        //   );
-        // });
-      },
-      [
-        boardListId,
-        forEachChildItem,
-        onEditStartParentItem,
-        onEditFinishParentItem,
-      ],
-    );
+    //     // return items.map((item) => {
+    //     //   return (
+    //     //     <Board
+    //     //     // key={item.id}
+    //     //     >
+    //     //       <BoardHeader
+    //     //         parentItem={item}
+    //     //         onEditStartParentItem={onEditStartParentItem}
+    //     //         onEditFinishParentItem={onEditFinishParentItem}
+    //     //       />
+    //     //       <BoardMain
+    //     //         boardListId={boardListId}
+    //     //         parentItem={item}
+    //     //         forEachChildItem={forEachChildItem}
+    //     //       />
+    //     //     </Board>
+    //     //   );
+    //     // });
+    //   },
+    //   [
+    //     boardListId,
+    //     forEachChildItem,
+    //     onEditStartParentItem,
+    //     onEditFinishParentItem,
+    //   ],
+    // );
 
     return (
       <CategoryTaskBoardListInternalBase
         ref={ref}
         boardListId={boardListId}
-        forEachParentItem={forEachParentItem}
+        // forEachParentItem={forEachParentItem}
         {...otherProps}
-      />
+      >
+        {({ items, droppableProvidedPlaceholder, droppableStateSnapshot }) => {
+          return (
+            <>
+              {items.length === 0 && <div>Empty!</div>}
+              {items.length !== 0 &&
+                items.map((item, idx) => {
+                  return (
+                    <Board
+                      key={item.id}
+                      id={item.id}
+                      index={idx}
+                      // key={item.id}
+                    >
+                      {({
+                        draggableProvidedDragHandleProps,
+                        draggableStateSnapshot,
+                        draggableRubric,
+                      }) => {
+                        return (
+                          <>
+                            <BoardHeader
+                              parentItem={item}
+                              onEditStartParentItem={onEditStartParentItem}
+                              onEditFinishParentItem={onEditFinishParentItem}
+                              {...draggableProvidedDragHandleProps}
+                            />
+                            <BoardMain
+                              boardListId={boardListId}
+                              parentItem={item}
+                              forEachChildItem={forEachChildItem}
+                            >
+                              {/* <Card
+                // key={item.id}
+                // childItem={item}
+                onUpdateChildItem={onUpdateChildItem}
+              /> */}
+                            </BoardMain>
+                          </>
+                        );
+                      }}
+                    </Board>
+                  );
+                })}
+              {/* {droppableProvidedPlaceholder} */}
+            </>
+          );
+        }}
+        {/* <Droppable droppableId={item.id}>
+          {(droppableProvided, droppableStateSnapshot) => ( */}
+        {/* <Board
+          ref={droppableProvided.innerRef}
+          {...droppableProvided.droppableProps}
+          // key={item.id}
+        >
+          <BoardHeader
+            parentItem={item}
+            onEditStartParentItem={onEditStartParentItem}
+            onEditFinishParentItem={onEditFinishParentItem}
+          />
+          <BoardMain
+            boardListId={boardListId}
+            parentItem={item}
+            forEachChildItem={forEachChildItem}
+          >
+            <Card
+              // key={item.id}
+              childItem={item}
+              onUpdateChildItem={onUpdateChildItem}
+            />
+          </BoardMain>
+        </Board> */}
+        {/* )}
+        </Droppable> */}
+      </CategoryTaskBoardListInternalBase>
     );
   },
 });
 
+export type CategoryBoardListProps = CategoryBoardListInternalProps;
+
 export const CategoryTaskBoardList = withMemoAndRef<
   "div",
   HTMLDivElement,
-  CategoryBoardListInternalProps
+  CategoryBoardListProps
 >({
   Component: (
     { parentKeyName, childKeyName, parentItems: items, ...otherProps },
