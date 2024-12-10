@@ -85,35 +85,65 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     );
 
     const forEachChildItem = useCallback<ForEachChildItem>(
-      ({ key, idx, item, items }) => {
+      ({ idx, item, items }) => {
         return (
           <Card
-            key={item.id}
+            // key={item.id}
             childItem={item}
             onUpdateChildItem={onUpdateChildItem}
           />
         );
+        // return items.map((item) => {
+        //   return (
+        //     <Card
+        //       // key={item.id}
+        //       childItem={item}
+        //       onUpdateChildItem={onUpdateChildItem}
+        //     />
+        //   );
+        // });
       },
       [onUpdateChildItem],
     );
 
     const forEachParentItem = useCallback<ForEachParentItem>(
-      ({ idx, item, items }) => (
-        <Board
-        // key={item.id}
-        >
-          <BoardHeader
-            parentItem={item}
-            onEditStartParentItem={onEditStartParentItem}
-            onEditFinishParentItem={onEditFinishParentItem}
-          />
-          <BoardMain
-            boardListId={boardListId}
-            parentItem={item}
-            forEachChildItem={forEachChildItem}
-          />
-        </Board>
-      ),
+      ({ idx, item, items }) => {
+        return (
+          <Board
+          // key={item.id}
+          >
+            <BoardHeader
+              parentItem={item}
+              onEditStartParentItem={onEditStartParentItem}
+              onEditFinishParentItem={onEditFinishParentItem}
+            />
+            <BoardMain
+              boardListId={boardListId}
+              parentItem={item}
+              forEachChildItem={forEachChildItem}
+            />
+          </Board>
+        );
+
+        // return items.map((item) => {
+        //   return (
+        //     <Board
+        //     // key={item.id}
+        //     >
+        //       <BoardHeader
+        //         parentItem={item}
+        //         onEditStartParentItem={onEditStartParentItem}
+        //         onEditFinishParentItem={onEditFinishParentItem}
+        //       />
+        //       <BoardMain
+        //         boardListId={boardListId}
+        //         parentItem={item}
+        //         forEachChildItem={forEachChildItem}
+        //       />
+        //     </Board>
+        //   );
+        // });
+      },
       [
         boardListId,
         forEachChildItem,

@@ -1846,6 +1846,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"classnames@npm:2.3.1":
+  version: 2.3.1
+  resolution: "classnames@npm:2.3.1"
+  checksum: 10c0/e3b832219042802464e648c41c2e8be96c2c64d2522cfa22fbb5ec088418406c61ab351a682c077c07f691c8b00c9f0ee7939b20fabc6c23da69063252a4ab89
+  languageName: node
+  linkType: hard
+
 "classnames@npm:2.x, classnames@npm:^2.2.1, classnames@npm:^2.2.3, classnames@npm:^2.2.5, classnames@npm:^2.2.6, classnames@npm:^2.3.1, classnames@npm:^2.3.2, classnames@npm:^2.5.1":
   version: 2.5.1
   resolution: "classnames@npm:2.5.1"
@@ -5126,6 +5133,7 @@ __metadata:
     react-hook-form: "npm:^7.53.0"
     react-query: "npm:^3.27.0"
     react-router-dom: "npm:^5.3.0"
+    react-sortablejs: "npm:^6.1.4"
     recoil: "npm:^0.7.7"
     recoil-nexus: "npm:^0.5.1"
     recoil-persist: "npm:^5.1.0"
@@ -5194,6 +5202,21 @@ __metadata:
   peerDependencies:
     react: ">=15"
   checksum: 10c0/e15c00dfef199249b4c6e6d98e5e76cc352ce66f3270f13df37cc069ddf7c05e43281e8c308fc407e4435d72924373baef1d2890e0f6b0b1eb423cf47315a053
+  languageName: node
+  linkType: hard
+
+"react-sortablejs@npm:^6.1.4":
+  version: 6.1.4
+  resolution: "react-sortablejs@npm:6.1.4"
+  dependencies:
+    classnames: "npm:2.3.1"
+    tiny-invariant: "npm:1.2.0"
+  peerDependencies:
+    "@types/sortablejs": 1
+    react: ">=16.9.0"
+    react-dom: ">=16.9.0"
+    sortablejs: 1
+  checksum: 10c0/72a3e5676d40c4c1d9912d624051caedc95c0d4f0aeb0682d5b803fb0303cecb3fe6ac1faf3e8658b0723bab7934f59196b9722fe2a2ad72454f7fcb947937bd
   languageName: node
   linkType: hard
 
@@ -5882,6 +5905,13 @@ __metadata:
   version: 5.0.2
   resolution: "throttle-debounce@npm:5.0.2"
   checksum: 10c0/9a10ac51400b353562770721718486847adb5d7287c94a0c0d47df5326e8d47e5d92fcb74dac53d6734efb9344a2d46d68c7f996c2d0aedfd11446522e4bb356
+  languageName: node
+  linkType: hard
+
+"tiny-invariant@npm:1.2.0":
+  version: 1.2.0
+  resolution: "tiny-invariant@npm:1.2.0"
+  checksum: 10c0/a7dd29c5256fdc4901e3adadaa203da62bd23c6a79830f7aa99ea2df5e2e82f84051550dcafb82af18b2d61d75dcc17993f01f938e9ad8f20cf4c514fff88d47
   languageName: node
   linkType: hard
 

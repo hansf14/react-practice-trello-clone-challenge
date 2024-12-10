@@ -51,7 +51,7 @@ export type ForEachParentItem = ({
   idx: number;
   item: ParentItem;
   items: ParentItem[];
-}) => React.ReactElement<typeof Board>;
+}) => React.ReactNode; //React.ReactElement<typeof Board>;
 
 export type BoardListExtendProps = SmartOmit<
   BoardListProps,

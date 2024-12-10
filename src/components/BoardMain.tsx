@@ -158,16 +158,16 @@ export const cardsContainerAtom = atom<{
 });
 
 export type ForEachChildItem = ({
-  key,
+  // key,
   idx,
   item,
   items,
 }: {
-  key: React.Key;
+  // key: React.Key;
   idx: number;
   item: ChildItem;
   items: ChildItem[];
-}) => React.ReactElement<typeof Card>;
+}) => React.ReactNode; //React.ReactElement<typeof Card>;
 
 export type BoardMainProps = {
   boardListId: string;
@@ -356,34 +356,66 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                   "data-item-type": "child",
                   "data-item-id": task.id,
                 };
-                // return React.Children.map(
-                //   forEachChildItem({ idx, item: task, items: taskList }),
-                //   (child) => {
-                //     const _child = React.isValidElement(child)
-                //       ? React.cloneElement(child as React.ReactElement, {
-                //           key: task.id,
-                //           ...customDataAttributes,
-                //         })
-                //       : child;
-                //     console.log(_child);
-                //     return _child;
-                //   },
-                // );
+                return React.Children.map(
+                  forEachChildItem({ idx, item: task, items: taskList }),
+                  (child) => {
+                    // const _child = React.isValidElement(child)
+                    //   ? React.cloneElement(child as React.ReactElement, {
+                    //       key: task.id,
+                    //       ...customDataAttributes,
+                    //     })
+                    //   : child;
+                    // console.log(_child);
+                    // return _child;
 
-                const child = forEachChildItem({
-                  key: task.id,
-                  idx,
-                  item: task,
-                  items: taskList,
-                });
-                const _child = React.isValidElement(child)
-                  ? React.cloneElement(child as React.ReactElement, {
-                      // key: task.id,
-                      ...customDataAttributes,
-                    })
-                  : child;
-                console.log(_child);
-                return _child;
+                    try {
+                      // Ensure the child is a valid React element
+                      if (!React.isValidElement(child)) {
+                        console.warn("Invalid React element found:", child);
+                        return null; // Skip invalid children
+                      }
+
+                      // Guard against invalid DOM manipulations
+                      const _child = React.cloneElement(
+                        child as React.ReactElement,
+                        {
+                          key: task.id,
+                          ...customDataAttributes,
+                        },
+                      );
+
+                      return _child;
+                    } catch (error) {
+                      console.error("Error rendering child element:", error);
+                      return null; // Fail gracefully
+                    }
+                  },
+                );
+
+                // const children = forEachChildItem({
+                //   key: task.id,
+                //   idx,
+                //   item: task,
+                //   items: taskList,
+                // });
+
+                // return React.Children.map(children, (child) => {
+                //   return React.isValidElement(children)
+                //     ? React.cloneElement(children as React.ReactElement, {
+                //         // key: task.id,
+                //         ...customDataAttributes,
+                //       })
+                //     : children;
+                // });
+
+                // const _child = React.isValidElement(children)
+                //   ? React.cloneElement(children as React.ReactElement, {
+                //       // key: task.id,
+                //       ...customDataAttributes,
+                //     })
+                //   : children;
+                // console.log(_child);
+                // return _child;
               })
             )}
           </BoardMainContent>
