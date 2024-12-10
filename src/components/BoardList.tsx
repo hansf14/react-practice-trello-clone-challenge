@@ -74,18 +74,13 @@ export type BoardListPropsChildren = ({
 
 export type BoardListExtendProps = BoardListProps;
 
-export type BoardListProps = SmartOmit<
-  {
-    boardListId: string;
-    parentKeyName: string;
-    childKeyName: string;
-    parentItems?: ParentItem[];
-    // forEachParentItem: ForEachParentItem;
-  } & StyledComponentProps<"div">,
-  "children"
-> & {
-  children: BoardListPropsChildren;
-};
+export type BoardListProps = {
+  boardListId: string;
+  parentKeyName: string;
+  childKeyName: string;
+  parentItems?: ParentItem[];
+  // forEachParentItem: ForEachParentItem;
+} & StyledComponentProps<"div">;
 
 export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
   displayName: "BoardList",
@@ -102,10 +97,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     ref,
   ) => {
     // TODO: extend (useEffect/useIsomorphicLayoutEffect)
-
-    if (!isFunction(children)) {
-      throw new Error("`children` is mandatory and needs to be a function!");
-    }
 
     const refBoardList = useRef<HTMLDivElement | null>(null);
     const [stateCardsContainer, setStateCardsContainer] =
@@ -376,32 +367,14 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     };
 
     return (
-      <DragDropContext
-        // TODO:
-        //  onDragEnd={onDragEnd}
-        onDragEnd={() => {}}
+      <BoardListBase
+        ref={ref}
+        // {...otherProps}
+        // {...customDataAttributes}
       >
-        <Droppable droppableId={boardListId} direction="horizontal">
-          {(droppableProvided, droppableStateSnapshot) => {
-            return (
-              <BoardListBase
-                ref={(el: HTMLDivElement | null) => {
-                  if (el) {
-                    refBoardList.current = el;
-                    droppableProvided.innerRef(el);
-                    if (ref) {
-                      (ref as React.MutableRefObject<HTMLDivElement>).current =
-                        el;
-                    }
-                  }
-                }}
-                {...droppableProvided.droppableProps}
-                // {...otherProps}
-                // {...customDataAttributes}
-              >
-                {/* {children} */}
-                {/* {categoryList.length === 0 && <div>Empty!</div>} */}
-                {/* {categoryList.length !== 0 &&
+        {children}
+        {/* {categoryList.length === 0 && <div>Empty!</div>} */}
+        {/* {categoryList.length !== 0 &&
               categoryList.map((category, idx) => {
                 const customDataAttributes: DataAttributesOfItem = {
                   "data-board-list-id": boardListId,
@@ -428,17 +401,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                   },
                 );
               })} */}
-                {children({
-                  items: categoryList,
-                  droppableProvidedPlaceholder: droppableProvided.placeholder,
-                  droppableStateSnapshot,
-                })}
-                {droppableProvided.placeholder}
-              </BoardListBase>
-            );
-          }}
-        </Droppable>
-      </DragDropContext>
+      </BoardListBase>
     );
   },
 });

@@ -58,50 +58,11 @@ export type BoardPropsChildren = ({
   draggableRubric: DraggableRubric;
 }) => React.ReactNode;
 
-export type BoardProps = SmartOmit<
-  {
-    id: string;
-    index: number;
-  } & StyledComponentProps<"div">,
-  "children"
-> & {
-  children: BoardPropsChildren;
-};
+export type BoardProps = {} & StyledComponentProps<"div">;
 
 export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
-  Component: ({ id, index, children, ...otherProps }, ref) => {
-    if (!isFunction(children)) {
-      throw new Error("`children` is mandatory and needs to be a function!");
-    }
-
-    return (
-      <Draggable draggableId={id} index={index}>
-        {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
-          return (
-            <BoardBase
-              ref={(el: React.ElementRef<typeof BoardBase> | null) => {
-                if (el) {
-                  draggableProvided.innerRef(el);
-                  if (ref) {
-                    (ref as React.MutableRefObject<HTMLDivElement>).current =
-                      el;
-                  }
-                }
-              }}
-              {...draggableProvided.draggableProps}
-              {...otherProps}
-            >
-              {children({
-                draggableProvidedDragHandleProps:
-                  draggableProvided.dragHandleProps,
-                draggableStateSnapshot,
-                draggableRubric,
-              })}
-            </BoardBase>
-          );
-        }}
-      </Draggable>
-    );
+  Component: ({ ...otherProps }, ref) => {
+    return <BoardBase ref={ref} {...otherProps}></BoardBase>;
   },
 });

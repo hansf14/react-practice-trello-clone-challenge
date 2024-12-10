@@ -1,4 +1,10 @@
-import React, { useCallback } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { RecoilRoot, useRecoilState } from "recoil";
 import { Board } from "@/components/Board";
 import {
@@ -18,7 +24,7 @@ import { NestedIndexer } from "@/indexer";
 import { BoardMain, ForEachChildItem } from "@/components/BoardMain";
 import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
-import { Droppable } from "@hello-pangea/dnd";
+import { useDnd } from "@/hooks/useDnd";
 
 const CategoryTaskBoardListInternalBase = styled(BoardList)<BoardListProps>`
   height: 100%;
@@ -165,68 +171,126 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     //   ],
     // );
 
+    const refBase = useRef<React.ElementRef<
+      typeof CategoryTaskBoardListInternalBase
+    > | null>(null);
+    useImperativeHandle(ref, () => {
+      return refBase.current as React.ElementRef<
+        typeof CategoryTaskBoardListInternalBase
+      >;
+    });
+
+    const pressStartTime = useRef<number>(0);
+    const isPointerDown = useRef<boolean>(false);
+    const intervalId = useRef<number>(0);
+    const isDragEventFired = useRef<boolean>(false);
+    const curPointerEvent = useRef<PointerEvent | null>(null);
+    const [dragOverlay, setDragOverlay] = useState<React.ReactElement | null>(
+      null,
+    );
+
+    const onCustomDragStart = (event: Event) => {
+      console.log("DRAG!");
+      const customDragEvent = event as CustomDragStartEvent;
+      const {
+        //  pointerEvent
+      } = customDragEvent.detail;
+      // setState
+    };
+
+    const updateDuration = () => {
+      if (!isPointerDown.current || isDragEventFired.current) {
+        return;
+      }
+
+      clearTimeout(intervalId.current);
+      intervalId.current = setTimeout(
+        () => updateDuration(),
+        500,
+      ) as unknown as number;
+
+      const currentDuration = Date.now() - pressStartTime.current;
+      console.log(`Held down for ${currentDuration} ms so far.`);
+
+      if (!isDragEventFired.current && currentDuration >= 2000) {
+        const customDragStartEvent: CustomDragStartEvent = new CustomEvent(
+          "custom-drag-start",
+          {
+            detail: {
+              //  pointerEvent: event
+            },
+          },
+        );
+        document.addEventListener("custom-drag-start", onCustomDragStart, {
+          once: true,
+        });
+        document.dispatchEvent(customDragStartEvent);
+
+        isDragEventFired.current = true;
+      }
+    };
+
+    useEffect(() => {
+      document.addEventListener("pointermove", onPointerMove);
+
+      return () => {
+        document.removeEventListener("pointermove", onPointerMove);
+      };
+    }, []);
+
+    const onPointerMove = (event: PointerEvent) => {
+      curPointerEvent.current = event;
+    };
+
+    const onPointerDown = (event: React.PointerEvent) => {
+      pressStartTime.current = Date.now();
+      isPointerDown.current = true;
+
+      curPointerEvent.current = event.nativeEvent;
+
+      updateDuration();
+    };
+
+    type CustomDragStartEvent = CustomEvent<{
+      // pointerEvent: React.PointerEvent | null;
+    }>;
+
+    const onPointerUp = () => {
+      isPointerDown.current = false;
+      pressStartTime.current = 0;
+      clearInterval(intervalId.current);
+      isDragEventFired.current = false;
+    };
+
+    const onDragStart = (event: React.DragEvent) => {
+      event.preventDefault();
+    };
+
+    const { setDroppableRef, setDraggableRef, setDragHandleRef } = useDnd({
+      droppableCount: 1,
+      draggableCount: 1,
+    });
+
     return (
       <CategoryTaskBoardListInternalBase
-        ref={ref}
+        ref={(el) => {
+          refBase.current = el;
+          // setDroppableRef({contextId});
+        }}
         boardListId={boardListId}
         // forEachParentItem={forEachParentItem}
         {...otherProps}
       >
-        {({ items, droppableProvidedPlaceholder, droppableStateSnapshot }) => {
-          return (
-            <>
-              {items.length === 0 && <div>Empty!</div>}
-              {items.length !== 0 &&
-                items.map((item, idx) => {
-                  return (
-                    <Board
-                      key={item.id}
-                      id={item.id}
-                      index={idx}
-                      // key={item.id}
-                    >
-                      {({
-                        draggableProvidedDragHandleProps,
-                        draggableStateSnapshot,
-                        draggableRubric,
-                      }) => {
-                        return (
-                          <>
-                            <BoardHeader
-                              parentItem={item}
-                              onEditStartParentItem={onEditStartParentItem}
-                              onEditFinishParentItem={onEditFinishParentItem}
-                              {...draggableProvidedDragHandleProps}
-                            />
-                            <BoardMain
-                              boardListId={boardListId}
-                              parentItem={item}
-                              forEachChildItem={forEachChildItem}
-                            >
-                              {/* <Card
-                // key={item.id}
-                // childItem={item}
-                onUpdateChildItem={onUpdateChildItem}
-              /> */}
-                            </BoardMain>
-                          </>
-                        );
-                      }}
-                    </Board>
-                  );
-                })}
-              {/* {droppableProvidedPlaceholder} */}
-            </>
-          );
-        }}
-        {/* <Droppable droppableId={item.id}>
-          {(droppableProvided, droppableStateSnapshot) => ( */}
-        {/* <Board
-          ref={droppableProvided.innerRef}
-          {...droppableProvided.droppableProps}
-          // key={item.id}
-        >
-          <BoardHeader
+        <Board ref={setDraggableRef}>
+          <div
+            ref={setDragHandleRef}
+            onPointerDown={onPointerDown}
+            onPointerUp={onPointerUp}
+            onDragStart={onDragStart}
+          >
+            DOH
+          </div>
+          {/* <BoardHeader
             parentItem={item}
             onEditStartParentItem={onEditStartParentItem}
             onEditFinishParentItem={onEditFinishParentItem}
@@ -235,16 +299,9 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
             boardListId={boardListId}
             parentItem={item}
             forEachChildItem={forEachChildItem}
-          >
-            <Card
-              // key={item.id}
-              childItem={item}
-              onUpdateChildItem={onUpdateChildItem}
-            />
-          </BoardMain>
-        </Board> */}
-        {/* )}
-        </Droppable> */}
+          ></BoardMain> */}
+        </Board>
+        {dragOverlay}
       </CategoryTaskBoardListInternalBase>
     );
   },

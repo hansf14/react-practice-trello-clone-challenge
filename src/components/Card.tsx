@@ -135,17 +135,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     );
 
     return (
-      <CardBase
-        ref={(el: HTMLDivElement | null) => {
-          if (el) {
-            refCard.current = el;
-            if (ref) {
-              (ref as React.MutableRefObject<HTMLDivElement>).current = el;
-            }
-          }
-        }}
-        {...otherProps}
-      >
+      <CardBase ref={ref} {...otherProps}>
         {/* {childItem.content} */}
         <CardContentInput
           value={childItem.content}
