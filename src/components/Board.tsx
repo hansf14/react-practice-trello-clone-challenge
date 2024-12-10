@@ -1,6 +1,6 @@
 import { styled } from "styled-components";
 import { StyledComponentProps, withMemoAndRef } from "@/utils";
-import { ChildItem } from "@/components/BoardContext";
+import { boardClassNameKvMapping, ChildItem } from "@/components/BoardContext";
 
 const BoardBase = styled.div`
   flex-shrink: 0;
@@ -21,12 +21,12 @@ const BoardBase = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.18);
 
   // DragOverlay
-  &.sortable-drag {
+  &.${boardClassNameKvMapping["board-sortable-drag"]} {
     opacity: 0.7 !important;
   }
 
   // Ghost
-  &.sortable-ghost {
+  &.${boardClassNameKvMapping["board-sortable-ghost"]} {
     opacity: 0.7;
     border: 2px solid yellow;
   }

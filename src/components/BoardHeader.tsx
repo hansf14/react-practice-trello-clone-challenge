@@ -2,15 +2,18 @@ import React, { useCallback, useRef, useState } from "react";
 import { styled } from "styled-components";
 import { useRecoilState } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
-import { GripVertical } from "react-bootstrap-icons";
+import { GripVertical, XCircleFill } from "react-bootstrap-icons";
 import { NestedIndexer } from "@/indexer";
 import { Input } from "antd";
 import { StyledComponentProps, withMemoAndRef } from "@/utils";
 import {
+  boardClassNameKvMapping,
   boardDragHandlesAtom,
   nestedIndexerAtom,
   ParentItem,
 } from "@/components/BoardContext";
+import { useStateWithCb } from "@/hooks/useStateWithCb";
+import { TextAreaRef } from "antd/es/input/TextArea";
 const { TextArea } = Input;
 
 const BoardHeaderBase = styled.div``;
@@ -26,7 +29,18 @@ const BoardHeaderTitle = styled.h2`
   font-size: 25px;
 `;
 
-const BoardHeaderTitleInput = styled(TextArea)`
+const BoardHeaderTitleEditCancelButton = styled(XCircleFill)`
+  transform: translateZ(10px);
+  grid-column: 1;
+  grid-row: 1;
+
+  height: 47px;
+  width: 35px;
+  padding: 0 5px;
+  cursor: pointer;
+`;
+
+const BoardHeaderTitleTextArea = styled(TextArea)`
   && {
     grid-column: 1;
     grid-row: 1;
@@ -50,17 +64,17 @@ const BoardHeaderTitleInput = styled(TextArea)`
 
     transition: none;
 
-    &:not([readonly]):focus {
+    &:not([readonly]) {
       outline: 2px solid yellow;
     }
   }
 `;
 
 const BoardDragHandle = styled.div`
+  transform: translateZ(10px);
   grid-column: 1;
   grid-row: 1;
 
-  transform: translateZ(10px);
   height: 47px;
   padding-left: 10px;
   justify-self: end;
@@ -68,18 +82,47 @@ const BoardDragHandle = styled.div`
   display: flex;
   align-items: center;
 
-  &.boards-container-sortable-handle {
+  &.${boardClassNameKvMapping["board-sortable-handle"]} {
     cursor: grab;
   }
 `;
 
+export type OnEditStartParentItem = ({
+  elementTextArea,
+  handlers,
+}: {
+  elementTextArea: TextAreaRef;
+  handlers: {
+    editCancelHandler: () => void;
+  };
+}) => void;
+
+export type OnEditCancelParentItem = () => void;
+
+export type OnEditingParentItem = <P extends ParentItem>({
+  event,
+  oldParentItem,
+  newParentItem,
+}: {
+  event: React.ChangeEvent<HTMLTextAreaElement>;
+  oldParentItem: P;
+  newParentItem: P;
+}) => void;
+
+export type OnEditFinishParentItem = <P extends ParentItem>({
+  oldParentItem,
+  newParentItem,
+}: {
+  oldParentItem: P;
+  newParentItem: P;
+}) => void;
+
 export type BoardHeaderProps = {
   parentItem: ParentItem;
-  // onUpdateParent?: <P extends ParentItem>({
-  //   newValue,
-  // }: {
-  //   newValue: P;
-  // }) => void;
+  onEditStartParentItem?: OnEditStartParentItem;
+  onEditCancelParentItem?: OnEditCancelParentItem;
+  onEditingParentItem?: OnEditingParentItem;
+  onEditFinishParentItem?: OnEditFinishParentItem;
 } & StyledComponentProps<"div">;
 
 export const BoardHeader = withMemoAndRef<
@@ -88,49 +131,107 @@ export const BoardHeader = withMemoAndRef<
   BoardHeaderProps
 >({
   displayName: "BoardHeader",
-  Component: ({ parentItem }, ref) => {
-    const [stateIndexer, setStateIndexer] = useRecoilState(nestedIndexerAtom);
-    const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
+  Component: (
+    {
+      parentItem,
+      onEditStartParentItem,
+      onEditCancelParentItem,
+      onEditingParentItem,
+      onEditFinishParentItem,
+    },
+    ref,
+  ) => {
+    const refBoardHeaderTitleTextArea = useRef<TextAreaRef>(null);
+    const { state: stateIsEditMode, setState: setStateIsEditMode } =
+      useStateWithCb<boolean>({
+        initialState: false,
+      });
+    const [stateParentItemTitle, setStateParentItemTitle] = useState<string>(
+      parentItem.title,
+    );
+    const refParentItemTitleBackup = useRef<string>(parentItem.title);
+
+    const boardHeaderTitleEditCancelHandler = useCallback<
+      React.MouseEventHandler<SVGElement>
+    >(
+      (event) => {
+        setStateIsEditMode({ newStateOrSetStateAction: false });
+        setStateParentItemTitle(refParentItemTitleBackup.current);
+
+        onEditCancelParentItem?.();
+      },
+      [setStateIsEditMode, onEditCancelParentItem],
+    );
 
     const boardHeaderTitleEditEnableHandler = useCallback<
-      React.MouseEventHandler<HTMLTextAreaElement>
-    >(() => {
-      setStateIsEditMode(true);
-    }, []);
-
-    const boardHeaderTitleEditDisableHandler = useCallback<
-      React.FocusEventHandler<HTMLTextAreaElement>
-    >(() => {
-      setStateIsEditMode(false);
-    }, []);
-
-    const boardHeaderTitleEditFinishHandler = useCallback<
-      React.KeyboardEventHandler<HTMLTextAreaElement>
-    >((event) => {
-      if (event.key !== "Enter") {
-        return;
-      }
-      setStateIsEditMode(false);
-    }, []);
+      React.MouseEventHandler<TextAreaRef>
+    >(
+      (event) => {
+        setStateIsEditMode({
+          newStateOrSetStateAction: true,
+          cb: () => {
+            if (!refBoardHeaderTitleTextArea.current) {
+              return;
+            }
+            onEditStartParentItem?.({
+              elementTextArea: refBoardHeaderTitleTextArea.current,
+              handlers: {
+                editCancelHandler:
+                  boardHeaderTitleEditCancelHandler as () => void,
+              },
+            });
+          },
+        });
+      },
+      [
+        setStateIsEditMode,
+        onEditStartParentItem,
+        boardHeaderTitleEditCancelHandler,
+      ],
+    );
 
     const boardHeaderTitleEditHandler = useCallback<
       React.ChangeEventHandler<HTMLTextAreaElement>
     >(
       (event) => {
-        // console.log(event.target.value);
-        setStateIndexer((curIndexer) => {
-          const newIndexer = new NestedIndexer(curIndexer);
-          newIndexer.updateParent({
-            parentId: parentItem.id,
-            parent: {
-              id: parentItem.id,
-              title: event.target.value,
-            },
-          });
-          return newIndexer;
+        setStateParentItemTitle(event.target.value);
+
+        onEditingParentItem?.({
+          event,
+          oldParentItem: parentItem,
+          newParentItem: {
+            id: parentItem.id,
+            title: event.target.value,
+          },
         });
       },
-      [setStateIndexer, parentItem.id],
+      [parentItem, onEditingParentItem],
+    );
+
+    const boardHeaderTitleEditFinishHandler = useCallback<
+      React.KeyboardEventHandler<HTMLTextAreaElement>
+    >(
+      (event) => {
+        if (event.key !== "Enter") {
+          return;
+        }
+        setStateIsEditMode({ newStateOrSetStateAction: false });
+        refParentItemTitleBackup.current = stateParentItemTitle;
+
+        onEditFinishParentItem?.({
+          oldParentItem: parentItem,
+          newParentItem: {
+            id: parentItem.id,
+            title: stateParentItemTitle,
+          },
+        });
+      },
+      [
+        parentItem,
+        stateParentItemTitle,
+        setStateIsEditMode,
+        onEditFinishParentItem,
+      ],
     );
 
     const [stateBoardDragHandles, setStateBoardDragHandles] =
@@ -148,19 +249,24 @@ export const BoardHeader = withMemoAndRef<
     return (
       <BoardHeaderBase ref={ref}>
         <BoardHeaderTitle>
-          <BoardHeaderTitleInput
-            value={parentItem.title}
+          {stateIsEditMode && (
+            <BoardHeaderTitleEditCancelButton
+              onClick={boardHeaderTitleEditCancelHandler}
+            />
+          )}
+          <BoardHeaderTitleTextArea
+            ref={refBoardHeaderTitleTextArea}
+            value={stateParentItemTitle}
             // autoFocus
             autoSize
             readOnly={!stateIsEditMode}
             onClick={boardHeaderTitleEditEnableHandler}
-            onBlur={boardHeaderTitleEditDisableHandler}
             onKeyDown={boardHeaderTitleEditFinishHandler}
             onChange={boardHeaderTitleEditHandler}
           />
           <BoardDragHandle
             ref={refDragHandle}
-            className="boards-container-sortable-handle"
+            className={boardClassNameKvMapping["board-sortable-handle"]}
           >
             <GripVertical />
           </BoardDragHandle>

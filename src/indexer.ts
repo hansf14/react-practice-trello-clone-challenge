@@ -984,4 +984,29 @@ export class NestedIndexer<
       // });
     }
   }
+
+  clearChildListFromParentId({ parentId }: { parentId: string }) {
+    const childIdList = this.getChildIdListFromParentId({ parentId });
+    if (!childIdList) {
+      console.warn("[clearChildListFromParentId] !childIdList");
+      return childIdList;
+    }
+
+    childIdList.forEach((childId) => {
+      this.delete({
+        keys: [`${this.childKeyName}Id`, childId, `${this.parentKeyName}Id`],
+      });
+      this.delete({
+        keys: [`${this.childKeyName}Id`, childId],
+      });
+    });
+
+    this.clear({
+      keys: [`${this.parentKeyName}Id`, parentId, `${this.childKeyName}IdList`],
+    });
+  }
+
+  clearAll() {
+    super.clearAll();
+  }
 }

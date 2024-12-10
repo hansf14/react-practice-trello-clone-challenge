@@ -85,10 +85,6 @@ const GlobalStyle = createGlobalStyle`
     text-decoration: none;
     color: inherit;
   }
-
-  .sortable-grabbing * {
-    cursor: grabbing !important;
-  }
 `;
 
 const Main = styled.main`
@@ -99,7 +95,6 @@ const Main = styled.main`
   background-size: cover;
   color: black;
   gap: 10px;
-  padding: 0 10px 0;
 
   display: flex;
   flex-direction: column;
@@ -126,7 +121,7 @@ function App() {
             childKeyName="Task"
           />
         </Main>
-        <ReactQueryDevtools initialIsOpen={true} />
+        {/* <ReactQueryDevtools initialIsOpen={true} /> */}
       </ThemeProvider>
     </>
   );

@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ExecutionProps, styled } from "styled-components";
 import { atom, useRecoilState, useSetRecoilState } from "recoil";
 import { Category, Task } from "@/atoms";
@@ -8,6 +14,7 @@ import {
   ArrowDownCircleFill,
   ArrowUpCircleFill,
   PlusCircleFill,
+  XCircleFill,
 } from "react-bootstrap-icons";
 import { SubmitHandler, useForm } from "react-hook-form";
 import {
@@ -52,12 +59,20 @@ const BoardMainContentContainer = styled.div`
 const BoardMainContent = styled.div`
   ${CssScrollbar}
 
+  max-width: 100%;
+  /* margin-right: 10px; */
+  /* padding-right: 10px; */
+
   overflow-y: auto;
   overflow-x: hidden;
   height: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
+
+  &::-webkit-scrollbar {
+    padding-right: 10px;
+  }
 `;
 
 const Toolbar = styled.div`
@@ -66,11 +81,11 @@ const Toolbar = styled.div`
   gap: 10px;
 `;
 
-const TaskAdder = styled.form`
+const ChildItemAdder = styled.form`
   flex-grow: 1;
 `;
 
-const TaskAdderInput = styled(TextArea)`
+const ChildItemAdderInput = styled(TextArea)`
   && {
     height: 56px;
     border: none;
@@ -91,7 +106,6 @@ const ToolbarButtons = styled.div`
 
 const ScrollButtons = styled.div`
   display: flex;
-  gap: 6px;
 `;
 
 const ScrollDownButton = styled(ArrowDownCircleFill)`
@@ -108,17 +122,32 @@ const ScrollUpButton = styled(ArrowUpCircleFill)`
 
 const TaskButtons = styled.div`
   display: flex;
-  justify-content: center;
 `;
 
-const TaskAddButton = styled(PlusCircleFill)`
+const ChildItemAddButton = styled(PlusCircleFill)`
   width: 25px;
   height: 25px;
   cursor: pointer;
 `;
 
+const ChildItemAdderInputClearButton = styled(XCircleFill)`
+  width: 25px;
+  height: 25px;
+  cursor: pointer;
+`;
+
+const ClearChildItemsButton = styled(XCircleFill)`
+  width: 25px;
+  height: 25px;
+  cursor: pointer;
+  color: red;
+  background-color: white;
+  border-radius: 50%;
+  overflow: hidden;
+`;
+
 export interface FormData {
-  taskText: string;
+  childItem: string;
 }
 
 export const cardsContainerAtom = atom<{
@@ -129,10 +158,12 @@ export const cardsContainerAtom = atom<{
 });
 
 export type ForEachChildItem = ({
+  key,
   idx,
   item,
   items,
 }: {
+  key: React.Key;
   idx: number;
   item: ChildItem;
   items: ChildItem[];
@@ -146,7 +177,7 @@ export type BoardMainProps = {
 
 export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
   displayName: "BoardMain",
-  Component: ({ boardListId, parentItem, forEachChildItem }, ref) => {
+  Component: ({ boardListId, parentItem, forEachChildItem, children }, ref) => {
     const [stateNestedIndexer, setNestedStateIndexer] =
       useRecoilState(nestedIndexerAtom);
 
@@ -173,19 +204,21 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
       register,
       handleSubmit,
       // setValue,
-      reset, // setValue("taskText", "")
+      reset,
       formState: { errors },
     } = useForm<FormData>();
+    const [stateChildItemContent, setStateChildItemContent] =
+      useState<string>("");
 
     const onValid = useCallback<SubmitHandler<FormData>>(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (data: FormData, event) => {
-        // console.log(data);
+        console.log(data);
 
         setNestedStateIndexer((cur) => {
           const newItem = {
             id: generateUniqueRandomId(),
-            content: data.taskText,
+            content: data.childItem,
           } satisfies ChildItem;
 
           const newIndexer = new NestedIndexer(cur);
@@ -202,66 +235,111 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
       [parentItem.id, setNestedStateIndexer, reset],
     );
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const scrollDownHandler = useCallback<React.MouseEventHandler>((event) => {
-      refCardsContainer.current?.scrollBy({
-        top: 50,
-        behavior: "smooth",
-      });
-    }, []);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const scrollUpHandler = useCallback<React.MouseEventHandler>((event) => {
-      refCardsContainer.current?.scrollBy({
-        top: -50,
-        behavior: "smooth",
-      });
-    }, []);
-
-    const idCheckHasVerticalScrollbar = useMemoizeCallbackId();
-    const checkHasVerticalScrollbar = useCallback(
-      ({ element }: { element: HTMLElement }) =>
-        memoizeCallback({
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          fn: throttle(
-            ((entries, observer) => {
-              const hasVerticalScrollbar = checkHasScrollbar({
-                element,
-                condition: "vertical",
-              });
-              if (hasVerticalScrollbar) {
-                element.style.setProperty("padding-right", "10px");
-              } else {
-                element.style.removeProperty("padding-right");
-              }
-            }) satisfies ResizeObserverCallback,
-            17,
-          ),
-          id: idCheckHasVerticalScrollbar,
-          deps: [element, idCheckHasVerticalScrollbar],
-        }),
-      [idCheckHasVerticalScrollbar],
+    const onChangeChildItemInput = useCallback<
+      React.ChangeEventHandler<HTMLTextAreaElement>
+    >(
+      (event) => {
+        setStateChildItemContent(event.target.value);
+      },
+      [setStateChildItemContent],
     );
 
-    useEffect(() => {
-      let resizeObserver: ResizeObserver | null = null;
-      if (refCardsContainer.current) {
-        // resizeObserver = new ResizeObserver(checkHasVerticalScrollbar);
-        resizeObserver = new ResizeObserver(
-          checkHasVerticalScrollbar({ element: refCardsContainer.current }),
-        );
-        resizeObserver.observe(refCardsContainer.current, {
-          box: "border-box",
+    const onClearChildItemInput = useCallback<
+      React.MouseEventHandler<SVGElement>
+    >(() => {
+      setStateChildItemContent("");
+    }, [setStateChildItemContent]);
+
+    const onAddChildItem = useCallback<React.MouseEventHandler<SVGElement>>(
+      (event) => {
+        setNestedStateIndexer((cur) => {
+          const newItem = {
+            id: generateUniqueRandomId(),
+            content: stateChildItemContent,
+          } satisfies ChildItem;
+          const newIndexer = new NestedIndexer(cur);
+          newIndexer.createChild({
+            parentId: parentItem.id,
+            child: newItem,
+            shouldAppend: true,
+          });
+          return newIndexer;
         });
-      }
-      return () => {
-        resizeObserver?.disconnect();
-      };
-    }, [checkHasVerticalScrollbar]);
+      },
+      [parentItem.id, stateChildItemContent, setNestedStateIndexer],
+    );
+
+    const onClearChildItems = useCallback<
+      React.MouseEventHandler<SVGElement>
+    >(() => {
+      setNestedStateIndexer((cur) => {
+        const newIndexer = new NestedIndexer(cur);
+        newIndexer.clearChildListFromParentId({ parentId: parentItem.id });
+        return newIndexer;
+      });
+    }, [parentItem.id, setNestedStateIndexer]);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const scrollDownHandler = useCallback<React.MouseEventHandler<SVGElement>>(
+      (event) => {
+        refCardsContainer.current?.scrollBy({
+          top: 50,
+          behavior: "smooth",
+        });
+      },
+      [],
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const scrollUpHandler = useCallback<React.MouseEventHandler<SVGElement>>(
+      (event) => {
+        refCardsContainer.current?.scrollBy({
+          top: -50,
+          behavior: "smooth",
+        });
+      },
+      [],
+    );
+
+    // * ResizeObserver doesn't work for scrollHeight. It works for clientHeight.
+    // // eslint-disable-next-line react-hooks/exhaustive-deps
+    // const checkHasVerticalScrollbar = useCallback(
+    //   throttle(
+    //     ((entries, observer) => {
+    //       const element = entries[0].target as HTMLElement;
+    //       const hasVerticalScrollbar = checkHasScrollbar({
+    //         element,
+    //         condition: "vertical",
+    //       });
+    //       console.log(hasVerticalScrollbar);
+    //       if (hasVerticalScrollbar) {
+    //         element.style.setProperty("padding-right", "10px");
+    //       } else {
+    //         element.style.removeProperty("padding-right");
+    //       }
+    //     }) satisfies ResizeObserverCallback,
+    //     17,
+    //   ),
+    //   [],
+    // );
+
+    // useEffect(() => {
+    //   let resizeObserver: ResizeObserver | null = null;
+    //   if (refCardsContainer.current) {
+    //     // resizeObserver = new ResizeObserver(checkHasVerticalScrollbar);
+    //     resizeObserver = new ResizeObserver(checkHasVerticalScrollbar);
+    //     resizeObserver.observe(refCardsContainer.current, {
+    //       box: "border-box",
+    //     });
+    //   }
+    //   return () => {
+    //     resizeObserver?.disconnect();
+    //   };
+    // }, [checkHasVerticalScrollbar]);
 
     const customDataAttributes: DataAttributesOfItemList = {
       "data-board-list-id": boardListId,
-      "data-item-list-type": "tasks",
+      "data-item-list-type": "children",
       "data-item-list-id": parentItem.id,
     };
 
@@ -275,40 +353,62 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
               taskList.map((task, idx) => {
                 const customDataAttributes: DataAttributesOfItem = {
                   "data-board-list-id": boardListId,
-                  "data-item-type": "task",
+                  "data-item-type": "child",
                   "data-item-id": task.id,
                 };
-                return React.Children.map(
-                  forEachChildItem({ idx, item: task, items: taskList }),
-                  (child) =>
-                    React.isValidElement(child)
-                      ? React.cloneElement(
-                          child as React.ReactElement,
-                          customDataAttributes,
-                        )
-                      : child,
-                );
+                // return React.Children.map(
+                //   forEachChildItem({ idx, item: task, items: taskList }),
+                //   (child) => {
+                //     const _child = React.isValidElement(child)
+                //       ? React.cloneElement(child as React.ReactElement, {
+                //           key: task.id,
+                //           ...customDataAttributes,
+                //         })
+                //       : child;
+                //     console.log(_child);
+                //     return _child;
+                //   },
+                // );
+
+                const child = forEachChildItem({
+                  key: task.id,
+                  idx,
+                  item: task,
+                  items: taskList,
+                });
+                const _child = React.isValidElement(child)
+                  ? React.cloneElement(child as React.ReactElement, {
+                      // key: task.id,
+                      ...customDataAttributes,
+                    })
+                  : child;
+                console.log(_child);
+                return _child;
               })
             )}
           </BoardMainContent>
         </BoardMainContentContainer>
         <Toolbar>
-          <TaskAdder onSubmit={handleSubmit(onValid)}>
-            <TaskAdderInput
+          <ChildItemAdder onSubmit={handleSubmit(onValid)}>
+            <ChildItemAdderInput
               rows={2}
               placeholder={`Add a task on ${parentItem.title}`}
-              {...register("taskText", {
+              {...register("childItem", {
                 required: true,
               })}
+              value={stateChildItemContent}
+              onChange={onChangeChildItemInput}
             />
-          </TaskAdder>
+          </ChildItemAdder>
           <ToolbarButtons>
             <ScrollButtons>
               <ScrollDownButton onClick={scrollDownHandler} />
               <ScrollUpButton onClick={scrollUpHandler} />
+              <ClearChildItemsButton onClick={onClearChildItems} />
             </ScrollButtons>
             <TaskButtons>
-              <TaskAddButton />
+              <ChildItemAddButton onClick={onAddChildItem} />
+              <ChildItemAdderInputClearButton onClick={onClearChildItemInput} />
             </TaskButtons>
           </ToolbarButtons>
         </Toolbar>

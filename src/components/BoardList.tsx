@@ -10,13 +10,16 @@ import { SmartOmit, StyledComponentProps, withMemoAndRef } from "@/utils";
 import { cardsContainerAtom } from "@/components/BoardMain";
 import {
   dataAttributeKvMapping,
-  dataAttributeItemListTypeValueKvMapping,
+  dataAttributeItemListTypeKvMapping,
   nestedIndexerAtom,
-  dataAttributeItemTypeValueKvMapping,
+  dataAttributeItemTypeKvMapping,
   DataAttributesOfItemList,
   DataAttributesOfItem,
   ParentItem,
   ChildItem,
+  grabbingClassNameKvMapping,
+  boardClassNameKvMapping,
+  cardClassNameKvMapping,
 } from "@/components/BoardContext";
 
 const BoardListBase = styled.div`
@@ -31,6 +34,10 @@ const BoardListBase = styled.div`
   justify-content: stretch;
   align-items: center;
   gap: 10px;
+
+  &.${grabbingClassNameKvMapping["sortable-grabbing"]} * {
+    cursor: grabbing !important;
+  }
 `;
 
 // Sortable extra-plugins
@@ -98,17 +105,113 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       [stateNestedIndexer],
     );
 
+    const onDragEnd = useCallback(
+      (evt: Sortable.SortableEvent) => {
+        evt.target.classList.remove(
+          grabbingClassNameKvMapping["sortable-grabbing"],
+        );
+
+        console.log(evt);
+        const {
+          oldIndex: idxFrom,
+          newIndex: idxTo,
+          item: target,
+          from: elementContainerFrom,
+          to: elementContainerTo,
+        } = evt;
+
+        const itemType = target.getAttribute(
+          dataAttributeKvMapping["data-item-type"],
+        );
+        const id = target.getAttribute(dataAttributeKvMapping["data-item-id"]);
+
+        const containerFrom = elementContainerFrom.getAttribute(
+          dataAttributeKvMapping["data-item-list-type"],
+        );
+        const containerFromId = elementContainerFrom.getAttribute(
+          dataAttributeKvMapping["data-item-list-id"],
+        );
+
+        const containerTo = elementContainerTo.getAttribute(
+          dataAttributeKvMapping["data-item-list-type"],
+        );
+        const containerToId = elementContainerTo.getAttribute(
+          dataAttributeKvMapping["data-item-list-id"],
+        );
+
+        console.log("containerFrom:", containerFrom);
+        console.log("containerTo:", containerTo);
+        console.log("itemType:", itemType);
+        console.log("id:", id);
+
+        if (
+          !itemType ||
+          (typeof id !== "number" && typeof id !== "bigint" && !id) ||
+          typeof idxFrom === "undefined" ||
+          typeof idxTo === "undefined" ||
+          !containerFrom ||
+          (typeof containerFromId !== "number" &&
+            typeof containerFromId !== "bigint" &&
+            !containerFromId) ||
+          !containerTo ||
+          (typeof containerToId !== "number" &&
+            typeof containerToId !== "bigint" &&
+            !containerToId)
+        ) {
+          return;
+        }
+
+        if (
+          containerFrom === containerTo &&
+          containerFrom === dataAttributeItemListTypeKvMapping["parents"] &&
+          itemType === dataAttributeItemTypeKvMapping["parent"]
+        ) {
+          console.log("[onDragEnd - Parent]");
+          setStateNestedIndexer((cur) => {
+            const newNestedIndexer = new NestedIndexer(cur);
+            newNestedIndexer.moveParent({
+              idxFrom,
+              idxTo,
+            });
+            return newNestedIndexer;
+          });
+          return;
+        }
+
+        if (
+          containerFrom === containerTo &&
+          containerFrom === dataAttributeItemListTypeKvMapping["children"] &&
+          itemType === dataAttributeItemTypeKvMapping["child"]
+        ) {
+          console.log("[onDragEnd - Child]");
+          setStateNestedIndexer((cur) => {
+            const newNestedIndexer = new NestedIndexer(cur);
+            newNestedIndexer.moveChild({
+              idxFrom,
+              idxTo,
+              parentIdFrom: containerFromId,
+              parentIdTo: containerToId,
+            });
+            return newNestedIndexer;
+          });
+          return;
+        }
+      },
+      [setStateNestedIndexer],
+    );
+
     const initSortables = useCallback(() => {
       const sortables: Sortable[] = [];
       if (refBoardList.current) {
         // https://github.com/SortableJS/Sortable
         const sortable = Sortable.create(refBoardList.current, {
-          group: `${boardListId}-${dataAttributeItemListTypeValueKvMapping["categories"]}`,
+          group: `${boardListId}-${dataAttributeItemListTypeKvMapping["parents"]}`,
           // animation: 150,
           animation: 0,
           forceFallback: true, // Show ghost image without default's opacity gradient in desktop
           direction: "horizontal",
-          handle: ".boards-container-sortable-handle",
+          handle: "." + boardClassNameKvMapping["board-sortable-handle"],
+          // handle: ".sortable-handle",
           // ㄴ Drag handle selector within list items
 
           // filter: ".ignore-elements",
@@ -117,11 +220,13 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           // draggable: ".item",
           // ㄴ Specifies which items inside the element should be draggable
 
+          dragClass: boardClassNameKvMapping["board-sortable-drag"],
           // dragClass: "sortable-drag",
           // ㄴ DragOverlay
           // .sortable-drag
           // Class name for the dragging item
 
+          ghostClass: boardClassNameKvMapping["board-sortable-ghost"],
           // ghostClass: "boards-container-sortable-ghost",
           // ㄴ Ghost
           // .sortable-ghost
@@ -149,105 +254,21 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           //   // evt.item.style.userSelect = "initial !important";
           // },
           onChoose: (evt) => {
-            evt.target.classList.add("sortable-grabbing");
+            evt.target.classList.add(
+              grabbingClassNameKvMapping["sortable-grabbing"],
+            );
           },
           onUnchoose: (evt) => {
-            evt.target.classList.remove("sortable-grabbing");
+            evt.target.classList.remove(
+              grabbingClassNameKvMapping["sortable-grabbing"],
+            );
           },
           onStart: (evt) => {
-            evt.target.classList.add("sortable-grabbing");
+            evt.target.classList.add(
+              grabbingClassNameKvMapping["sortable-grabbing"],
+            );
           },
-          onEnd: (evt) => {
-            evt.target.classList.remove("sortable-grabbing");
-
-            console.log(evt);
-            const {
-              oldIndex: idxFrom,
-              newIndex: idxTo,
-              item: target,
-              from: elementContainerFrom,
-              to: elementContainerTo,
-            } = evt;
-
-            const itemType = target.getAttribute(
-              dataAttributeKvMapping["data-item-type"],
-            );
-            const id = target.getAttribute(
-              dataAttributeKvMapping["data-item-id"],
-            );
-
-            const containerFrom = elementContainerFrom.getAttribute(
-              dataAttributeKvMapping["data-item-list-type"],
-            );
-            const containerFromId = elementContainerFrom.getAttribute(
-              dataAttributeKvMapping["data-item-list-id"],
-            );
-
-            const containerTo = elementContainerTo.getAttribute(
-              dataAttributeKvMapping["data-item-list-type"],
-            );
-            const containerToId = elementContainerTo.getAttribute(
-              dataAttributeKvMapping["data-item-list-id"],
-            );
-
-            console.log("containerFrom:", containerFrom);
-            console.log("containerTo:", containerTo);
-            console.log("itemType:", itemType);
-            console.log("id:", id);
-
-            if (
-              !itemType ||
-              (typeof id !== "number" && typeof id !== "bigint" && !id) ||
-              typeof idxFrom === "undefined" ||
-              typeof idxTo === "undefined" ||
-              !containerFrom ||
-              (typeof containerFromId !== "number" &&
-                typeof containerFromId !== "bigint" &&
-                !containerFromId) ||
-              !containerTo ||
-              (typeof containerToId !== "number" &&
-                typeof containerToId !== "bigint" &&
-                !containerToId)
-            ) {
-              return;
-            }
-
-            if (
-              containerFrom === containerTo &&
-              containerFrom ===
-                dataAttributeItemListTypeValueKvMapping["categories"] &&
-              itemType === dataAttributeItemTypeValueKvMapping["category"]
-            ) {
-              setStateNestedIndexer((cur) => {
-                const newNestedIndexer = new NestedIndexer(cur);
-                newNestedIndexer.moveParent({
-                  idxFrom,
-                  idxTo,
-                });
-                return newNestedIndexer;
-              });
-              return;
-            }
-
-            if (
-              containerFrom === containerTo &&
-              containerFrom ===
-                dataAttributeItemListTypeValueKvMapping["tasks"] &&
-              itemType === dataAttributeItemTypeValueKvMapping["task"]
-            ) {
-              setStateNestedIndexer((cur) => {
-                const newNestedIndexer = new NestedIndexer(cur);
-                newNestedIndexer.moveChild({
-                  idxFrom,
-                  idxTo,
-                  parentIdFrom: containerFromId,
-                  parentIdTo: containerToId,
-                });
-                return newNestedIndexer;
-              });
-              return;
-            }
-          },
+          onEnd: onDragEnd,
           onMove: (evt) => {
             (evt.target as HTMLElement).classList.add("sortable-grabbing");
           },
@@ -263,21 +284,19 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           return;
         }
         const sortable = Sortable.create(cardsContainer, {
-          group: `${boardListId}-${dataAttributeItemListTypeValueKvMapping["tasks"]}`,
+          group: `${boardListId}-${dataAttributeItemListTypeKvMapping["children"]}`,
           animation: 150,
           // animation: 0,
           forceFallback: true,
           fallbackOnBody: true, // For correct positioning of the drag ghost element
-          handle: ".cards-container-sortable-handle",
+          handle: "." + cardClassNameKvMapping["card-sortable-handle"],
 
           revertOnSpill: true,
           scroll: true,
           scrollSensitivity: 30,
           scrollSpeed: 5,
           forceAutoScrollFallback: true,
-          onEnd: (event) => {
-            console.log(event);
-          },
+          onEnd: onDragEnd,
         });
         sortables.push(sortable);
       });
@@ -297,7 +316,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       // );
 
       return sortables;
-    }, [boardListId, categoryList, stateCardsContainer, setStateNestedIndexer]);
+    }, [boardListId, categoryList, stateCardsContainer, onDragEnd]);
 
     useEffect(() => {
       const sortables = initSortables();
@@ -327,7 +346,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 
     const customDataAttributes: DataAttributesOfItemList = {
       "data-board-list-id": boardListId,
-      "data-item-list-type": "categories",
+      "data-item-list-type": "parents",
       "data-item-list-id": "root",
     };
 
@@ -349,18 +368,21 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           categoryList.map((category, idx) => {
             const customDataAttributes: DataAttributesOfItem = {
               "data-board-list-id": boardListId,
-              "data-item-type": "category",
+              "data-item-type": "parent",
               "data-item-id": category.id,
             };
             return React.Children.map(
               forEachParentItem({ idx, item: category, items: categoryList }),
-              (child) =>
-                React.isValidElement(child)
-                  ? React.cloneElement(
-                      child as React.ReactElement,
-                      customDataAttributes,
-                    )
-                  : child,
+              (child) => {
+                const _child = React.isValidElement(child)
+                  ? React.cloneElement(child as React.ReactElement, {
+                      key: category.id,
+                      ...customDataAttributes,
+                    })
+                  : child;
+                // console.log(_child);
+                return _child;
+              },
             );
           })}
       </BoardListBase>

@@ -1,10 +1,15 @@
 3. 쓰레기통 - task 삭제기능 & 삭제버튼
 8. task 수정
-
 5. board 생성 할 수 있는 form
-9. board 수정
 6. board 삭제
-4. board 자체의 순서를 서로 바꿀 수 있는 기능
-7. board의 모든 task 삭제
-
 2. 모든 task state를 local storage에 저장 및 로드
+task 다른 list로 맨 앞에 추가하려하면 두번째로 추가되는 버그
+ResizeObserver 처리 버그 (padding-right)
+
+완료
+4. board 자체의 순서를 서로 바꿀 수 있는 기능
+1. board 수정
+2. board의 모든 task 삭제
+Optimization (prevent rendering of all cards due to subscribing the atom)
+4. TaskAdder task 추가
+3. TaskAdder input clear

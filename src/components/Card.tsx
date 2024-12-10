@@ -1,10 +1,12 @@
-import React, { useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { atom, useSetRecoilState } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
-import { ExecutionProps, styled } from "styled-components";
-import { Task } from "@/atoms";
-import { ChildItem } from "@/components/BoardContext";
+import { styled } from "styled-components";
+import { GripVertical } from "react-bootstrap-icons";
+import { Input } from "antd";
+import { cardClassNameKvMapping, ChildItem } from "@/components/BoardContext";
 import { StyledComponentProps, withMemoAndRef } from "@/utils";
+const { TextArea } = Input;
 
 export const cardsAtom = atom<{
   [id: string]: HTMLDivElement | null;
@@ -25,19 +27,50 @@ const CardBase = styled.div`
 
   background-color: rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(13.5px);
+`;
 
-  &.cards-container-sortable-handle {
-    cursor: grabbing;
+const CardContentInput = styled(TextArea)`
+  && {
+    width: 100%;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+
+    font-weight: bold;
+    font-size: 14px;
+
+    transition: none;
+
+    &:not([readonly]) {
+      outline: 2px solid yellow;
+    }
   }
 `;
 
+const CardDragHandle = styled.div`
+  &.${cardClassNameKvMapping["card-sortable-handle"]} {
+    cursor: grab;
+  }
+`;
+
+export type OnUpdateChildItem = <C extends ChildItem>({
+  event,
+  oldChildItem,
+  newChildItem,
+}: {
+  event: React.ChangeEvent<HTMLTextAreaElement>;
+  oldChildItem: C;
+  newChildItem: C;
+}) => void;
+
 export type CardProps = {
   childItem: ChildItem;
+  onUpdateChildItem?: OnUpdateChildItem;
 } & StyledComponentProps<"div">;
 
 export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
   displayName: "Card",
-  Component: ({ childItem, ...otherProps }, ref) => {
+  Component: ({ childItem, onUpdateChildItem, ...otherProps }, ref) => {
     console.log("[CardBase]");
 
     const setStateCards = useSetRecoilState(cardsAtom);
@@ -62,6 +95,45 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       }
     }, [childItem.id, setStateCardDragHandles]);
 
+    const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
+
+    const cardContentEditEnableHandler = useCallback<
+      React.MouseEventHandler<HTMLTextAreaElement>
+    >(() => {
+      setStateIsEditMode(true);
+    }, []);
+
+    const cardContentEditDisableHandler = useCallback<
+      React.FocusEventHandler<HTMLTextAreaElement>
+    >(() => {
+      setStateIsEditMode(false);
+    }, []);
+
+    const cardContentEditFinishHandler = useCallback<
+      React.KeyboardEventHandler<HTMLTextAreaElement>
+    >((event) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+      setStateIsEditMode(false);
+    }, []);
+
+    const cardContentEditHandler = useCallback<
+      React.ChangeEventHandler<HTMLTextAreaElement>
+    >(
+      (event) => {
+        onUpdateChildItem?.({
+          event,
+          oldChildItem: childItem,
+          newChildItem: {
+            id: childItem.id,
+            content: event.target.value,
+          },
+        });
+      },
+      [childItem, onUpdateChildItem],
+    );
+
     return (
       <CardBase
         ref={(el: HTMLDivElement | null) => {
@@ -74,10 +146,23 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
         }}
         {...otherProps}
       >
-        {childItem.content}
-        <div ref={refDragHandle} className="cards-container-sortable-handle">
-          DOH!
-        </div>
+        {/* {childItem.content} */}
+        <CardContentInput
+          value={childItem.content}
+          // autoFocus
+          autoSize
+          readOnly={!stateIsEditMode}
+          onClick={cardContentEditEnableHandler}
+          onBlur={cardContentEditDisableHandler}
+          onKeyDown={cardContentEditFinishHandler}
+          onChange={cardContentEditHandler}
+        />
+        <CardDragHandle
+          ref={refDragHandle}
+          className={cardClassNameKvMapping["card-sortable-handle"]}
+        >
+          <GripVertical />
+        </CardDragHandle>
       </CardBase>
     );
   },

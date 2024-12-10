@@ -51,8 +51,8 @@ export const nestedIndexerAtom = atom<NestedIndexer<ParentItem, ChildItem>>({
 
       // Save value to localStorage whenever it changes
       onSet((newValue) => {
-        console.log(JSON.stringify(newValue.toPlain()));
-        console.log(JSON.stringify(newValue.toString()));
+        // console.log(JSON.stringify(newValue.toPlain()));
+        // console.log(JSON.stringify(newValue.toString()));
         // try {
         //   localStorage.setItem(localStorageKey, JSON.stringify(newValue));
         // } catch (error) {
@@ -84,10 +84,10 @@ export const dataAttributeKvMapping = createKeyValueMapping({
 
 ////////////////////////////////////
 
-export const dataAttributeItemListTypeValues = ["categories", "tasks"] as const;
+export const dataAttributeItemListTypeValues = ["parents", "children"] as const;
 export type DataAttributeItemListTypeValueType =
   (typeof dataAttributeItemListTypeValues)[number];
-export const dataAttributeItemListTypeValueKvMapping = createKeyValueMapping({
+export const dataAttributeItemListTypeKvMapping = createKeyValueMapping({
   arr: dataAttributeItemListTypeValues,
 });
 
@@ -105,10 +105,10 @@ export type DataAttributesOfItemList = SmartMerge<
 
 ////////////////////////////////////
 
-export const dataAttributeItemTypeValues = ["category", "task"] as const;
+export const dataAttributeItemTypeValues = ["parent", "child"] as const;
 export type DataAttributeItemTypeValueType =
   (typeof dataAttributeItemTypeValues)[number];
-export const dataAttributeItemTypeValueKvMapping = createKeyValueMapping({
+export const dataAttributeItemTypeKvMapping = createKeyValueMapping({
   arr: dataAttributeItemTypeValues,
 });
 
@@ -121,3 +121,31 @@ export type DataAttributesOfItem = SmartMerge<
     [K in (typeof dataAttributeKvMapping)["data-item-id"]]: string;
   }
 >;
+
+////////////////////////////////////
+
+export const boardClassNames = [
+  "board-sortable-handle",
+  "board-sortable-drag",
+  "board-sortable-ghost",
+] as const;
+export type boardClassNameType = (typeof boardClassNames)[number];
+export const boardClassNameKvMapping = createKeyValueMapping({
+  arr: boardClassNames,
+});
+
+export const cardClassNames = [
+  "card-sortable-handle",
+  "card-sortable-drag",
+  "card-sortable-ghost",
+] as const;
+export type cardClassNameType = (typeof cardClassNames)[number];
+export const cardClassNameKvMapping = createKeyValueMapping({
+  arr: cardClassNames,
+});
+
+export const grabbingClassNames = ["sortable-grabbing"] as const;
+export type grabbingClassNameType = (typeof grabbingClassNames)[number];
+export const grabbingClassNameKvMapping = createKeyValueMapping({
+  arr: grabbingClassNames,
+});

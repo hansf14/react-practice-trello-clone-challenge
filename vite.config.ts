@@ -10,6 +10,7 @@ export default defineConfig({
       tsDecorators: true,
     }),
   ],
+  base: "/react-practice-trello-clone-challenge",
   server: {
     port: 3000,
   },
