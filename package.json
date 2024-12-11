@@ -20,6 +20,7 @@
     "dom-autoscroller": "^2.3.4",
     "framer-motion": "^11.13.1",
     "globals": "^15.12.0",
+    "html-react-parser": "^5.2.0",
     "lodash-es": "^4.17.21",
     "many-keys-map": "^2.0.1",
     "react": "^18.3.1",

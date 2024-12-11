@@ -3,18 +3,7 @@ import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { useUniqueRandomIds } from "@/hooks/useUniqueRandomIds";
 import { memoizeCallback } from "@/utils";
 import { useCallback, useRef } from "react";
-import {
-  atom,
-  atomFamily,
-  selector,
-  selectorFamily,
-  useRecoilState,
-} from "recoil";
-
-export const curDefaultContextIdAtom = atom<string>({
-  key: "contextIdAtom",
-  default: "0",
-});
+import { atom, atomFamily, selector, useRecoilState } from "recoil";
 
 export type DndAtomState = {
   [contextId: string]: {
@@ -26,38 +15,28 @@ export type DndAtomState = {
     };
   };
 };
-export type DndAtomParams = { contextId?: string } | null;
+export type DndAtomParams = { contextId: string };
 
-export const dndSelector = selector<DndAtomState>({
+export const dndAtom = atomFamily<DndAtomState, DndAtomParams>({
   key: "dndAtom",
-  get: ({ get }) => {
-    const stateDefaultContextId = get(
-      selector({
-        key: "dndAtom/default",
-        get: ({ get }) => {
-          const curContextId = get(curDefaultContextIdAtom);
-          const contextId = (+curContextId + 1).toString();
-          return contextId;
-        },
-      }),
-    );
+  default: ({ contextId }) => {
     return {
-      [stateDefaultContextId]: {
+      [contextId]: {
         droppables: {},
         draggables: {},
       },
     };
   },
-  set: ({ get, set }, newValue) => {},
 });
 
 export type UseDndParams = {
+  contextId: string;
   droppableCount: number;
   draggableCount: number;
 };
 
 export const useDnd = (params: UseDndParams) => {
-  const { droppableCount, draggableCount } = params;
+  const { contextId, droppableCount, draggableCount } = params;
 
   let { ids: droppableIds, keepOrExpandIds: keepOrExpandDroppableIds } =
     useUniqueRandomIds({ count: droppableCount });
@@ -77,7 +56,7 @@ export const useDnd = (params: UseDndParams) => {
     });
   }, [draggableCount, keepOrExpandDraggableIds]);
 
-  const [stateDnd, setStateDnd] = useRecoilState(dndSelector);
+  const [stateDnd, setStateDnd] = useRecoilState(dndAtom({ contextId }));
 
   const idSetDroppableRef = useMemoizeCallbackId();
   const setDroppableRef = useCallback(
@@ -109,7 +88,7 @@ export const useDnd = (params: UseDndParams) => {
             el.classList.add("draggable");
 
             el.setAttribute("data-context-id", contextId);
-            el.setAttribute("data-draggable", draggableIds[index]);
+            el.setAttribute("data-draggable-id", draggableIds[index]);
           }
         },
         deps: [contextId, index, , idSetDraggableRef, draggableIds],
@@ -117,28 +96,28 @@ export const useDnd = (params: UseDndParams) => {
     [idSetDraggableRef, draggableIds],
   );
 
-  const idSetDragHandleRef = useMemoizeCallbackId();
-  const setDragHandleRef = useCallback(
+  const idSetDraggableHandleRef = useMemoizeCallbackId();
+  const setDraggableHandleRef = useCallback(
     ({ contextId, index }: { contextId: string; index: number }) =>
       memoizeCallback({
-        id: idSetDragHandleRef,
+        id: idSetDraggableHandleRef,
         fn: (el: HTMLElement | null) => {
           if (el) {
             el.setAttribute("draggable", "true"); // 드래그로 텍스트 블록 처리 되는거 방지용도로만 적용시킴
             el.setAttribute("tabindex", "0");
 
             el.setAttribute("data-context-id", contextId);
-            el.setAttribute("data-draggable-handle", draggableIds[index]);
+            el.setAttribute("data-draggable-handle-id", draggableIds[index]);
           }
         },
-        deps: [contextId, index, , idSetDragHandleRef, draggableIds],
+        deps: [contextId, index, , idSetDraggableHandleRef, draggableIds],
       }),
-    [idSetDragHandleRef, draggableIds],
+    [idSetDraggableHandleRef, draggableIds],
   );
 
   return {
     setDroppableRef,
     setDraggableRef,
-    setDragHandleRef,
+    setDraggableHandleRef,
   };
 };

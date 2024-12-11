@@ -52,6 +52,11 @@ const BoardListBase = styled.div`
   &.${grabbingClassNameKvMapping["sortable-grabbing"]} * {
     cursor: grabbing !important;
   }
+
+  .drag-overlay,
+  .drag-overlay * {
+    touch-action: none;
+  }
 `;
 
 // Sortable extra-plugins
@@ -356,7 +361,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 
     // console.log(categoryList);
 
-    console.log(stateNestedIndexer.toPlain());
+    // console.log(stateNestedIndexer.toPlain());
     // console.log("stateActiveCategory:", stateActiveCategory);
     // console.log("isDragging:", isDragging);
 
