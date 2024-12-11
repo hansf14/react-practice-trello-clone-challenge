@@ -309,9 +309,8 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         height,
         top: "0",
         left: "0",
-        backfaceVisibility: "hidden", // For performance and visually smoother 3D transforms
+        // backfaceVisibility: "hidden", // For performance and visually smoother 3D transforms
         transform: `translate3d(${x}px, ${y}px, 0)`,
-        touchAction: "none",
       } satisfies React.CSSProperties;
 
       const dragOverlayTmp = parse(cloneOfActiveDraggable.outerHTML);
@@ -327,8 +326,8 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
               __html: curActiveDraggableCandidate.current.outerHTML,
             },
             style: dragOverlayStyleToInject,
-            onPointerMove,
-            onPointerUp,
+            // onPointerMove,
+            // onPointerUp,
           },
         );
       } else {
@@ -337,6 +336,9 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
           {
             ref: refDragOverlay,
             style: dragOverlayStyleToInject,
+            // onTouchStart: (event: TouchEvent) => {
+            //   event.preventDefault();
+            // },
             // onPointerDown: (event: PointerEvent) => {
             //   console.log("[onPointerDown]");
             //   console.log(refDragOverlay.current);
@@ -375,22 +377,37 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // useEffect(() => {
-    //   if (refDragOverlay.current && curPointerEvent.current) {
-    //     const event = new PointerEvent("pointerdown", {
-    //       bubbles: true,
-    //       cancelable: true,
-    //       pointerId: 1,
-    //       pointerType: isTouchDevice ? "touch" : "mouse", // Also has a valid value "pen"
-    //       clientX: curPointerEvent.current.clientX, // optional coordinates
-    //       clientY: curPointerEvent.current.clientY, // optional coordinates
-    //     });
-    //     refDragOverlay.current.dispatchEvent(event);
-    //   }
-    // }, [stateDragOverlay, isTouchDevice]);
+    useEffect(() => {
+      // if (refDragOverlay.current && curPointerEvent.current) {
+      //   const event = new PointerEvent("pointerdown", {
+      //     bubbles: true,
+      //     cancelable: true,
+      //     pointerId: 1,
+      //     pointerType: isTouchDevice ? "touch" : "mouse", // Also has a valid value "pen"
+      //     clientX: curPointerEvent.current.clientX, // optional coordinates
+      //     clientY: curPointerEvent.current.clientY, // optional coordinates
+      //   });
+      //   refDragOverlay.current.dispatchEvent(event);
+      // }
+      document.body.addEventListener(
+        "touchstart",
+        (event: TouchEvent) => {
+          event.preventDefault();
+        },
+        { passive: false },
+      );
+      document.body.addEventListener(
+        "touchmove",
+        (event: TouchEvent) => {
+          event.preventDefault();
+        },
+        { passive: false },
+      );
+    }, [stateDragOverlay, isTouchDevice]);
 
     const onPointerMove = useCallback(
       (event: PointerEvent) => {
+        console.log("[onPointerMove]");
         curPointerEvent.current = event;
         if (isDragMoving.current) {
           curPointerDelta.current.x += event.movementX;
@@ -405,30 +422,43 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       [setDragOverlay],
     );
 
-    const onCustomDragStart = (event: Event) => {
-      console.log("[onCustomDragStart]");
-      isDragging.current = true;
+    const onCustomDragStart = useCallback(
+      (event: Event) => {
+        console.log("[onCustomDragStart]");
+        isDragging.current = true;
 
-      const customDragEvent = event as CustomDragStartEvent;
-      const {
-        //  pointerEvent
-      } = customDragEvent.detail;
+        const customDragEvent = event as CustomDragStartEvent;
+        // const {
+        //   //  pointerEvent
+        // } = customDragEvent.detail;
 
-      if (curActiveDraggableCandidate.current) {
-        setCurActiveDraggable(curActiveDraggableCandidate.current);
-      }
-      setDragOverlay();
+        if (curActiveDraggableCandidate.current) {
+          setCurActiveDraggable(curActiveDraggableCandidate.current);
+        }
+        setDragOverlay();
 
-      isDragMoving.current = true;
-    };
+        isDragMoving.current = true;
+      },
+      [setDragOverlay],
+    );
 
-    const updateDuration = () => {
-      if (isDragging.current) {
+    const updateDuration = useCallback(() => {
+      if (isDragging.current || !curPointerEvent.current) {
         // if (!isPointerDown.current || isDragging.current) {
         return;
       }
-      console.log("isPointerDown.current:", isPointerDown.current);
-      console.log("isDragging.current:", isDragging.current);
+      if (curPointerEvent.current.target) {
+        const target = curPointerEvent.current.target as HTMLElement;
+        const dataDraggableHandleId = target.getAttribute(
+          "data-draggable-handle-id",
+        );
+        if (!dataDraggableHandleId) {
+          return;
+        }
+      }
+
+      // console.log("isPointerDown.current:", isPointerDown.current);
+      // console.log("isDragging.current:", isDragging.current);
 
       clearTimeout(intervalId.current);
       intervalId.current = setTimeout(
@@ -448,10 +478,10 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
             // },
           },
         );
-        // document.body.addEventListener("custom-drag-start", onCustomDragStart, {
-        //   once: true,
-        // });
-        // document.body.dispatchEvent(customDragStartEvent);
+        document.body.addEventListener("custom-drag-start", onCustomDragStart, {
+          once: true,
+        });
+        document.body.dispatchEvent(customDragStartEvent);
 
         isDragging.current = true;
 
@@ -467,7 +497,60 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
 
         isDragMoving.current = true;
       }
-    };
+    }, [onCustomDragStart, setDragOverlay]);
+
+    const onPointerDown = useCallback(
+      (event: PointerEvent) => {
+        console.log("[onPointerDown]");
+        isPointerDown.current = true;
+        pressStartTime.current = Date.now();
+        clearInterval(intervalId.current);
+        isDragging.current = false;
+
+        curPointerEvent.current = event;
+
+        updateDuration();
+
+        // console.log(event.currentTarget);
+        if (event.target) {
+          const target = event.target as HTMLElement;
+          const dataContextId = target.getAttribute("data-context-id");
+          const dataDraggableHandleId = target.getAttribute(
+            "data-draggable-handle-id",
+          );
+          const dataDraggableId = dataDraggableHandleId;
+          const draggable: HTMLElement | null = document.querySelector(
+            `[data-context-id="${boardListId}"][data-draggable-id="${dataDraggableId}"]`,
+          );
+
+          // console.log("dataContextId:", dataContextId);
+          // console.log("dataDraggableHandleId:", dataDraggableHandleId);
+          // console.log("dataDraggableId:", dataDraggableId);
+          // console.log("draggable:", draggable);
+
+          if (draggable) {
+            curActiveDraggableCandidate.current = draggable;
+            curDraggableHandle.current = event.currentTarget as HTMLElement;
+          }
+        }
+      },
+      [boardListId, updateDuration],
+    );
+
+    const onPointerUp = useCallback(() => {
+      console.log("[onPointerUp]");
+      isPointerDown.current = false;
+      pressStartTime.current = 0;
+      clearInterval(intervalId.current);
+      isDragging.current = false;
+      isDragMoving.current = false;
+
+      curActiveDraggableCandidate.current = null;
+      setCurActiveDraggable(null);
+
+      refDragOverlay.current = null;
+      setStateDragOverlay(null);
+    }, []);
 
     useEffect(() => {
       document.body.addEventListener("pointerdown", onPointerDown);
@@ -479,38 +562,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         document.body.removeEventListener("pointermove", onPointerMove);
         document.body.removeEventListener("pointerup", onPointerUp);
       };
-    }, [onPointerMove]);
-
-    const onPointerDown = (event: PointerEvent) => {
-      console.log("[onPointerDown]");
-      isPointerDown.current = true;
-      pressStartTime.current = Date.now();
-      clearInterval(intervalId.current);
-      isDragging.current = false;
-
-      curPointerEvent.current = event.nativeEvent;
-
-      updateDuration();
-
-      // console.log(event.currentTarget);
-      const dataContextId = event.currentTarget.getAttribute("data-context-id");
-      const dataDraggableHandleId = event.currentTarget.getAttribute(
-        "data-draggable-handle-id",
-      );
-      const dataDraggableId = dataDraggableHandleId;
-      const draggable: HTMLElement | null = document.querySelector(
-        `[data-context-id="${boardListId}"][data-draggable-id="${dataDraggableId}"]`,
-      );
-      // console.log("dataContextId:", dataContextId);
-      // console.log("dataDraggableHandleId:", dataDraggableHandleId);
-      // console.log("dataDraggableId:", dataDraggableId);
-      // console.log("draggable:", draggable);
-
-      if (draggable) {
-        curActiveDraggableCandidate.current = draggable;
-        curDraggableHandle.current = event.currentTarget as HTMLElement;
-      }
-    };
+    }, [onPointerDown, onPointerMove, onPointerUp]);
 
     // const onPointerOver =
 
@@ -518,17 +570,9 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       // pointerEvent: React.PointerEvent | null;
     }>;
 
-    const onPointerUp = () => {
-      console.log("[onPointerUp]");
-      isPointerDown.current = false;
-      pressStartTime.current = 0;
-      clearInterval(intervalId.current);
-      isDragging.current = false;
-    };
-
-    const onDragStart = (event: React.DragEvent) => {
+    const onDragStart = useCallback((event: React.DragEvent) => {
       event.preventDefault();
-    };
+    }, []);
 
     const {
       setDroppableRef,
@@ -565,34 +609,50 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
               index: 0,
             })}
             onDragStart={onDragStart}
-            // onPointerDown={onPointerDown}
-            // onPointerUp={onPointerUp}
-            // onPointerCancel={() => console.log("[onPointerCancel]")}
-            // onPointerCancelCapture={() =>
-            //   console.log("[onPointerCancelCapture]")
-            // }
-            // onPointerDownCapture={() => console.log("[onPointerDownCapture]")}
-            // onPointerEnter={() => console.log("[onPointerEnter]")}
-            // onPointerLeave={() => console.log("[onPointerLeave]")}
-            // onPointerMove={() => console.log("[onPointerMove]")}
-            // onPointerMoveCapture={() => console.log("[onPointerMoveCapture]")}
-            // onPointerOut={() => console.log("[onPointeronPointerOutCancel]")}
-            // onPointerOutCapture={() => console.log("[onPointerOutCapture]")}
-            // onPointerOver={() => console.log("[onPointerOver]")}
-            // onPointerOverCapture={() => console.log("[onPointerOverCapture]")}
-            // onPointerUpCapture={() => console.log("[onPointerUpCapture]")}
-            // onGotPointerCapture={() => console.log("[onGotPointerCapture]")}
-            // onGotPointerCaptureCapture={() =>
-            //   console.log("[onGotPointerCaptureCapture]")
-            // }
-            // onLostPointerCapture={() => console.log("[onLostPointerCapture]")}
-            // onLostPointerCaptureCapture={() =>
-            //   console.log("[onLostPointerCaptureCapture]")
-            // }
           >
             DOH
           </div>
-          {/* <BoardHeader
+        </Board>
+        <Board
+          ref={setDraggableRef({
+            contextId: boardListId,
+            index: 0,
+          })}
+        >
+          <div
+            ref={setDragHandleRef({
+              contextId: boardListId,
+              index: 0,
+            })}
+            onDragStart={onDragStart}
+          >
+            DOH
+          </div>
+        </Board>
+        <Board
+          ref={setDraggableRef({
+            contextId: boardListId,
+            index: 0,
+          })}
+        >
+          <div
+            ref={setDragHandleRef({
+              contextId: boardListId,
+              index: 0,
+            })}
+            onDragStart={onDragStart}
+          >
+            DOH
+          </div>
+        </Board>
+        {stateDragOverlay}
+      </CategoryTaskBoardListInternalBase>
+    );
+  },
+});
+
+{
+  /* <BoardHeader
             parentItem={item}
             onEditStartParentItem={onEditStartParentItem}
             onEditFinishParentItem={onEditFinishParentItem}
@@ -601,13 +661,8 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
             boardListId={boardListId}
             parentItem={item}
             forEachChildItem={forEachChildItem}
-          ></BoardMain> */}
-        </Board>
-        {stateDragOverlay}
-      </CategoryTaskBoardListInternalBase>
-    );
-  },
-});
+          ></BoardMain> */
+}
 
 export type CategoryBoardListProps = CategoryBoardListInternalProps;
 

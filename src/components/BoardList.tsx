@@ -53,9 +53,9 @@ const BoardListBase = styled.div`
     cursor: grabbing !important;
   }
 
-  .drag-overlay,
-  .drag-overlay * {
-    touch-action: none;
+  .drag-overlay {
+    /* pointer-events: none; */
+    /* touch-action: none; */
   }
 `;
 
