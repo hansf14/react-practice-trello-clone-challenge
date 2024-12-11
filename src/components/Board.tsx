@@ -35,17 +35,6 @@ const BoardBase = styled.div`
   -webkit-backdrop-filter: blur(13.5px);
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-
-  // DragOverlay
-  &.${boardClassNameKvMapping["board-sortable-drag"]} {
-    opacity: 0.7 !important;
-  }
-
-  // Ghost
-  &.${boardClassNameKvMapping["board-sortable-ghost"]} {
-    opacity: 0.7;
-    border: 2px solid yellow;
-  }
 `;
 
 export type BoardPropsChildren = ({

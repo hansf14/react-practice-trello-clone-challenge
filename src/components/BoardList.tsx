@@ -54,10 +54,21 @@ const BoardListBase = styled.div`
   }
 
   .drag-overlay {
-    /* pointer-events: none; */
-    /* touch-action: none; */
+    opacity: 0.7;
+  }
+
+  .drag-placeholder {
+    opacity: 0.7;
+    border: 2px solid yellow;
+  }
+
+  .drag-handle {
+    cursor: grab;
   }
 `;
+/* &.${boardClassNameKvMapping["board-sortable-handle"]} {
+    cursor: grab;
+  } */
 
 // Sortable extra-plugins
 // Sortable.mount(new MultiDrag(), new Swap());

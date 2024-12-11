@@ -81,10 +81,6 @@ const BoardDragHandle = styled.div`
 
   display: flex;
   align-items: center;
-
-  &.${boardClassNameKvMapping["board-sortable-handle"]} {
-    cursor: grab;
-  }
 `;
 
 export type OnEditStartParentItem = ({

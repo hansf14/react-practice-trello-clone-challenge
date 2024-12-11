@@ -9,21 +9,6 @@
 					"label": ""
 				}
 			]
-		},
-		{
-			"path": "src/hooks/useDnd.tsx",
-			"bookmarks": [
-				{
-					"line": 1282,
-					"column": 60,
-					"label": ""
-				},
-				{
-					"line": 1302,
-					"column": 22,
-					"label": ""
-				}
-			]
 		}
 	]
 }
