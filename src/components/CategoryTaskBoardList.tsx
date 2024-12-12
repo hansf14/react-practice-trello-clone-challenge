@@ -25,7 +25,7 @@ import { NestedIndexer } from "@/indexer";
 import { BoardMain, ForEachChildItem } from "@/components/BoardMain";
 import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
-import { Group, useDnd } from "@/hooks/useDnd";
+import { Group, useDnd, UseDndRoot } from "@/hooks/useDnd";
 
 const CategoryTaskBoardListInternalBase = styled(BoardList)<BoardListProps>`
   height: 100%;
@@ -212,91 +212,110 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     //   const angles = _directionArr.map(
     //     (dir) => (2 * Math.PI * dir) / _directions,
     //   );
-    //   const cx = 
+    //   const cx =
     // }
 
     // TODO: remove index from props (automatically manage)
     return (
-      <CategoryTaskBoardListInternalBase
-        ref={(el) => {
-          refBase.current = el;
-          setDroppableRef({
-            contextId: boardListId,
-            index: 0,
-            tagKeysAcceptable: ["category"],
-          })(el);
-        }}
-        boardListId={boardListId}
-        {...otherProps}
-      >
-        <Group ref={setGroupsRef({ index: 0 })}>
-          <Board
-            ref={setDraggableRef({
+      <UseDndRoot>
+        <CategoryTaskBoardListInternalBase
+          ref={(el) => {
+            refBase.current = el;
+            setDroppableRef({
               contextId: boardListId,
               index: 0,
-              tagKey: "category",
-            })}
-          >
-            <div
-              ref={setDraggableHandleRef({
+              tagKeysAcceptable: ["category"],
+            })(el);
+          }}
+          boardListId={boardListId}
+          {...otherProps}
+        >
+          <Group ref={setGroupsRef({ index: 0 })}>
+            <Board
+              ref={setDraggableRef({
                 contextId: boardListId,
                 index: 0,
+                tagKey: "category",
               })}
-              onDragStart={onDragStart}
             >
-              DOH1
-            </div>
-            <div
-              ref={setDroppableRef({
+              <div
+                ref={setDraggableHandleRef({
+                  contextId: boardListId,
+                  index: 0,
+                })}
+                onDragStart={onDragStart}
+              >
+                DOH1
+              </div>
+              <div
+                ref={setDroppableRef({
+                  contextId: boardListId,
+                  index: 1,
+                  tagKeysAcceptable: ["category"],
+                })}
+              >
+                {/* <Group ref={setGroupsRef({ index: 1 })}> */}
+                <div>Task1</div>
+                <div>Task2</div>
+                <div>Task3</div>
+                {/* </Group> */}
+              </div>
+            </Board>
+            <Board
+              ref={setDraggableRef({
                 contextId: boardListId,
                 index: 1,
-                tagKeysAcceptable: ["category"],
+                tagKey: "category",
               })}
             >
-              {/* <Group ref={setGroupsRef({ index: 1 })}> */}
-              <div>Task1</div>
-              <div>Task2</div>
-              <div>Task3</div>
-              {/* </Group> */}
-            </div>
-          </Board>
-          <Board
-            ref={setDraggableRef({
-              contextId: boardListId,
-              index: 1,
-              tagKey: "category",
-            })}
-          >
-            <div
-              ref={setDraggableHandleRef({
-                contextId: boardListId,
-                index: 1,
-              })}
-              onDragStart={onDragStart}
-            >
-              DOH2
-            </div>
-          </Board>
-          <Board
-            ref={setDraggableRef({
-              contextId: boardListId,
-              index: 2,
-              tagKey: "category",
-            })}
-          >
-            <div
-              ref={setDraggableHandleRef({
+              <div
+                ref={setDraggableHandleRef({
+                  contextId: boardListId,
+                  index: 1,
+                })}
+                onDragStart={onDragStart}
+              >
+                DOH2
+              </div>
+            </Board>
+            <Board
+              ref={setDraggableRef({
                 contextId: boardListId,
                 index: 2,
+                tagKey: "category",
               })}
-              onDragStart={onDragStart}
             >
-              DOH3
-            </div>
-          </Board>
-        </Group>
-        {DragOverlay}
-      </CategoryTaskBoardListInternalBase>
+              <div
+                ref={setDraggableHandleRef({
+                  contextId: boardListId,
+                  index: 2,
+                })}
+                onDragStart={onDragStart}
+              >
+                DOH3
+              </div>
+            </Board>
+            <Board
+              ref={setDraggableRef({
+                contextId: boardListId,
+                index: 3,
+                tagKey: "category",
+              })}
+            >
+              <div
+                ref={setDraggableHandleRef({
+                  contextId: boardListId,
+                  index: 3,
+                })}
+                onDragStart={onDragStart}
+              >
+                DOH4
+              </div>
+            </Board>
+          </Group>
+          {DragOverlay}
+        </CategoryTaskBoardListInternalBase>
+      </UseDndRoot>
     );
   },
 });

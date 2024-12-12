@@ -6,13 +6,21 @@ import React, {
   useState,
 } from "react";
 import parse from "html-react-parser";
+import { styled } from "styled-components";
 import { useBeforeRender } from "@/hooks/useBeforeRender";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { useUniqueRandomIds } from "@/hooks/useUniqueRandomIds";
-import { memoizeCallback, withMemoAndRef } from "@/utils";
-import { atomFamily, useRecoilState } from "recoil";
+import {
+  getCursorRelativePosToElement,
+  memoizeCallback,
+  withMemoAndRef,
+} from "@/utils";
+import { atom, atomFamily, useRecoilState, useRecoilValue } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import { getDeviceDetector } from "@/hooks/useDeviceDetector";
+import { useLikeConstructor } from "@/hooks/useLikeConstructor";
+import { useRefForElementWithOptionalCb } from "@/hooks/useRefForElementWithOptionalCb";
+import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
 
 export function mergeRefs<T>(
   ...refs: (React.Ref<T> | undefined)[]
@@ -35,6 +43,126 @@ export function isReactPortal(node: React.ReactNode) {
     (node as any).$$typeof === Symbol.for("react.portal")
   );
 }
+
+const UseDndRootBase = styled.div`
+  width: 100%;
+  height: 100%;
+  flex-grow: 1;
+  container-type: size;
+  container-name: root;
+`;
+
+export type DragCursorAreaProps = {
+  width: string | number;
+  height: string | number;
+};
+
+const DragCursorArea = styled.div.withConfig({
+  shouldForwardProp: (prop) => !["width", "height"].includes(prop),
+})<DragCursorAreaProps>`
+  position: fixed;
+  width: ${({ width }) => (typeof width === "number" ? width + "px" : width)};
+  height: ${({ height }) =>
+    typeof height === "number" ? height + "px" : height};
+`;
+
+const UseDndRootChildrenWrapper = styled.div`
+  width: 100cqw;
+  height: 100cqh;
+`;
+
+export type UseDndRootHandle = {
+  baseElement: HTMLDivElement | null;
+  dragCursorArea: HTMLDivElement | null;
+  childrenWrapper: HTMLDivElement | null;
+};
+
+export type UseDndRootProps = {
+  children?: React.ReactNode;
+  dragCollisionDetectionSensitivity?: Partial<DragCursorAreaProps>;
+};
+
+let dndRootIntersectionObserver: IntersectionObserver | null = null;
+const dndRootElementsPendingToBeObserved = new Map<HTMLElement, HTMLElement>();
+let dndRootDragCursorArea: HTMLDivElement | null = null;
+let dndRootChildrenWrapper: HTMLDivElement | null = null;
+
+export const UseDndRoot = withMemoAndRef<
+  "div",
+  UseDndRootHandle,
+  UseDndRootProps
+>({
+  displayName: "UseDndRoot",
+  Component: ({ children, dragCollisionDetectionSensitivity }, ref) => {
+    const {
+      width: dragCursorAreaWidth = 10,
+      height: dragCursorAreaHeight = 10,
+    } = dragCollisionDetectionSensitivity ?? {};
+
+    const refBase = useRef<HTMLDivElement | null>(null);
+    const refDragCursorArea = useRef<HTMLDivElement | null>(null);
+    // useRefForElementWithOptionalCb<HTMLDivElement | null>({
+    //   cb: cbInitial,
+    // });
+    const refChildrenWrapper = useRef<HTMLDivElement | null>(null);
+
+    useImperativeHandle(ref, () => ({
+      baseElement: refBase.current,
+      dragCursorArea: refDragCursorArea.current,
+      childrenWrapper: refChildrenWrapper.current,
+    }));
+
+    useIsomorphicLayoutEffect(() => {
+      const elementsToBeObserved = [
+        ...dndRootElementsPendingToBeObserved.values(),
+      ];
+      elementsToBeObserved.forEach((element) => {
+        dndRootIntersectionObserver?.observe(element);
+        dndRootElementsPendingToBeObserved.delete(element);
+      });
+    });
+
+    const dragAreaCallbackRef = useCallback((el: HTMLDivElement) => {
+      if (!refDragCursorArea.current && !dndRootIntersectionObserver) {
+        console.log("DOH!");
+
+        dndRootIntersectionObserver = new IntersectionObserver(
+          (entries, observer) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                console.log(entry.isIntersecting, entry);
+              }
+            });
+          },
+          {
+            root: el,
+          },
+        );
+      }
+      refDragCursorArea.current = el;
+      dndRootDragCursorArea = el;
+    }, []);
+
+    const childWrapperCallbackRef = useCallback((el: HTMLDivElement) => {
+      refChildrenWrapper.current = el;
+      dndRootChildrenWrapper = el;
+    }, []);
+
+    return (
+      <UseDndRootBase ref={refBase}>
+        <DragCursorArea
+          ref={dragAreaCallbackRef}
+          width={dragCursorAreaWidth}
+          height={dragCursorAreaHeight}
+        >
+          <UseDndRootChildrenWrapper ref={childWrapperCallbackRef}>
+            {children}
+          </UseDndRootChildrenWrapper>
+        </DragCursorArea>
+      </UseDndRootBase>
+    );
+  },
+});
 
 type GroupHandle = {
   remove: ({ index }: { index: number }) => void;
@@ -238,18 +366,17 @@ export const useDnd = (params: UseDndParams) => {
     y: 0,
   });
 
-  const curActiveDraggableHandle = useRef<HTMLElement | null>(null);
-  const curActiveDraggableCandidate = useRef<HTMLElement | null>(null);
-  const [curActiveDraggable, setCurActiveDraggable] =
-    useState<HTMLElement | null>(null);
+  const refCurActiveDraggable = useRef<HTMLElement | null>(null);
+  const refCurActiveDraggableCandidate = useRef<HTMLElement | null>(null);
+  // const refCurActiveDroppable
+  const refDragOverlay = useRef<HTMLElement | null>(null);
   const [stateDragOverlay, setStateDragOverlay] =
     useState<React.ReactNode | null>(null);
-  const refDragOverlay = useRef<HTMLElement | null>(null);
 
   ////////////////////////////////////////////
 
   const createDragOverlay = useCallback(() => {
-    if (!curActiveDraggableCandidate.current || !curPointerEvent.current) {
+    if (!refCurActiveDraggableCandidate.current || !curPointerEvent.current) {
       return;
     }
 
@@ -259,7 +386,7 @@ export const useDnd = (params: UseDndParams) => {
     let y = 0;
     if (!isDragMoving.current) {
       const draggableRect =
-        curActiveDraggableCandidate.current.getBoundingClientRect();
+        refCurActiveDraggableCandidate.current.getBoundingClientRect();
       width = draggableRect.width;
       height = draggableRect.height;
       x = draggableRect.x;
@@ -279,8 +406,8 @@ export const useDnd = (params: UseDndParams) => {
       //   relativePosOfHandleToDraggable.current.y = handleY - y;
       // }
     } else {
-      width = curActiveDraggableCandidate.current.offsetWidth;
-      height = curActiveDraggableCandidate.current.offsetHeight;
+      width = refCurActiveDraggableCandidate.current.offsetWidth;
+      height = refCurActiveDraggableCandidate.current.offsetHeight;
       x = curDragOverlayPos.current.x += curPointerDelta.current.x;
       y = curDragOverlayPos.current.y += curPointerDelta.current.y;
 
@@ -329,7 +456,7 @@ export const useDnd = (params: UseDndParams) => {
     // y = yOffset;
 
     const cloneOfActiveDraggable =
-      curActiveDraggableCandidate.current.cloneNode(true) as HTMLElement;
+      refCurActiveDraggableCandidate.current.cloneNode(true) as HTMLElement;
 
     const dragOverlayStyleToInject = {
       position: "fixed",
@@ -354,7 +481,7 @@ export const useDnd = (params: UseDndParams) => {
         {
           ref: refDragOverlay,
           dangerouslySetInnerHTML: {
-            __html: curActiveDraggableCandidate.current.outerHTML,
+            __html: refCurActiveDraggableCandidate.current.outerHTML,
           },
           style: dragOverlayStyleToInject,
         },
@@ -436,18 +563,17 @@ export const useDnd = (params: UseDndParams) => {
         curPointerDelta.current.x = 0;
         curPointerDelta.current.y = 0;
 
-        if (!curActiveDraggable) {
+        if (!refCurActiveDraggable.current) {
           console.warn("[onPointerMove] !curActiveDraggable");
           return;
         }
 
         const dataActiveDraggableContextId =
-          curActiveDraggable.getAttribute("data-context-id");
+          refCurActiveDraggable.current.getAttribute("data-context-id");
         const dataActiveDraggableId =
-          curActiveDraggable.getAttribute("data-draggable-id");
-        const dataActiveDraggableTagKey = curActiveDraggable.getAttribute(
-          "data-draggable-tag-key",
-        );
+          refCurActiveDraggable.current.getAttribute("data-draggable-id");
+        const dataActiveDraggableTagKey =
+          refCurActiveDraggable.current.getAttribute("data-draggable-tag-key");
 
         if (
           !(
@@ -460,6 +586,20 @@ export const useDnd = (params: UseDndParams) => {
             "[onPointerMove] !(dataContextId && dataDraggableId && dataDraggableTagKey)",
           );
           return;
+        }
+
+        if (dndRootDragCursorArea && dndRootChildrenWrapper) {
+          const { offsetWidth, offsetHeight } = dndRootDragCursorArea;
+          const x = event.clientX - offsetWidth / 2;
+          const y = event.clientY - offsetHeight / 2;
+          dndRootDragCursorArea.style.setProperty(
+            "transform",
+            `translate3d(${x}px, ${y}px, 0)`,
+          );
+          dndRootChildrenWrapper.style.setProperty(
+            "transform",
+            `translate3d(${-x}px, ${-y}px, 0)`,
+          );
         }
 
         // Result: topmost -> bottommost in viewport
@@ -499,8 +639,16 @@ export const useDnd = (params: UseDndParams) => {
           ) {
             continue;
           }
-          // Get closest edge
-          
+
+          const { x: xInDroppable, y: yInDroppable } =
+            getCursorRelativePosToElement({
+              cursorPos: {
+                x: event.clientX,
+                y: event.clientY,
+              },
+              element: droppable,
+            });
+          // droppable.querySelectorAll("")
 
           // TODO:
         }
@@ -573,7 +721,7 @@ export const useDnd = (params: UseDndParams) => {
         }
       }
     },
-    [curActiveDraggable, createDragOverlay],
+    [createDragOverlay],
   );
 
   const onCustomDragStart = useCallback(
@@ -589,9 +737,9 @@ export const useDnd = (params: UseDndParams) => {
       //   //  pointerEvent
       // } = customDragEvent.detail;
 
-      if (curActiveDraggableCandidate.current) {
-        setCurActiveDraggable(curActiveDraggableCandidate.current);
-        curActiveDraggableCandidate.current.classList.add("drag-placeholder");
+      if (refCurActiveDraggableCandidate.current) {
+        refCurActiveDraggable.current = refCurActiveDraggableCandidate.current;
+        refCurActiveDraggable.current.classList.add("drag-placeholder");
       }
 
       createDragOverlay(); // Update pos
@@ -636,9 +784,8 @@ export const useDnd = (params: UseDndParams) => {
           // console.log("draggable:", draggable);
 
           if (draggable) {
-            curActiveDraggableCandidate.current = draggable;
-            curActiveDraggableHandle.current =
-              event.currentTarget as HTMLElement;
+            refCurActiveDraggableCandidate.current = draggable;
+            refCurActiveDraggable.current = event.currentTarget as HTMLElement;
           }
         }
       }
@@ -654,10 +801,11 @@ export const useDnd = (params: UseDndParams) => {
     isDragging.current = false;
     isDragMoving.current = false;
 
-    curActiveDraggableCandidate.current?.classList.remove("drag-placeholder");
-    curActiveDraggableCandidate.current = null;
-    curActiveDraggableHandle.current = null;
-    setCurActiveDraggable(null);
+    refCurActiveDraggableCandidate.current?.classList.remove(
+      "drag-placeholder",
+    );
+    refCurActiveDraggableCandidate.current = null;
+    refCurActiveDraggable.current = null;
 
     refDragOverlay.current = null;
     setStateDragOverlay(null);
@@ -679,6 +827,10 @@ export const useDnd = (params: UseDndParams) => {
     };
   }, [onPointerDown, onPointerMove, onPointerUp]);
 
+  const enableTouDeviceSupport = useCallback((event: TouchEvent) => {
+    event.preventDefault();
+  }, []);
+
   // Touch device dragging support
   useIsomorphicLayoutEffect(() => {
     // document.body.addEventListener(
@@ -690,20 +842,19 @@ export const useDnd = (params: UseDndParams) => {
     // );
     // ㄴ onClick event will not trigger
     // https://stackoverflow.com/a/13720649/11941803
-    document.body.addEventListener(
-      "touchmove",
-      (event: TouchEvent) => {
-        event.preventDefault();
-      },
-      { passive: false },
-    );
-  }, [stateDragOverlay, isTouchDevice]);
+    document.body.addEventListener("touchmove", enableTouDeviceSupport, {
+      passive: false,
+    });
+
+    return () =>
+      document.body.removeEventListener("touchmove", enableTouDeviceSupport);
+  }, [enableTouDeviceSupport]);
 
   useIsomorphicLayoutEffect(() => {
     refDragOverlay.current?.classList.add("drag-overlay");
     refDragOverlay.current?.classList.remove("drag-placeholder");
-    curActiveDraggable?.classList.add("drag-placeholder");
-  }, [stateDragOverlay, curActiveDraggable]);
+    refCurActiveDraggable.current?.classList.add("drag-placeholder");
+  }, [stateDragOverlay]);
 
   ////////////////////////////////////////////
 
@@ -757,9 +908,12 @@ export const useDnd = (params: UseDndParams) => {
             el.setAttribute("data-context-id", contextId);
             el.setAttribute("data-draggable-id", draggableIds[index]);
             el.setAttribute("data-draggable-tag-key", tagKey);
+
+            console.log("3");
+            dndRootElementsPendingToBeObserved.set(el, el);
           }
         },
-        deps: [contextId, index, , idSetDraggableRef, draggableIds],
+        deps: [contextId, index, idSetDraggableRef, draggableIds],
       }),
     [idSetDraggableRef, draggableIds],
   );
