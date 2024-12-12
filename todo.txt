@@ -18,3 +18,5 @@ DND library
 - board drag overlay는 가로로만
 - scroll drag
 - drag placeholder 기능
+
+When gap is too big, the curOverDraggable could not exist even though it's droppable in between.

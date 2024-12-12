@@ -25,14 +25,25 @@ import { NestedIndexer } from "@/indexer";
 import { BoardMain, ForEachChildItem } from "@/components/BoardMain";
 import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
-import { Group, useDnd, UseDndRoot } from "@/hooks/useDnd";
+import {
+  DroppableProps,
+  GroupHandle,
+  useDnd,
+  UseDndRoot,
+  withDroppable,
+} from "@/hooks/useDnd";
 
-const CategoryTaskBoardListInternalBase = styled(BoardList)<BoardListProps>`
+const BoardListBase = withDroppable<"div", GroupHandle, BoardListProps>({
+  BaseComponent: BoardList,
+});
+const CategoryTaskBoardListInternalBase = styled(BoardListBase)<
+  DroppableProps<BoardListProps>
+>`
   height: 100%;
   padding: 0 10px;
 ` as ReturnType<
-  typeof React.forwardRef<React.ElementRef<typeof BoardList>, BoardListProps>
->; // <- Casting for `children` render props intellisense.
+  typeof React.forwardRef<HTMLDivElement, DroppableProps<BoardListProps>>
+>;
 
 export type CategoryBoardListInternalProps = SmartOmit<
   BoardListExtendProps,
@@ -172,20 +183,15 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     //   ],
     // );
 
-    const refBase = useRef<React.ElementRef<
-      typeof CategoryTaskBoardListInternalBase
-    > | null>(null);
+    const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
-      return refBase.current as React.ElementRef<
-        typeof CategoryTaskBoardListInternalBase
-      >;
+      return refBase.current as HTMLDivElement;
     });
 
     const {
       DragOverlay,
       onDragStart,
       setGroupsRef,
-      setDroppableRef,
       setDraggableRef,
       setDraggableHandleRef,
     } = useDnd({
@@ -194,125 +200,84 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       draggableCount: 3,
     });
 
-    // function nearbyElements({
-    //   x,
-    //   y,
-    //   maxDistance,
-    //   directions,
-    //   directionArr,
-    // }: {
-    //   x: number;
-    //   y: number;
-    //   maxDistance?: number;
-    //   directions?: number;
-    //   directionArr?: number[];
-    // }) {
-    //   const _directions = directions ?? 8;
-    //   const _directionArr = directionArr ?? [0, 1, 2, 3, 4, 5, 6, 7];
-    //   const angles = _directionArr.map(
-    //     (dir) => (2 * Math.PI * dir) / _directions,
-    //   );
-    //   const cx =
-    // }
-
     // TODO: remove index from props (automatically manage)
     return (
       <UseDndRoot>
         <CategoryTaskBoardListInternalBase
           ref={(el) => {
             refBase.current = el;
-            setDroppableRef({
-              contextId: boardListId,
-              index: 0,
-              tagKeysAcceptable: ["category"],
-            })(el);
+            // setDroppableRef({
+            //   droppableId: "0",
+            //   tagKeysAcceptable: ["category"],
+            // })(el);
+            setGroupsRef({ droppableId: "0" });
           }}
-          boardListId={boardListId}
+          contextId={boardListId}
+          droppableId={"0"}
+          tagKeysAcceptable={["category", "task"]}
+          boardListId={boardListId} // TODO: remove and replace it with contextId
           {...otherProps}
         >
-          <Group ref={setGroupsRef({ index: 0 })}>
-            <Board
-              ref={setDraggableRef({
-                contextId: boardListId,
-                index: 0,
-                tagKey: "category",
+          <Board
+            ref={setDraggableRef({
+              draggableId: "0",
+              tagKey: "category",
+            })}
+          >
+            <div
+              ref={setDraggableHandleRef({
+                draggableId: "0",
               })}
+              onDragStart={onDragStart}
             >
-              <div
-                ref={setDraggableHandleRef({
-                  contextId: boardListId,
-                  index: 0,
-                })}
-                onDragStart={onDragStart}
-              >
-                DOH1
-              </div>
-              <div
-                ref={setDroppableRef({
-                  contextId: boardListId,
-                  index: 1,
-                  tagKeysAcceptable: ["category"],
-                })}
-              >
-                {/* <Group ref={setGroupsRef({ index: 1 })}> */}
-                <div>Task1</div>
-                <div>Task2</div>
-                <div>Task3</div>
-                {/* </Group> */}
-              </div>
-            </Board>
-            <Board
-              ref={setDraggableRef({
-                contextId: boardListId,
-                index: 1,
-                tagKey: "category",
+              DOH1
+            </div>
+          </Board>
+          <Board
+            ref={setDraggableRef({
+              draggableId: "1",
+              tagKey: "category",
+            })}
+          >
+            <div
+              ref={setDraggableHandleRef({
+                draggableId: "1",
               })}
+              onDragStart={onDragStart}
             >
-              <div
-                ref={setDraggableHandleRef({
-                  contextId: boardListId,
-                  index: 1,
-                })}
-                onDragStart={onDragStart}
-              >
-                DOH2
-              </div>
-            </Board>
-            <Board
-              ref={setDraggableRef({
-                contextId: boardListId,
-                index: 2,
-                tagKey: "category",
+              DOH2
+            </div>
+          </Board>
+          <Board
+            ref={setDraggableRef({
+              draggableId: "2",
+              tagKey: "category",
+            })}
+          >
+            <div
+              ref={setDraggableHandleRef({
+                draggableId: "2",
               })}
+              onDragStart={onDragStart}
             >
-              <div
-                ref={setDraggableHandleRef({
-                  contextId: boardListId,
-                  index: 2,
-                })}
-                onDragStart={onDragStart}
-              >
-                DOH3
-              </div>
-            </Board>
-            <Board
-              ref={setDraggableRef({
-                contextId: boardListId,
-                index: 3,
-                tagKey: "category",
+              DOH3
+            </div>
+          </Board>
+          <Board
+            ref={setDraggableRef({
+              draggableId: "3",
+              tagKey: "category",
+            })}
+          >
+            <div
+              ref={setDraggableHandleRef({
+                draggableId: "3",
               })}
+              onDragStart={onDragStart}
             >
-              <div
-                ref={setDraggableHandleRef({
-                  contextId: boardListId,
-                  index: 3,
-                })}
-                onDragStart={onDragStart}
-              >
-                DOH4
-              </div>
-            </Board>
-          </Group>
+              DOH4
+            </div>
+          </Board>
           {DragOverlay}
         </CategoryTaskBoardListInternalBase>
       </UseDndRoot>

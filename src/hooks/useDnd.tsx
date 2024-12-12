@@ -6,21 +6,26 @@ import React, {
   useState,
 } from "react";
 import parse from "html-react-parser";
-import { styled } from "styled-components";
+import { css, styled } from "styled-components";
 import { useBeforeRender } from "@/hooks/useBeforeRender";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { useUniqueRandomIds } from "@/hooks/useUniqueRandomIds";
-import {
-  getCursorRelativePosToElement,
-  memoizeCallback,
-  withMemoAndRef,
-} from "@/utils";
-import { atom, atomFamily, useRecoilState, useRecoilValue } from "recoil";
+import { memoizeCallback, withMemoAndRef } from "@/utils";
+import { atomFamily } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
-import { getDeviceDetector } from "@/hooks/useDeviceDetector";
-import { useLikeConstructor } from "@/hooks/useLikeConstructor";
-import { useRefForElementWithOptionalCb } from "@/hooks/useRefForElementWithOptionalCb";
-import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
+import { MultiMap } from "@/multimap";
+import { useDeviceDetector } from "@/hooks/useDeviceDetector";
+
+let lastUserAgent = navigator.userAgent;
+export function detectSwitchingFromOrToEmulator({ cb }: { cb: Function }) {
+  setInterval(() => {
+    if (navigator.userAgent !== lastUserAgent) {
+      // console.log("userAgent changed:", navigator.userAgent);
+      cb();
+      lastUserAgent = navigator.userAgent;
+    }
+  }, 1000);
+}
 
 export function mergeRefs<T>(
   ...refs: (React.Ref<T> | undefined)[]
@@ -29,9 +34,10 @@ export function mergeRefs<T>(
     refs.forEach((ref) => {
       if (typeof ref === "function") {
         ref(value);
-      } else if (ref && typeof ref === "object") {
-        (ref as React.MutableRefObject<T | null>).current = value;
       }
+      // else if (ref && typeof ref === "object") {
+      //   (ref as React.MutableRefObject<T | null>).current = value;
+      // }
     });
   };
 }
@@ -42,6 +48,19 @@ export function isReactPortal(node: React.ReactNode) {
     typeof node === "object" &&
     (node as any).$$typeof === Symbol.for("react.portal")
   );
+}
+
+export function getAllNodesAtSameHierarchy(
+  element: HTMLElement,
+): HTMLElement[] {
+  if (!element) {
+    return [];
+  }
+  if (!element.parentNode) {
+    // <html>
+    return [document.documentElement];
+  }
+  return Array.from(element.parentNode.children) as HTMLElement[];
 }
 
 const UseDndRootBase = styled.div`
@@ -64,12 +83,48 @@ const DragCursorArea = styled.div.withConfig({
   width: ${({ width }) => (typeof width === "number" ? width + "px" : width)};
   height: ${({ height }) =>
     typeof height === "number" ? height + "px" : height};
+
+  ${({ width, height }) => {
+    const widthStr = typeof width === "number" ? width + "px" : width;
+    const heightStr = typeof height === "number" ? height + "px" : height;
+    return css`
+      transform: translate3d(${widthStr}, ${heightStr}, 0);
+    `;
+  }}
 `;
 
-const UseDndRootChildrenWrapper = styled.div`
+export type UseDndRootChildrenWrapper = {
+  dragCursorAreaWidth: string | number;
+  dragCursorAreaHeight: string | number;
+};
+
+const UseDndRootChildrenWrapper = styled.div.withConfig({
+  shouldForwardProp: (prop) =>
+    !["dragCursorAreaWidth", "dragCursorAreaHeight"].includes(prop),
+})<UseDndRootChildrenWrapper>`
   width: 100cqw;
   height: 100cqh;
+
+  ${({ dragCursorAreaWidth, dragCursorAreaHeight }) => {
+    const dragCursorAreaWidthStr =
+      typeof dragCursorAreaWidth === "number"
+        ? dragCursorAreaWidth + "px"
+        : dragCursorAreaWidth;
+    const dragCursorAreaHeightStr =
+      typeof dragCursorAreaHeight === "number"
+        ? dragCursorAreaHeight + "px"
+        : dragCursorAreaHeight;
+    return css`
+      transform: translate3d(
+        -${dragCursorAreaWidthStr},
+        -${dragCursorAreaHeightStr},
+        0
+      );
+    `;
+  }}
 `;
+
+export type Groups = { [groupKey: string]: GroupHandle };
 
 export type UseDndRootHandle = {
   baseElement: HTMLDivElement | null;
@@ -84,9 +139,15 @@ export type UseDndRootProps = {
 
 let dndRootIntersectionObserver: IntersectionObserver | null = null;
 const dndRootElementsPendingToBeObserved = new Map<HTMLElement, HTMLElement>();
+
 let dndRootDragCursorArea: HTMLDivElement | null = null;
 let dndRootChildrenWrapper: HTMLDivElement | null = null;
 
+let curActiveDroppable: HTMLElement | null = null;
+let curActiveDraggable: HTMLElement | null = null;
+const groups = new MultiMap<string[], GroupHandle>();
+
+// Should be used at the topmost position as possible, and should exist only one.
 export const UseDndRoot = withMemoAndRef<
   "div",
   UseDndRootHandle,
@@ -122,26 +183,73 @@ export const UseDndRoot = withMemoAndRef<
       });
     });
 
-    const dragAreaCallbackRef = useCallback((el: HTMLDivElement) => {
-      if (!refDragCursorArea.current && !dndRootIntersectionObserver) {
-        console.log("DOH!");
+    const intersectionObserverCb = useCallback<IntersectionObserverCallback>(
+      (entries, observer) => {
+        for (const entry of entries) {
+          if (
+            entry.isIntersecting &&
+            curActiveDroppable &&
+            curActiveDraggable
+          ) {
+            const dataDroppableContextId =
+              curActiveDroppable.getAttribute("data-context-id");
+            const dataDroppableId =
+              curActiveDroppable.getAttribute("data-droppable-id");
 
-        dndRootIntersectionObserver = new IntersectionObserver(
-          (entries, observer) => {
-            entries.forEach((entry) => {
-              if (entry.isIntersecting) {
-                console.log(entry.isIntersecting, entry);
-              }
+            const dataActiveDraggableContextId =
+              curActiveDraggable.getAttribute("data-context-id");
+            const dataActiveDraggableId =
+              curActiveDraggable.getAttribute("data-draggable-id");
+            const dataActiveDraggableTagKey = curActiveDraggable.getAttribute(
+              "data-draggable-tag-key",
+            );
+
+            if (
+              !dataDroppableContextId ||
+              !dataDroppableId ||
+              !dataActiveDraggableContextId ||
+              !dataActiveDraggableId ||
+              !dataActiveDraggableTagKey
+            ) {
+              continue;
+            }
+
+            const groupsForActiveDroppable = groups.get({
+              keys: [dataDroppableContextId, dataDroppableId],
             });
-          },
-          {
-            root: el,
-          },
-        );
-      }
-      refDragCursorArea.current = el;
-      dndRootDragCursorArea = el;
-    }, []);
+            if (!groupsForActiveDroppable) {
+              continue;
+            }
+            const curOverDraggable = entry.target as HTMLElement;
+            for (const group of groupsForActiveDroppable) {
+              if (group.elements.includes(curOverDraggable)) {
+                console.log(true);
+              }
+            }
+
+            // console.log(entry);
+            // const curOverDraggable;
+          }
+        }
+      },
+      [],
+    );
+
+    const dragAreaCallbackRef = useCallback(
+      (el: HTMLDivElement) => {
+        if (!refDragCursorArea.current && !dndRootIntersectionObserver) {
+          dndRootIntersectionObserver = new IntersectionObserver(
+            intersectionObserverCb,
+            {
+              root: el,
+            },
+          );
+        }
+        refDragCursorArea.current = el;
+        dndRootDragCursorArea = el;
+      },
+      [intersectionObserverCb],
+    );
 
     const childWrapperCallbackRef = useCallback((el: HTMLDivElement) => {
       refChildrenWrapper.current = el;
@@ -155,7 +263,11 @@ export const UseDndRoot = withMemoAndRef<
           width={dragCursorAreaWidth}
           height={dragCursorAreaHeight}
         >
-          <UseDndRootChildrenWrapper ref={childWrapperCallbackRef}>
+          <UseDndRootChildrenWrapper
+            ref={childWrapperCallbackRef}
+            dragCursorAreaWidth={dragCursorAreaWidth}
+            dragCursorAreaHeight={dragCursorAreaHeight}
+          >
             {children}
           </UseDndRootChildrenWrapper>
         </DragCursorArea>
@@ -164,7 +276,7 @@ export const UseDndRoot = withMemoAndRef<
   },
 });
 
-type GroupHandle = {
+export type GroupHandle = {
   remove: ({ index }: { index: number }) => void;
   add: ({
     index,
@@ -183,106 +295,181 @@ type GroupHandle = {
   groupKey: string;
   setGroupKey: ({ groupKey }: { groupKey: string }) => void;
   elements: (HTMLElement | null)[];
+  baseElement: HTMLElement | null;
 };
 
-type GroupProps = {
+export type GroupProps = {
   children: React.ReactNode;
+  contextId: string;
+  droppableId: string;
+  tagKeysAcceptable: string[];
 };
 
-export const Group = withMemoAndRef<"template", GroupHandle, GroupProps>({
-  displayName: "Group",
-  Component: ({ children }, ref) => {
-    const copyChildrenAndInjectRefs = useCallback(
-      ({ children }: { children: React.ReactNode }) => {
-        return (
-          React.Children.map(children, (child, index) => {
-            if (React.isValidElement(child)) {
-              if ((child as any).ref) {
-                return React.cloneElement(child as React.ReactElement<any>, {
-                  ref: mergeRefs(
-                    (el: HTMLElement | null) => {
-                      refItems.current[index] = el;
-                    },
-                    (child as any).ref, // Preserve the previously given ref
-                  ),
-                });
-              }
-              return child;
-            }
-            return child; // Return other valid elements (like strings or portals) as-is
-          }) ?? []
+export type DroppableProps<P> = GroupProps & P;
+
+export function withDroppable<
+  E extends
+    keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
+  Ref extends GroupHandle = GroupHandle,
+  BaseProps extends object = {},
+  Props extends DroppableProps<BaseProps> = DroppableProps<BaseProps>,
+>({
+  displayName,
+  BaseComponent,
+}: {
+  displayName?: string;
+  BaseComponent: React.ForwardRefRenderFunction<
+    Ref,
+    React.PropsWithoutRef<React.PropsWithChildren<Props>>
+  >;
+}) {
+  return withMemoAndRef<E, Ref, Props>({
+    displayName,
+    Component: (
+      { children, contextId, droppableId, tagKeysAcceptable, ...otherProps },
+      ref,
+    ) => {
+      const refGroupKey = useRef<string>("");
+      const refItems = useRef<(HTMLElement | null)[]>([]);
+      const refHandle = useRef<Ref | null>(null);
+      const refBase = useRef<HTMLElement | null>(null);
+
+      const setBaseElementAttributes = useCallback(() => {
+        if (!refBase.current) {
+          return;
+        }
+        refBase.current.classList.add("droppable");
+        refBase.current.setAttribute("data-context-id", contextId);
+        refBase.current.setAttribute("data-droppable-id", droppableId);
+        refBase.current.setAttribute(
+          "data-droppable-tag-keys-acceptable",
+          JSON.stringify(tagKeysAcceptable).replaceAll(/"/g, "'"),
         );
-      },
-      [],
-    );
+        dndRootElementsPendingToBeObserved.set(
+          refBase.current,
+          refBase.current,
+        );
+      }, [contextId, droppableId, tagKeysAcceptable]);
 
-    const [stateChildren, setStateItems] = useState<React.ReactNode[]>(() =>
-      copyChildrenAndInjectRefs({ children }),
-    );
-    const memoizedChildren = useMemo(
-      () => copyChildrenAndInjectRefs({ children: stateChildren }),
-      [stateChildren, copyChildrenAndInjectRefs],
-    );
+      const copyChildrenAndInjectRefs = useCallback(
+        ({ children }: { children: React.ReactNode }) => {
+          return (
+            React.Children.map(children, (child, index) => {
+              if (React.isValidElement(child)) {
+                if ((child as any).ref) {
+                  return React.cloneElement(child as React.ReactElement<any>, {
+                    // ref: mergeRefs(
+                    //   (el: HTMLElement | null) => {
+                    //     refItems.current[index] = el;
+                    //   },
+                    //   (child as any).ref, // Preserve the previously given ref
+                    // ),
+                    ref: (el: HTMLElement | null) => {
+                      refItems.current[index] = el;
 
-    const refGroupKey = useRef<string>("");
-    const refItems = useRef<(HTMLElement | null)[]>([]);
-
-    useImperativeHandle(ref, () => {
-      return {
-        remove: ({ index }) => {
-          setStateItems((curItems) => {
-            const newItems = [...curItems];
-            newItems.splice(index, 1);
-            return newItems;
-          });
-
-          refItems.current.splice(index, 1);
+                      if (typeof (child as any).ref === "function") {
+                        (child as any).ref(el);
+                      }
+                    },
+                  });
+                }
+                return child;
+              }
+              return child; // Return other valid elements (like strings or portals) as-is
+            }) ?? []
+          );
         },
-        add: ({ index, newItem }) => {
-          setStateItems((curItems) => {
-            const newItems = [...curItems];
-            newItems.splice(
-              index,
-              0,
-              React.isValidElement(newItem)
-                ? (newItem as any).ref
-                  ? React.cloneElement(newItem as React.ReactElement<any>, {
-                      ref: mergeRefs(
-                        (el: HTMLElement | null) => {
-                          refItems.current.splice(index, 0, el);
+        [],
+      );
+
+      const [stateChildren, setStateChildren] = useState<React.ReactNode[]>(
+        () => copyChildrenAndInjectRefs({ children }),
+      );
+      useIsomorphicLayoutEffect(() => {
+        setStateChildren(copyChildrenAndInjectRefs({ children }));
+      }, [children, copyChildrenAndInjectRefs]);
+
+      useImperativeHandle(ref, () => {
+        refHandle.current = {
+          remove: ({ index }) => {
+            setStateChildren((curItems) => {
+              const newItems = [...curItems];
+              newItems.splice(index, 1);
+              return newItems;
+            });
+
+            refItems.current.splice(index, 1);
+          },
+          add: ({ index, newItem }) => {
+            setStateChildren((curItems) => {
+              const newItems = [...curItems];
+              newItems.splice(
+                index,
+                0,
+                // TODO: ref : just like `copyChildrenAndInjectRefs`
+                // TODO: extract out as mergeRefs
+                React.isValidElement(newItem)
+                  ? (newItem as any).ref
+                    ? React.cloneElement(newItem as React.ReactElement<any>, {
+                        ref: (el: HTMLElement | null) => {
+                          refItems.current[index] = el;
+
+                          if (typeof (newItem as any).ref === "function") {
+                            (newItem as any).ref(el);
+                          }
                         },
-                        (newItem as any).ref,
-                      ),
-                      key: index,
-                    })
-                  : newItem
-                : newItem,
-            );
-            return newItems;
-          });
-        },
-        move: ({ indexOld, indexNew }) => {
-          setStateItems((curItems) => {
-            const newItems = [...curItems];
-            const [target] = newItems.splice(indexOld, 1);
-            newItems.splice(indexNew, 0, target);
-            return newItems;
-          });
+                        key: index,
+                      })
+                    : newItem
+                  : newItem,
+              );
+              return newItems;
+            });
+          },
+          move: ({ indexOld, indexNew }) => {
+            setStateChildren((curItems) => {
+              const newItems = [...curItems];
+              const [target] = newItems.splice(indexOld, 1);
+              newItems.splice(indexNew, 0, target);
+              return newItems;
+            });
 
-          const [targetElement] = refItems.current.splice(indexOld, 1);
-          refItems.current.splice(indexNew, 0, targetElement);
-        },
-        groupKey: refGroupKey.current,
-        setGroupKey: ({ groupKey }) => {
-          refGroupKey.current = groupKey;
-        },
-        elements: refItems.current,
-      };
-    });
+            const [targetElement] = refItems.current.splice(indexOld, 1);
+            refItems.current.splice(indexNew, 0, targetElement);
+          },
+          groupKey: refGroupKey.current,
+          setGroupKey: ({ groupKey }) => {
+            refGroupKey.current = groupKey;
+          },
+          elements: refItems.current,
+          baseElement: refBase.current,
+        } as Ref;
+        // console.log(refHandle.current);
+        return refHandle.current;
+      });
 
-    return <>{memoizedChildren}</>;
-  },
-});
+      useIsomorphicLayoutEffect(() => {
+        setBaseElementAttributes();
+      }, [setBaseElementAttributes]);
+
+      const memoizedChildren = useMemo(
+        () => copyChildrenAndInjectRefs({ children: stateChildren }),
+        [stateChildren, copyChildrenAndInjectRefs],
+      );
+
+      return (
+        <BaseComponent
+          ref={refBase}
+          {...(otherProps as React.PropsWithoutRef<
+            React.PropsWithChildren<Props>
+          >)}
+        >
+          {memoizedChildren}
+        </BaseComponent>
+      );
+    },
+  });
+}
 
 export type DndAtomState = {
   [contextId: string]: {
@@ -321,15 +508,6 @@ export type UseDndParams = {
 export const useDnd = (params: UseDndParams) => {
   const { contextId, droppableCount, draggableCount } = params;
 
-  let { ids: droppableIds, keepOrExpandIds: keepOrExpandDroppableIds } =
-    useUniqueRandomIds({ count: droppableCount });
-  const refDroppableIds = useRef<string[]>(droppableIds);
-  useBeforeRender(() => {
-    refDroppableIds.current = keepOrExpandDroppableIds({
-      newCount: droppableCount,
-    });
-  }, [droppableCount, keepOrExpandDroppableIds]);
-
   let { ids: draggableIds, keepOrExpandIds: keepOrExpandDraggableIds } =
     useUniqueRandomIds({ count: draggableCount });
   const refDraggableIds = useRef<string[]>(draggableIds);
@@ -339,12 +517,7 @@ export const useDnd = (params: UseDndParams) => {
     });
   }, [draggableCount, keepOrExpandDraggableIds]);
 
-  const [stateDnd, setStateDnd] = useRecoilState(dndAtom({ contextId }));
-
   ////////////////////////////////////////////
-
-  const { getIsTouchDevice } = getDeviceDetector();
-  const isTouchDevice = getIsTouchDevice();
 
   const isPointerDown = useRef<boolean>(false);
   const pressStartTime = useRef<number>(0);
@@ -356,24 +529,123 @@ export const useDnd = (params: UseDndParams) => {
     x: 0,
     y: 0,
   });
-  const relativePosOfHandleToDraggable = useRef<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  });
-  // const curActiveDraggableCandidateRect = useRef<DOMRect | null>(null);
   const curDragOverlayPos = useRef<{ x: number; y: number }>({
     x: 0,
     y: 0,
   });
 
-  const refCurActiveDraggable = useRef<HTMLElement | null>(null);
   const refCurActiveDraggableCandidate = useRef<HTMLElement | null>(null);
-  // const refCurActiveDroppable
   const refDragOverlay = useRef<HTMLElement | null>(null);
   const [stateDragOverlay, setStateDragOverlay] =
     useState<React.ReactNode | null>(null);
 
   ////////////////////////////////////////////
+
+  const hideDragCursorArea = useCallback(() => {
+    if (dndRootDragCursorArea && dndRootChildrenWrapper) {
+      const { offsetWidth, offsetHeight } = dndRootDragCursorArea;
+      const x = -offsetWidth;
+      const y = -offsetHeight;
+      dndRootDragCursorArea.style.setProperty(
+        "transform",
+        `translate3d(${x}px, ${y}px, 0)`,
+      );
+      dndRootChildrenWrapper.style.setProperty(
+        "transform",
+        `translate3d(${-x}px, ${-y}px, 0)`,
+      );
+    }
+  }, []);
+
+  const moveDragCursorAreaAndChildrenWrapper = useCallback(() => {
+    if (
+      dndRootDragCursorArea &&
+      dndRootChildrenWrapper &&
+      curPointerEvent.current
+    ) {
+      const { offsetWidth, offsetHeight } = dndRootDragCursorArea;
+      const x = curPointerEvent.current.clientX - offsetWidth / 2;
+      const y = curPointerEvent.current.clientY - offsetHeight / 2;
+      dndRootDragCursorArea.style.setProperty(
+        "transform",
+        `translate3d(${x}px, ${y}px, 0)`,
+      );
+      dndRootChildrenWrapper.style.setProperty(
+        "transform",
+        `translate3d(${-x}px, ${-y}px, 0)`,
+      );
+    }
+  }, []);
+
+  const setCurActiveDroppable__Deprecated = useCallback(() => {
+    if (!curActiveDraggable || !curPointerEvent.current) {
+      console.warn("[onPointerMove] !curActiveDraggable");
+      return;
+    }
+
+    const dataActiveDraggableContextId =
+      curActiveDraggable.getAttribute("data-context-id");
+    const dataActiveDraggableId =
+      curActiveDraggable.getAttribute("data-draggable-id");
+    const dataActiveDraggableTagKey = curActiveDraggable.getAttribute(
+      "data-draggable-tag-key",
+    );
+
+    if (
+      !(
+        dataActiveDraggableContextId &&
+        dataActiveDraggableId &&
+        dataActiveDraggableTagKey
+      )
+    ) {
+      console.warn(
+        "[onPointerMove] !(dataContextId && dataDraggableId && dataDraggableTagKey)",
+      );
+      return;
+    }
+
+    // Result: topmost -> bottommost in viewport
+    const underlyingElements = document.elementsFromPoint(
+      curPointerEvent.current.clientX,
+      curPointerEvent.current.clientY,
+    );
+    // console.log(underlyingElements);
+
+    for (let i = 0; i < underlyingElements.length; i++) {
+      const underlyingElement = underlyingElements[i];
+      const dataDroppableContextId =
+        underlyingElement.getAttribute("data-context-id");
+      const dataDroppableId =
+        underlyingElement.getAttribute("data-droppable-id");
+
+      if (!(dataDroppableContextId && dataDroppableId)) {
+        continue;
+      }
+      const droppable = underlyingElement as HTMLElement;
+
+      const dataTagKeysAcceptableStr = droppable.getAttribute(
+        "data-droppable-tag-keys-acceptable",
+      );
+      if (!dataTagKeysAcceptableStr) {
+        continue;
+      }
+      const dataDroppableTagKeysAcceptable: string[] = JSON.parse(
+        dataTagKeysAcceptableStr.replaceAll(/'/g, '"'),
+      );
+
+      if (
+        !(
+          dataActiveDraggableContextId === dataDroppableContextId &&
+          dataDroppableTagKeysAcceptable.includes(dataActiveDraggableTagKey)
+        )
+      ) {
+        continue;
+      }
+
+      curActiveDroppable = droppable;
+      return;
+    }
+  }, []);
 
   const createDragOverlay = useCallback(() => {
     if (!refCurActiveDraggableCandidate.current || !curPointerEvent.current) {
@@ -396,64 +668,12 @@ export const useDnd = (params: UseDndParams) => {
         x,
         y,
       };
-
-      // curActiveDraggableCandidateRect.current = draggableRect;
-
-      // if (curDraggableHandle.current) {
-      //   const { x: handleX, y: handleY } =
-      //     curDraggableHandle.current.getBoundingClientRect();
-      //   relativePosOfHandleToDraggable.current.x = handleX - x;
-      //   relativePosOfHandleToDraggable.current.y = handleY - y;
-      // }
     } else {
       width = refCurActiveDraggableCandidate.current.offsetWidth;
       height = refCurActiveDraggableCandidate.current.offsetHeight;
       x = curDragOverlayPos.current.x += curPointerDelta.current.x;
       y = curDragOverlayPos.current.y += curPointerDelta.current.y;
-
-      // if (curActiveDraggableCandidateRect.current) {
-      //   const { clientX, clientY } = curPointerEvent.current;
-      //   width = curActiveDraggableCandidate.current.offsetWidth;
-      //   height = curActiveDraggableCandidate.current.offsetHeight;
-      //   const pointerToDraggablePos = {
-      //     x: clientX - curActiveDraggableCandidateRect.current.x,
-      //     y: clientY - curActiveDraggableCandidateRect.current.y,
-      //   };
-      //   x = clientX + curPointerDelta.current.x + pointerToDraggablePos.x; //-
-      //   // relativePosOfHandleToDraggable.current.x;
-      //   y = clientY + curPointerDelta.current.y + pointerToDraggablePos.y; //-
-      //   // relativePosOfHandleToDraggable.current.y;
-      // }
     }
-    // console.log(width, height, x, y);
-
-    // * Method 1.
-    // const { width, height, x, y } =
-    //   curActiveDraggableCandidate.current.getBoundingClientRect();
-
-    // * Method 2.
-    // const {
-    //   offsetWidth: width,
-    //   offsetHeight: height,
-    //   offsetTop,
-    //   offsetLeft,
-    // } = curActiveDraggableCandidate.current;
-    // let curElement: HTMLElement | null = curActiveDraggableCandidate.current;
-    // let x = 0;
-    // let y = 0;
-    // let xOffset = 0;
-    // let yOffset = 0;
-    // while (curElement) {
-    //   xOffset += curElement.offsetLeft;
-    //   yOffset += curElement.offsetTop;
-    //   curElement = curElement.offsetParent as HTMLElement | null;
-    // }
-    // // Now totalX, totalY should represent the element’s top-left corner relative to the document.
-    // // Add window scroll to get viewport-based coordinates if needed:
-    // xOffset -= window.scrollX;
-    // yOffset -= window.scrollY;
-    // x = xOffset;
-    // y = yOffset;
 
     const cloneOfActiveDraggable =
       refCurActiveDraggableCandidate.current.cloneNode(true) as HTMLElement;
@@ -497,10 +717,7 @@ export const useDnd = (params: UseDndParams) => {
       );
     }
 
-    // console.log(dragOverlay);
     setStateDragOverlay(dragOverlay);
-    // dragOverlay &&
-    //   dragOverlay.setPointerCapture(curPointerEvent.current.pointerId);
   }, []);
 
   const updateDuration = useCallback(() => {
@@ -557,171 +774,19 @@ export const useDnd = (params: UseDndParams) => {
         curPointerDelta.current.x += event.movementX;
         curPointerDelta.current.y += event.movementY;
 
+        moveDragCursorAreaAndChildrenWrapper();
         createDragOverlay();
-        event.x;
+        setCurActiveDroppable__Deprecated();
 
         curPointerDelta.current.x = 0;
         curPointerDelta.current.y = 0;
-
-        if (!refCurActiveDraggable.current) {
-          console.warn("[onPointerMove] !curActiveDraggable");
-          return;
-        }
-
-        const dataActiveDraggableContextId =
-          refCurActiveDraggable.current.getAttribute("data-context-id");
-        const dataActiveDraggableId =
-          refCurActiveDraggable.current.getAttribute("data-draggable-id");
-        const dataActiveDraggableTagKey =
-          refCurActiveDraggable.current.getAttribute("data-draggable-tag-key");
-
-        if (
-          !(
-            dataActiveDraggableContextId &&
-            dataActiveDraggableId &&
-            dataActiveDraggableTagKey
-          )
-        ) {
-          console.warn(
-            "[onPointerMove] !(dataContextId && dataDraggableId && dataDraggableTagKey)",
-          );
-          return;
-        }
-
-        if (dndRootDragCursorArea && dndRootChildrenWrapper) {
-          const { offsetWidth, offsetHeight } = dndRootDragCursorArea;
-          const x = event.clientX - offsetWidth / 2;
-          const y = event.clientY - offsetHeight / 2;
-          dndRootDragCursorArea.style.setProperty(
-            "transform",
-            `translate3d(${x}px, ${y}px, 0)`,
-          );
-          dndRootChildrenWrapper.style.setProperty(
-            "transform",
-            `translate3d(${-x}px, ${-y}px, 0)`,
-          );
-        }
-
-        // Result: topmost -> bottommost in viewport
-        const underlyingElements = document.elementsFromPoint(
-          event.clientX,
-          event.clientY,
-        );
-        // console.log(underlyingElements);
-
-        for (let i = 0; i < underlyingElements.length; i++) {
-          const underlyingElement = underlyingElements[i];
-          const dataDroppableContextId =
-            underlyingElement.getAttribute("data-context-id");
-          const dataDroppableId =
-            underlyingElement.getAttribute("data-droppable-id");
-
-          if (!(dataDroppableContextId && dataDroppableId)) {
-            continue;
-          }
-          const droppable = underlyingElement as HTMLElement;
-
-          const dataTagKeysAcceptableStr = droppable.getAttribute(
-            "data-droppable-tag-keys-acceptable",
-          );
-          if (!dataTagKeysAcceptableStr) {
-            continue;
-          }
-          const dataDroppableTagKeysAcceptable: string[] = JSON.parse(
-            dataTagKeysAcceptableStr.replaceAll(/'/g, '"'),
-          );
-
-          if (
-            !(
-              dataActiveDraggableContextId === dataDroppableContextId &&
-              dataDroppableTagKeysAcceptable.includes(dataActiveDraggableTagKey)
-            )
-          ) {
-            continue;
-          }
-
-          const { x: xInDroppable, y: yInDroppable } =
-            getCursorRelativePosToElement({
-              cursorPos: {
-                x: event.clientX,
-                y: event.clientY,
-              },
-              element: droppable,
-            });
-          // droppable.querySelectorAll("")
-
-          // TODO:
-        }
-
-        // findDroppable({
-        //   curElement: underlyingElement as HTMLElement | null,
-        // }) ?? {};
-
-        // TODO:
-        let otherDraggableContextId: string | null = null;
-        let otherDraggableId: string | null = null;
-        let otherDraggableTagKey: string | null = null;
-        function findDroppable({
-          curElement,
-        }: {
-          curElement: HTMLElement | null;
-        }) {
-          if (curElement) {
-            const dataDroppableContextId =
-              curElement.getAttribute("data-context-id");
-            const dataDroppableId =
-              curElement.getAttribute("data-droppable-id");
-
-            otherDraggableContextId =
-              curElement.getAttribute("data-context-id");
-            otherDraggableId = curElement.getAttribute("data-draggable-id");
-            otherDraggableTagKey = curElement.getAttribute(
-              "data-droppable-tag-key",
-            );
-
-            if (dataDroppableContextId && dataDroppableId) {
-              const droppable = document.querySelector(
-                `[data-context-id="${dataDroppableContextId}"][data-droppable-id="${dataDroppableId}"]`,
-              ) as HTMLElement | null;
-              if (droppable) {
-                const TagKeysAcceptable = droppable.getAttribute(
-                  "data-droppable-tag-keys-acceptable",
-                );
-                if (TagKeysAcceptable) {
-                  const _keysAcceptable: string[] = JSON.parse(
-                    TagKeysAcceptable.replaceAll(/'/g, '"'),
-                  );
-                  // console.log(_keysAcceptable);
-
-                  if (
-                    dataActiveDraggableContextId &&
-                    dataActiveDraggableId &&
-                    dataActiveDraggableTagKey &&
-                    dataActiveDraggableContextId === dataDroppableContextId &&
-                    _keysAcceptable.includes(dataActiveDraggableTagKey) &&
-                    dataDroppableId
-                  ) {
-                    console.log(refGroups.current[dataDroppableId]);
-                    // TODO:
-                  }
-                }
-              } else {
-                findDroppable({
-                  curElement: droppable,
-                });
-                return;
-              }
-            } else {
-              findDroppable({
-                curElement: curElement.parentElement,
-              });
-              return;
-            }
-          }
-        }
       }
     },
-    [createDragOverlay],
+    [
+      createDragOverlay,
+      moveDragCursorAreaAndChildrenWrapper,
+      setCurActiveDroppable__Deprecated,
+    ],
   );
 
   const onCustomDragStart = useCallback(
@@ -733,18 +798,23 @@ export const useDnd = (params: UseDndParams) => {
       isDragMoving.current = true;
 
       const customDragEvent = event as CustomDragStartEvent;
-      // const {
-      //   //  pointerEvent
-      // } = customDragEvent.detail;
+      const { pointerEvent } = customDragEvent.detail;
+      curPointerEvent.current = pointerEvent;
 
       if (refCurActiveDraggableCandidate.current) {
-        refCurActiveDraggable.current = refCurActiveDraggableCandidate.current;
-        refCurActiveDraggable.current.classList.add("drag-placeholder");
+        curActiveDraggable = refCurActiveDraggableCandidate.current;
+        curActiveDraggable.classList.add("drag-placeholder");
       }
 
-      createDragOverlay(); // Update pos
+      moveDragCursorAreaAndChildrenWrapper();
+      createDragOverlay();
+      setCurActiveDroppable__Deprecated();
     },
-    [createDragOverlay],
+    [
+      createDragOverlay,
+      moveDragCursorAreaAndChildrenWrapper,
+      setCurActiveDroppable__Deprecated,
+    ],
   );
 
   const onPointerDown = useCallback(
@@ -785,7 +855,7 @@ export const useDnd = (params: UseDndParams) => {
 
           if (draggable) {
             refCurActiveDraggableCandidate.current = draggable;
-            refCurActiveDraggable.current = event.currentTarget as HTMLElement;
+            curActiveDraggable = event.currentTarget as HTMLElement;
           }
         }
       }
@@ -793,23 +863,28 @@ export const useDnd = (params: UseDndParams) => {
     [updateDuration],
   );
 
-  const onPointerUp = useCallback(() => {
-    console.log("[onPointerUp]");
-    isPointerDown.current = false;
-    pressStartTime.current = 0;
-    clearInterval(intervalId.current);
-    isDragging.current = false;
-    isDragMoving.current = false;
+  const onPointerUp = useCallback(
+    (event: PointerEvent) => {
+      console.log("[onPointerUp]");
+      isPointerDown.current = false;
+      pressStartTime.current = 0;
+      clearInterval(intervalId.current);
+      isDragging.current = false;
+      isDragMoving.current = false;
+      curPointerEvent.current = event;
 
-    refCurActiveDraggableCandidate.current?.classList.remove(
-      "drag-placeholder",
-    );
-    refCurActiveDraggableCandidate.current = null;
-    refCurActiveDraggable.current = null;
-
-    refDragOverlay.current = null;
-    setStateDragOverlay(null);
-  }, []);
+      refCurActiveDraggableCandidate.current?.classList.remove(
+        "drag-placeholder",
+      );
+      refCurActiveDraggableCandidate.current = null;
+      curActiveDraggable = null;
+      curActiveDroppable = null;
+      hideDragCursorArea();
+      refDragOverlay.current = null;
+      setStateDragOverlay(null);
+    },
+    [hideDragCursorArea],
+  );
 
   const onDragStart = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -831,6 +906,18 @@ export const useDnd = (params: UseDndParams) => {
     event.preventDefault();
   }, []);
 
+  const { getDeviceDetector } = useDeviceDetector();
+  const { getIsTouchDevice } = getDeviceDetector();
+  const preventContextMenuOnDrag = useCallback(
+    (event: MouseEvent) => {
+      const isTouchDevice = getIsTouchDevice();
+      if (isTouchDevice && !isDragging.current) {
+        event.preventDefault();
+      }
+    },
+    [getIsTouchDevice],
+  );
+
   // Touch device dragging support
   useIsomorphicLayoutEffect(() => {
     // document.body.addEventListener(
@@ -846,59 +933,87 @@ export const useDnd = (params: UseDndParams) => {
       passive: false,
     });
 
-    return () =>
+    document.body.addEventListener("contextmenu", preventContextMenuOnDrag, {
+      passive: false,
+    });
+
+    return () => {
       document.body.removeEventListener("touchmove", enableTouDeviceSupport);
-  }, [enableTouDeviceSupport]);
+      document.body.removeEventListener(
+        "contextmenu",
+        preventContextMenuOnDrag,
+      );
+    };
+  }, [enableTouDeviceSupport, preventContextMenuOnDrag]);
 
   useIsomorphicLayoutEffect(() => {
     refDragOverlay.current?.classList.add("drag-overlay");
     refDragOverlay.current?.classList.remove("drag-placeholder");
-    refCurActiveDraggable.current?.classList.add("drag-placeholder");
+    curActiveDraggable?.classList.add("drag-placeholder");
   }, [stateDragOverlay]);
 
   ////////////////////////////////////////////
 
-  const idSetDroppableRef = useMemoizeCallbackId();
-  const setDroppableRef = useCallback(
-    ({
-      contextId,
-      index,
-      tagKeysAcceptable,
-    }: {
-      contextId: string;
-      index: number;
-      tagKeysAcceptable: string[];
-    }) =>
-      memoizeCallback({
-        id: idSetDroppableRef,
-        fn: (el: HTMLElement | null) => {
-          if (el) {
-            el.classList.add("droppable");
+  // const idSetDroppableRef = useMemoizeCallbackId();
+  // const setDroppableRef = useCallback(
+  //   ({
+  //     droppableId,
+  //     tagKeysAcceptable,
+  //   }: {
+  //     droppableId: string;
+  //     tagKeysAcceptable: string[];
+  //   }) =>
+  //     memoizeCallback({
+  //       id: idSetDroppableRef,
+  //       fn: (el: HTMLElement | null) => {
+  //         console.log(el);
+  //         if (el) {
+  //           // el.baseElement.classList.add("droppable");
+  //           // el.baseElement.setAttribute("data-context-id", contextId);
+  //           // el.baseElement.setAttribute("data-droppable-id", droppableId);
+  //           // el.baseElement.setAttribute(
+  //           //   "data-droppable-tag-keys-acceptable",
+  //           //   JSON.stringify(tagKeysAcceptable).replaceAll(/"/g, "'"),
+  //           // );
+  //           // dndRootElementsPendingToBeObserved.set(
+  //           //   el.baseElement,
+  //           //   el.baseElement,
+  //           // );
+  //         }
+  //       },
+  //       deps: [
+  //         droppableId,
+  //         tagKeysAcceptable,
+  //         idSetDroppableRef,
+  //         contextId,
+  //         droppableIds,
+  //       ],
+  //     }),
+  //   [idSetDroppableRef, contextId, droppableIds],
+  // );
 
-            el.setAttribute("data-context-id", contextId);
-            el.setAttribute("data-droppable-id", droppableIds[index]);
-            el.setAttribute(
-              "data-droppable-tag-keys-acceptable",
-              JSON.stringify(tagKeysAcceptable).replaceAll(/"/g, "'"),
-            );
+  const idSetGroupsRef = useMemoizeCallbackId();
+  const setGroupsRef = useCallback(
+    ({ droppableId }: { droppableId: string }) =>
+      memoizeCallback({
+        id: idSetGroupsRef,
+        fn: (ref: GroupHandle | null) => {
+          if (ref) {
+            ref.setGroupKey({ groupKey: droppableId });
+            groups.set({
+              keys: [contextId, droppableId],
+              value: [ref],
+            });
           }
         },
-        deps: [contextId, index, idSetDroppableRef, droppableIds],
+        deps: [droppableId, idSetGroupsRef, contextId],
       }),
-    [idSetDroppableRef, droppableIds],
+    [idSetGroupsRef, contextId],
   );
 
   const idSetDraggableRef = useMemoizeCallbackId();
   const setDraggableRef = useCallback(
-    ({
-      contextId,
-      index,
-      tagKey,
-    }: {
-      contextId: string;
-      index: number;
-      tagKey: string;
-    }) =>
+    ({ draggableId, tagKey }: { draggableId: string; tagKey: string }) =>
       memoizeCallback({
         id: idSetDraggableRef,
         fn: (el: HTMLElement | null) => {
@@ -906,21 +1021,20 @@ export const useDnd = (params: UseDndParams) => {
             el.classList.add("draggable");
 
             el.setAttribute("data-context-id", contextId);
-            el.setAttribute("data-draggable-id", draggableIds[index]);
+            el.setAttribute("data-draggable-id", draggableId);
             el.setAttribute("data-draggable-tag-key", tagKey);
 
-            console.log("3");
             dndRootElementsPendingToBeObserved.set(el, el);
           }
         },
-        deps: [contextId, index, idSetDraggableRef, draggableIds],
+        deps: [draggableId, tagKey, idSetDraggableRef, contextId, draggableIds],
       }),
-    [idSetDraggableRef, draggableIds],
+    [idSetDraggableRef, contextId, draggableIds],
   );
 
   const idSetDraggableHandleRef = useMemoizeCallbackId();
   const setDraggableHandleRef = useCallback(
-    ({ contextId, index }: { contextId: string; index: number }) =>
+    ({ draggableId }: { draggableId: string }) =>
       memoizeCallback({
         id: idSetDraggableHandleRef,
         fn: (el: HTMLElement | null) => {
@@ -931,36 +1045,18 @@ export const useDnd = (params: UseDndParams) => {
             el.setAttribute("tabindex", "0");
 
             el.setAttribute("data-context-id", contextId);
-            el.setAttribute("data-draggable-handle-id", draggableIds[index]);
+            el.setAttribute("data-draggable-handle-id", draggableId);
           }
         },
-        deps: [contextId, index, idSetDraggableHandleRef, draggableIds],
+        deps: [draggableId, idSetDraggableHandleRef, contextId, draggableIds],
       }),
-    [idSetDraggableHandleRef, draggableIds],
-  );
-
-  const refGroups = useRef<{ [groupKey: string]: GroupHandle }>({});
-  const idSetGroupsRef = useMemoizeCallbackId();
-  const setGroupsRef = useCallback(
-    ({ index }: { index: number }) =>
-      memoizeCallback({
-        id: idSetGroupsRef,
-        fn: (el: GroupHandle | null) => {
-          if (el) {
-            el.setGroupKey({ groupKey: droppableIds[index] });
-            refGroups.current[droppableIds[index]] = el;
-          }
-        },
-        deps: [index, idSetGroupsRef, droppableIds],
-      }),
-    [idSetGroupsRef, droppableIds],
+    [idSetDraggableHandleRef, contextId, draggableIds],
   );
 
   return {
     DragOverlay: stateDragOverlay,
     onDragStart,
     setGroupsRef,
-    setDroppableRef,
     setDraggableRef,
     setDraggableHandleRef,
   };

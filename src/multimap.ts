@@ -4,7 +4,11 @@ import { Expose, instanceToPlain } from "class-transformer";
 
 // Multi-key
 // Multi-value
-export class MultiMap<K extends string[], A extends any, V extends A[] = A[]> {
+export class MultiMap<
+  K extends string[] = string[],
+  A extends any = any,
+  V extends A[] = A[],
+> {
   // @Type(() => Map)
   @Expose()
   public _map = new Map<string, V>();

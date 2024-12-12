@@ -351,7 +351,7 @@ export const withMemoAndRef = <
   E extends
     keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
   Ref = React.ElementRef<E>,
-  Props extends {} = {},
+  Props extends object = {},
 >({
   displayName,
   Component,
