@@ -13,3 +13,8 @@ ResizeObserver 처리 버그 (padding-right)
 Optimization (prevent rendering of all cards due to subscribing the atom)
 4. TaskAdder task 추가
 3. TaskAdder input clear
+
+DND library
+- board drag overlay는 가로로만
+- scroll drag
+- drag placeholder 기능

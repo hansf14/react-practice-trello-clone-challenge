@@ -356,7 +356,7 @@ export const useDnd = (params: UseDndParams) => {
         curPointerDelta.current.x += event.movementX;
         curPointerDelta.current.y += event.movementY;
 
-        createDragOverlay();
+        createDragOverlay();event.x
 
         curPointerDelta.current.x = 0;
         curPointerDelta.current.y = 0;
@@ -368,74 +368,91 @@ export const useDnd = (params: UseDndParams) => {
         // console.log(underlyingElement);
         // underlyingElement.dispatchEvent(new PointerEvent(event.type, event));
 
-        const {
-          element: droppable,
-          dataContextId: droppableDataContextId,
-          dataDroppableId,
-        } = findDroppable({
+        if (!curActiveDraggable) {
+          console.warn("[onPointerMove] !curActiveDraggable");
+          return;
+        }
+
+        const dataContextId =
+          curActiveDraggable.getAttribute("data-context-id");
+        const dataDraggableId =
+          curActiveDraggable.getAttribute("data-draggable-id");
+        const dataDraggableTagKey = curActiveDraggable.getAttribute(
+          "data-draggable-tag-key",
+        );
+
+        if (!(dataContextId && dataDraggableId && dataDraggableTagKey)) {
+          console.warn(
+            "[onPointerMove] !(dataContextId && dataDraggableId && dataDraggableTagKey)",
+          );
+          return;
+        }
+
+        findDroppable({
           curElement: underlyingElement as HTMLElement | null,
         }) ?? {};
 
-        // console.log(droppable);
-        if (droppable) {
-          const keysAcceptable = droppable.getAttribute(
-            "data-droppable-tag-keys-acceptable",
-          );
-          if (keysAcceptable) {
-            const _keysAcceptable: string[] = JSON.parse(
-              keysAcceptable.replaceAll(/'/g, '"'),
-            );
-            // console.log(_keysAcceptable);
-            // console.log(curActiveDraggable);
-
-            if (curActiveDraggable) {
-              const dataContextId =
-                curActiveDraggable.getAttribute("data-context-id");
-              const dataDraggableId =
-                curActiveDraggable.getAttribute("data-draggable-id");
-              const dataDraggableTagKey = curActiveDraggable.getAttribute(
-                "data-draggable-tag-key",
-              );
-
-              if (
-                dataContextId &&
-                dataDraggableId &&
-                dataDraggableTagKey &&
-                dataContextId === droppableDataContextId &&
-                _keysAcceptable.includes(dataDraggableTagKey) &&
-                dataDroppableId
-              ) {
-                console.log(refGroups.current[dataDroppableId]);
-                // TODO:
-              }
-            }
-          }
-        }
-
+        // TODO:
+        let otherDraggableContextId: string | null = null;
+        let otherDraggableId: string | null = null;
+        let otherDraggableTagKey: string | null = null;
         function findDroppable({
           curElement,
         }: {
           curElement: HTMLElement | null;
         }) {
           if (curElement) {
-            const dataContextId = curElement.getAttribute("data-context-id");
+            const dataDroppableContextId =
+              curElement.getAttribute("data-context-id");
             const dataDroppableId =
               curElement.getAttribute("data-droppable-id");
 
-            if (dataContextId && dataDroppableId) {
+            otherDraggableContextId =
+              curElement.getAttribute("data-context-id");
+            otherDraggableId = curElement.getAttribute("data-draggable-id");
+            otherDraggableTagKey = curElement.getAttribute(
+              "data-droppable-tag-key",
+            );
+
+            if (dataDroppableContextId && dataDroppableId) {
               const droppable = document.querySelector(
-                `[data-context-id="${dataContextId}"][data-droppable-id="${dataDroppableId}"]`,
+                `[data-context-id="${dataDroppableContextId}"][data-droppable-id="${dataDroppableId}"]`,
               ) as HTMLElement | null;
               if (droppable) {
-                return { element: droppable, dataContextId, dataDroppableId };
+                const TagKeysAcceptable = droppable.getAttribute(
+                  "data-droppable-tag-keys-acceptable",
+                );
+                if (TagKeysAcceptable) {
+                  const _keysAcceptable: string[] = JSON.parse(
+                    TagKeysAcceptable.replaceAll(/'/g, '"'),
+                  );
+                  // console.log(_keysAcceptable);
+
+                  if (
+                    dataContextId &&
+                    dataDraggableId &&
+                    dataDraggableTagKey &&
+                    dataContextId === dataDroppableContextId &&
+                    _keysAcceptable.includes(dataDraggableTagKey) &&
+                    dataDroppableId
+                  ) {
+                    console.log(refGroups.current[dataDroppableId]);
+                    // TODO:
+                  }
+                }
+              } else {
+                findDroppable({
+                  curElement: droppable,
+                });
+                return;
               }
             } else {
-              return findDroppable({
+              findDroppable({
                 curElement: curElement.parentElement,
               });
+              return;
             }
           }
-          return null;
         }
       }
     },
