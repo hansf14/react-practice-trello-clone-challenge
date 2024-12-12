@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -12,6 +13,28 @@ import { memoizeCallback, withMemoAndRef } from "@/utils";
 import { atomFamily, useRecoilState } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import { getDeviceDetector } from "@/hooks/useDeviceDetector";
+
+export function mergeRefs<T>(
+  ...refs: (React.Ref<T> | undefined)[]
+): React.RefCallback<T> {
+  return (value: T) => {
+    refs.forEach((ref) => {
+      if (typeof ref === "function") {
+        ref(value);
+      } else if (ref && typeof ref === "object") {
+        (ref as React.MutableRefObject<T | null>).current = value;
+      }
+    });
+  };
+}
+
+export function isReactPortal(node: React.ReactNode) {
+  return (
+    node != null &&
+    typeof node === "object" &&
+    (node as any).$$typeof === Symbol.for("react.portal")
+  );
+}
 
 type GroupHandle = {
   remove: ({ index }: { index: number }) => void;
@@ -29,9 +52,9 @@ type GroupHandle = {
     indexOld: number;
     indexNew: number;
   }) => void;
-  items: React.ReactNode[];
   groupKey: string;
   setGroupKey: ({ groupKey }: { groupKey: string }) => void;
+  elements: (HTMLElement | null)[];
 };
 
 type GroupProps = {
@@ -41,10 +64,40 @@ type GroupProps = {
 export const Group = withMemoAndRef<"template", GroupHandle, GroupProps>({
   displayName: "Group",
   Component: ({ children }, ref) => {
-    const [stateItems, setStateItems] = useState<React.ReactNode[]>(
-      React.Children.toArray(children ?? []),
+    const copyChildrenAndInjectRefs = useCallback(
+      ({ children }: { children: React.ReactNode }) => {
+        return (
+          React.Children.map(children, (child, index) => {
+            if (React.isValidElement(child)) {
+              if ((child as any).ref) {
+                return React.cloneElement(child as React.ReactElement<any>, {
+                  ref: mergeRefs(
+                    (el: HTMLElement | null) => {
+                      refItems.current[index] = el;
+                    },
+                    (child as any).ref, // Preserve the previously given ref
+                  ),
+                });
+              }
+              return child;
+            }
+            return child; // Return other valid elements (like strings or portals) as-is
+          }) ?? []
+        );
+      },
+      [],
     );
+
+    const [stateChildren, setStateItems] = useState<React.ReactNode[]>(() =>
+      copyChildrenAndInjectRefs({ children }),
+    );
+    const memoizedChildren = useMemo(
+      () => copyChildrenAndInjectRefs({ children: stateChildren }),
+      [stateChildren, copyChildrenAndInjectRefs],
+    );
+
     const refGroupKey = useRef<string>("");
+    const refItems = useRef<(HTMLElement | null)[]>([]);
 
     useImperativeHandle(ref, () => {
       return {
@@ -54,11 +107,29 @@ export const Group = withMemoAndRef<"template", GroupHandle, GroupProps>({
             newItems.splice(index, 1);
             return newItems;
           });
+
+          refItems.current.splice(index, 1);
         },
         add: ({ index, newItem }) => {
           setStateItems((curItems) => {
             const newItems = [...curItems];
-            newItems.splice(index, 0, newItem);
+            newItems.splice(
+              index,
+              0,
+              React.isValidElement(newItem)
+                ? (newItem as any).ref
+                  ? React.cloneElement(newItem as React.ReactElement<any>, {
+                      ref: mergeRefs(
+                        (el: HTMLElement | null) => {
+                          refItems.current.splice(index, 0, el);
+                        },
+                        (newItem as any).ref,
+                      ),
+                      key: index,
+                    })
+                  : newItem
+                : newItem,
+            );
             return newItems;
           });
         },
@@ -69,16 +140,19 @@ export const Group = withMemoAndRef<"template", GroupHandle, GroupProps>({
             newItems.splice(indexNew, 0, target);
             return newItems;
           });
+
+          const [targetElement] = refItems.current.splice(indexOld, 1);
+          refItems.current.splice(indexNew, 0, targetElement);
         },
-        items: stateItems,
         groupKey: refGroupKey.current,
         setGroupKey: ({ groupKey }) => {
           refGroupKey.current = groupKey;
         },
+        elements: refItems.current,
       };
     });
 
-    return <>{stateItems}</>;
+    return <>{memoizedChildren}</>;
   },
 });
 
@@ -164,7 +238,7 @@ export const useDnd = (params: UseDndParams) => {
     y: 0,
   });
 
-  const curDraggableHandle = useRef<HTMLElement | null>(null);
+  const curActiveDraggableHandle = useRef<HTMLElement | null>(null);
   const curActiveDraggableCandidate = useRef<HTMLElement | null>(null);
   const [curActiveDraggable, setCurActiveDraggable] =
     useState<HTMLElement | null>(null);
@@ -356,41 +430,84 @@ export const useDnd = (params: UseDndParams) => {
         curPointerDelta.current.x += event.movementX;
         curPointerDelta.current.y += event.movementY;
 
-        createDragOverlay();event.x
+        createDragOverlay();
+        event.x;
 
         curPointerDelta.current.x = 0;
         curPointerDelta.current.y = 0;
-
-        const underlyingElement = document.elementFromPoint(
-          event.clientX,
-          event.clientY,
-        );
-        // console.log(underlyingElement);
-        // underlyingElement.dispatchEvent(new PointerEvent(event.type, event));
 
         if (!curActiveDraggable) {
           console.warn("[onPointerMove] !curActiveDraggable");
           return;
         }
 
-        const dataContextId =
+        const dataActiveDraggableContextId =
           curActiveDraggable.getAttribute("data-context-id");
-        const dataDraggableId =
+        const dataActiveDraggableId =
           curActiveDraggable.getAttribute("data-draggable-id");
-        const dataDraggableTagKey = curActiveDraggable.getAttribute(
+        const dataActiveDraggableTagKey = curActiveDraggable.getAttribute(
           "data-draggable-tag-key",
         );
 
-        if (!(dataContextId && dataDraggableId && dataDraggableTagKey)) {
+        if (
+          !(
+            dataActiveDraggableContextId &&
+            dataActiveDraggableId &&
+            dataActiveDraggableTagKey
+          )
+        ) {
           console.warn(
             "[onPointerMove] !(dataContextId && dataDraggableId && dataDraggableTagKey)",
           );
           return;
         }
 
-        findDroppable({
-          curElement: underlyingElement as HTMLElement | null,
-        }) ?? {};
+        // Result: topmost -> bottommost in viewport
+        const underlyingElements = document.elementsFromPoint(
+          event.clientX,
+          event.clientY,
+        );
+        // console.log(underlyingElements);
+
+        for (let i = 0; i < underlyingElements.length; i++) {
+          const underlyingElement = underlyingElements[i];
+          const dataDroppableContextId =
+            underlyingElement.getAttribute("data-context-id");
+          const dataDroppableId =
+            underlyingElement.getAttribute("data-droppable-id");
+
+          if (!(dataDroppableContextId && dataDroppableId)) {
+            continue;
+          }
+          const droppable = underlyingElement as HTMLElement;
+
+          const dataTagKeysAcceptableStr = droppable.getAttribute(
+            "data-droppable-tag-keys-acceptable",
+          );
+          if (!dataTagKeysAcceptableStr) {
+            continue;
+          }
+          const dataDroppableTagKeysAcceptable: string[] = JSON.parse(
+            dataTagKeysAcceptableStr.replaceAll(/'/g, '"'),
+          );
+
+          if (
+            !(
+              dataActiveDraggableContextId === dataDroppableContextId &&
+              dataDroppableTagKeysAcceptable.includes(dataActiveDraggableTagKey)
+            )
+          ) {
+            continue;
+          }
+          // Get closest edge
+          
+
+          // TODO:
+        }
+
+        // findDroppable({
+        //   curElement: underlyingElement as HTMLElement | null,
+        // }) ?? {};
 
         // TODO:
         let otherDraggableContextId: string | null = null;
@@ -429,11 +546,11 @@ export const useDnd = (params: UseDndParams) => {
                   // console.log(_keysAcceptable);
 
                   if (
-                    dataContextId &&
-                    dataDraggableId &&
-                    dataDraggableTagKey &&
-                    dataContextId === dataDroppableContextId &&
-                    _keysAcceptable.includes(dataDraggableTagKey) &&
+                    dataActiveDraggableContextId &&
+                    dataActiveDraggableId &&
+                    dataActiveDraggableTagKey &&
+                    dataActiveDraggableContextId === dataDroppableContextId &&
+                    _keysAcceptable.includes(dataActiveDraggableTagKey) &&
                     dataDroppableId
                   ) {
                     console.log(refGroups.current[dataDroppableId]);
@@ -494,18 +611,24 @@ export const useDnd = (params: UseDndParams) => {
 
       updateDuration();
 
+      // console.log(event.target);
       // console.log(event.currentTarget);
+      // console.log(event.relatedTarget);
       if (event.target) {
         const target = event.target as HTMLElement;
-        const dataContextId = target.getAttribute("data-context-id");
+        const dataDraggableContextId = target.getAttribute("data-context-id");
         const dataDraggableHandleId = target.getAttribute(
           "data-draggable-handle-id",
         );
         const dataDraggableId = dataDraggableHandleId;
 
-        if (dataContextId && dataDraggableHandleId && dataDraggableId) {
+        if (
+          dataDraggableContextId &&
+          dataDraggableHandleId &&
+          dataDraggableId
+        ) {
           const draggable: HTMLElement | null = document.querySelector(
-            `[data-context-id="${dataContextId}"][data-draggable-id="${dataDraggableId}"]`,
+            `[data-context-id="${dataDraggableContextId}"][data-draggable-id="${dataDraggableId}"]`,
           );
           // console.log("dataContextId:", dataContextId);
           // console.log("dataDraggableHandleId:", dataDraggableHandleId);
@@ -514,7 +637,8 @@ export const useDnd = (params: UseDndParams) => {
 
           if (draggable) {
             curActiveDraggableCandidate.current = draggable;
-            curDraggableHandle.current = event.currentTarget as HTMLElement;
+            curActiveDraggableHandle.current =
+              event.currentTarget as HTMLElement;
           }
         }
       }
@@ -532,6 +656,7 @@ export const useDnd = (params: UseDndParams) => {
 
     curActiveDraggableCandidate.current?.classList.remove("drag-placeholder");
     curActiveDraggableCandidate.current = null;
+    curActiveDraggableHandle.current = null;
     setCurActiveDraggable(null);
 
     refDragOverlay.current = null;

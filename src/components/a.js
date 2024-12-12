@@ -35,3 +35,23 @@ const slider = document.getElementById("slider");
 
 slider.onpointerdown = beginSliding;
 slider.onpointerup = stopSliding;
+
+// const { clientLeft, offsetLeft, scrollLeft } = droppable;
+// console.log(
+//   "[clientLeft, offsetLeft, scrollLeft][",
+//   clientLeft,
+//   offsetLeft,
+//   scrollLeft,
+//   "]",
+// );
+// console.log(
+//   "[",
+//   event.pageX,
+//   event.clientX,
+//   event.offsetX,
+//   event.layerX,
+//   event.screenX,
+//   event.tiltX,
+//   event.movementX,
+//   "]",
+// );

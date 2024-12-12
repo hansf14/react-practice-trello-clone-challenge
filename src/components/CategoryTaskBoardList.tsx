@@ -190,10 +190,32 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       setDraggableHandleRef,
     } = useDnd({
       contextId: boardListId,
-      droppableCount: 1,
+      droppableCount: 2,
       draggableCount: 3,
     });
 
+    // function nearbyElements({
+    //   x,
+    //   y,
+    //   maxDistance,
+    //   directions,
+    //   directionArr,
+    // }: {
+    //   x: number;
+    //   y: number;
+    //   maxDistance?: number;
+    //   directions?: number;
+    //   directionArr?: number[];
+    // }) {
+    //   const _directions = directions ?? 8;
+    //   const _directionArr = directionArr ?? [0, 1, 2, 3, 4, 5, 6, 7];
+    //   const angles = _directionArr.map(
+    //     (dir) => (2 * Math.PI * dir) / _directions,
+    //   );
+    //   const cx = 
+    // }
+
+    // TODO: remove index from props (automatically manage)
     return (
       <CategoryTaskBoardListInternalBase
         ref={(el) => {
@@ -224,12 +246,18 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
             >
               DOH1
             </div>
-            <div>
-              {/* <Group ref={setGroupsRef({ index: 1 })}>
-                <div>Task1</div>
-                <div>Task2</div>
-                <div>Task3</div>
-              </Group> */}
+            <div
+              ref={setDroppableRef({
+                contextId: boardListId,
+                index: 1,
+                tagKeysAcceptable: ["category"],
+              })}
+            >
+              {/* <Group ref={setGroupsRef({ index: 1 })}> */}
+              <div>Task1</div>
+              <div>Task2</div>
+              <div>Task3</div>
+              {/* </Group> */}
             </div>
           </Board>
           <Board
