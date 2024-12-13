@@ -27,13 +27,13 @@ import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
 import {
   DroppableProps,
-  GroupHandle,
+  DroppableHandle,
   useDnd,
   UseDndRoot,
   withDroppable,
 } from "@/hooks/useDnd";
 
-const BoardListBase = withDroppable<"div", GroupHandle, BoardListProps>({
+const BoardListBase = withDroppable<"div", DroppableHandle, BoardListProps>({
   BaseComponent: BoardList,
 });
 const CategoryTaskBoardListInternalBase = styled(BoardListBase)<
@@ -191,18 +191,16 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     const {
       DragOverlay,
       onDragStart,
-      setGroupsRef,
+      // setGroupsRef,
       setDraggableRef,
       setDraggableHandleRef,
     } = useDnd({
       contextId: boardListId,
-      droppableCount: 2,
       draggableCount: 3,
     });
 
-    // TODO: remove index from props (automatically manage)
     return (
-      <UseDndRoot>
+      <UseDndRoot contextId={boardListId}>
         <CategoryTaskBoardListInternalBase
           ref={(el) => {
             refBase.current = el;
@@ -210,7 +208,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
             //   droppableId: "0",
             //   tagKeysAcceptable: ["category"],
             // })(el);
-            setGroupsRef({ droppableId: "0" });
+            // setGroupsRef({ droppableId: "0" });
           }}
           contextId={boardListId}
           droppableId={"0"}

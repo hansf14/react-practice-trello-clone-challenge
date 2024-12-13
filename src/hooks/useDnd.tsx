@@ -13,7 +13,6 @@ import { useUniqueRandomIds } from "@/hooks/useUniqueRandomIds";
 import { memoizeCallback, withMemoAndRef } from "@/utils";
 import { atomFamily } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
-import { MultiMap } from "@/multimap";
 import { useDeviceDetector } from "@/hooks/useDeviceDetector";
 
 let lastUserAgent = navigator.userAgent;
@@ -72,21 +71,20 @@ const UseDndRootBase = styled.div`
 `;
 
 export type DragCursorAreaProps = {
-  width: string | number;
-  height: string | number;
+  width: number;
+  height: number;
 };
 
 const DragCursorArea = styled.div.withConfig({
   shouldForwardProp: (prop) => !["width", "height"].includes(prop),
 })<DragCursorAreaProps>`
   position: fixed;
-  width: ${({ width }) => (typeof width === "number" ? width + "px" : width)};
-  height: ${({ height }) =>
-    typeof height === "number" ? height + "px" : height};
+  width: ${({ width }) => width + "px"};
+  height: ${({ height }) => height + "px"};
 
   ${({ width, height }) => {
-    const widthStr = typeof width === "number" ? width + "px" : width;
-    const heightStr = typeof height === "number" ? height + "px" : height;
+    const widthStr = width + "px";
+    const heightStr = height + "px";
     return css`
       transform: translate3d(${widthStr}, ${heightStr}, 0);
     `;
@@ -94,8 +92,8 @@ const DragCursorArea = styled.div.withConfig({
 `;
 
 export type UseDndRootChildrenWrapper = {
-  dragCursorAreaWidth: string | number;
-  dragCursorAreaHeight: string | number;
+  dragCursorAreaWidth: number;
+  dragCursorAreaHeight: number;
 };
 
 const UseDndRootChildrenWrapper = styled.div.withConfig({
@@ -106,57 +104,88 @@ const UseDndRootChildrenWrapper = styled.div.withConfig({
   height: 100cqh;
 
   ${({ dragCursorAreaWidth, dragCursorAreaHeight }) => {
-    const dragCursorAreaWidthStr =
-      typeof dragCursorAreaWidth === "number"
-        ? dragCursorAreaWidth + "px"
-        : dragCursorAreaWidth;
-    const dragCursorAreaHeightStr =
-      typeof dragCursorAreaHeight === "number"
-        ? dragCursorAreaHeight + "px"
-        : dragCursorAreaHeight;
+    const dragCursorAreaWidthStr = -dragCursorAreaWidth + "px";
+    const dragCursorAreaHeightStr = -dragCursorAreaHeight + "px";
     return css`
       transform: translate3d(
-        -${dragCursorAreaWidthStr},
-        -${dragCursorAreaHeightStr},
+        ${dragCursorAreaWidthStr},
+        ${dragCursorAreaHeightStr},
         0
       );
     `;
   }}
 `;
 
-export type Groups = { [groupKey: string]: GroupHandle };
+// TODO: add those states into one piece of state
+// the state gets stored as key value in MultiMap. (key: contextId)
+export type UseDndContextId = string;
+export type UseDndDroppableId = string;
+export type UseDndDraggableId = string;
+export type Droppables = Map<UseDndDroppableId, DroppableHandle>;
+
+export type UseDndGlobalStateKey = UseDndContextId; // ContextId
+export type UseDndGlobalStateValue = {
+  dndRootIntersectionObserver: IntersectionObserver | null;
+  dndRootElementsPendingToBeObserved: Map<HTMLElement, HTMLElement>;
+  dndRootDragCursorArea: HTMLDivElement | null;
+  dndRootChildrenWrapper: HTMLDivElement | null;
+
+  curActiveDroppable: HTMLElement | null;
+  curActiveDraggable: HTMLElement | null;
+  droppableHandles: Droppables;
+};
+export class UseDndGlobalState extends Map<
+  UseDndGlobalStateKey,
+  UseDndGlobalStateValue
+> {
+  addDndContext({ contextId }: { contextId: UseDndContextId }) {
+    if (!this.has(contextId)) {
+      this.set(contextId, {
+        dndRootIntersectionObserver: null,
+        dndRootElementsPendingToBeObserved: new Map<HTMLElement, HTMLElement>(),
+        dndRootDragCursorArea: null,
+        dndRootChildrenWrapper: null,
+        curActiveDroppable: null,
+        curActiveDraggable: null,
+        droppableHandles: new Map<UseDndDroppableId, DroppableHandle>(),
+      });
+    }
+  }
+
+  getDndContext({ contextId }: { contextId: UseDndContextId }) {
+    return this.get(contextId);
+  }
+
+  removeDndContext({ contextId }: { contextId: UseDndContextId }) {
+    this.delete(contextId);
+  }
+}
+
+const dndGlobalState = new UseDndGlobalState();
 
 export type UseDndRootHandle = {
+  contextId: UseDndContextId;
   baseElement: HTMLDivElement | null;
   dragCursorArea: HTMLDivElement | null;
   childrenWrapper: HTMLDivElement | null;
 };
 
 export type UseDndRootProps = {
+  contextId: UseDndContextId;
   children?: React.ReactNode;
   dragCollisionDetectionSensitivity?: Partial<DragCursorAreaProps>;
 };
 
-// TODO: add those states into one piece of state
-// the state gets stored as key value in MultiMap. (key: contextId)
-let dndRootIntersectionObserver: IntersectionObserver | null = null;
-const dndRootElementsPendingToBeObserved = new Map<HTMLElement, HTMLElement>();
-
-let dndRootDragCursorArea: HTMLDivElement | null = null;
-let dndRootChildrenWrapper: HTMLDivElement | null = null;
-
-let curActiveDroppable: HTMLElement | null = null;
-let curActiveDraggable: HTMLElement | null = null;
-const groups = new MultiMap<string[], GroupHandle>();
-
-// Should be used at the topmost position as possible, and should exist only one.
 export const UseDndRoot = withMemoAndRef<
   "div",
   UseDndRootHandle,
   UseDndRootProps
 >({
   displayName: "UseDndRoot",
-  Component: ({ children, dragCollisionDetectionSensitivity }, ref) => {
+  Component: (
+    { contextId, children, dragCollisionDetectionSensitivity },
+    ref,
+  ) => {
     const {
       width: dragCursorAreaWidth = 10,
       height: dragCursorAreaHeight = 10,
@@ -164,47 +193,66 @@ export const UseDndRoot = withMemoAndRef<
 
     const refBase = useRef<HTMLDivElement | null>(null);
     const refDragCursorArea = useRef<HTMLDivElement | null>(null);
-    // useRefForElementWithOptionalCb<HTMLDivElement | null>({
-    //   cb: cbInitial,
-    // });
     const refChildrenWrapper = useRef<HTMLDivElement | null>(null);
 
+    const refPrevContextId = useRef<UseDndContextId>(contextId);
+    const dndState = dndGlobalState.getDndContext({ contextId });
+    if (!dndState) {
+      dndGlobalState.addDndContext({ contextId });
+    } else {
+      if (refPrevContextId.current !== contextId) {
+        dndGlobalState.removeDndContext({ contextId });
+      }
+    }
+    refPrevContextId.current = contextId;
+
     useImperativeHandle(ref, () => ({
+      contextId: contextId,
       baseElement: refBase.current,
       dragCursorArea: refDragCursorArea.current,
       childrenWrapper: refChildrenWrapper.current,
     }));
 
     useIsomorphicLayoutEffect(() => {
-      const elementsToBeObserved = [
-        ...dndRootElementsPendingToBeObserved.values(),
-      ];
-      elementsToBeObserved.forEach((element) => {
-        dndRootIntersectionObserver?.observe(element);
-        dndRootElementsPendingToBeObserved.delete(element);
-      });
+      const dndState = dndGlobalState.getDndContext({ contextId });
+      if (dndState) {
+        const elementsToBeObserved = [
+          ...dndState.dndRootElementsPendingToBeObserved.values(),
+        ];
+        elementsToBeObserved.forEach((element) => {
+          dndState.dndRootIntersectionObserver?.observe(element);
+          dndState.dndRootElementsPendingToBeObserved.delete(element);
+        });
+      }
     });
 
     const intersectionObserverCb = useCallback<IntersectionObserverCallback>(
       (entries, observer) => {
+        const dndState = dndGlobalState.getDndContext({ contextId });
+        if (!dndState) {
+          console.warn("[intersectionObserverCb] !dndState");
+          return;
+        }
+
         for (const entry of entries) {
           if (
             entry.isIntersecting &&
-            curActiveDroppable &&
-            curActiveDraggable
+            dndState.curActiveDroppable &&
+            dndState.curActiveDraggable
           ) {
             const dataDroppableContextId =
-              curActiveDroppable.getAttribute("data-context-id");
+              dndState.curActiveDroppable.getAttribute("data-context-id");
             const dataDroppableId =
-              curActiveDroppable.getAttribute("data-droppable-id");
+              dndState.curActiveDroppable.getAttribute("data-droppable-id");
 
             const dataActiveDraggableContextId =
-              curActiveDraggable.getAttribute("data-context-id");
+              dndState.curActiveDraggable.getAttribute("data-context-id");
             const dataActiveDraggableId =
-              curActiveDraggable.getAttribute("data-draggable-id");
-            const dataActiveDraggableTagKey = curActiveDraggable.getAttribute(
-              "data-draggable-tag-key",
-            );
+              dndState.curActiveDraggable.getAttribute("data-draggable-id");
+            const dataActiveDraggableTagKey =
+              dndState.curActiveDraggable.getAttribute(
+                "data-draggable-tag-key",
+              );
 
             if (
               !dataDroppableContextId ||
@@ -216,47 +264,65 @@ export const UseDndRoot = withMemoAndRef<
               continue;
             }
 
-            const groupsForActiveDroppable = groups.get({
-              keys: [dataDroppableContextId, dataDroppableId],
-            });
-            if (!groupsForActiveDroppable) {
-              continue;
-            }
-            const curOverDraggable = entry.target as HTMLElement;
-            for (const group of groupsForActiveDroppable) {
-              if (group.elements.includes(curOverDraggable)) {
-                console.log(true);
-              }
-            }
-
-            // console.log(entry);
-            // const curOverDraggable;
+            // TODO:
+            // const groupsForActiveDroppable = groups.get({
+            //   keys: [dataDroppableContextId, dataDroppableId],
+            // });
+            // if (!groupsForActiveDroppable) {
+            //   continue;
+            // }
+            // const curOverDraggable = entry.target as HTMLElement;
+            // for (const group of groupsForActiveDroppable) {
+            //   if (group.elements.includes(curOverDraggable)) {
+            //     console.log(true);
+            //   }
+            // }
           }
         }
       },
-      [],
+      [contextId],
     );
 
     const dragAreaCallbackRef = useCallback(
       (el: HTMLDivElement) => {
-        if (!refDragCursorArea.current && !dndRootIntersectionObserver) {
-          dndRootIntersectionObserver = new IntersectionObserver(
+        refDragCursorArea.current = el;
+
+        const dndState = dndGlobalState.getDndContext({ contextId });
+        if (!dndState) {
+          console.warn("[dragAreaCallbackRef] !dndState");
+          return;
+        }
+
+        if (
+          !refDragCursorArea.current &&
+          !dndState.dndRootIntersectionObserver
+        ) {
+          dndState.dndRootIntersectionObserver = new IntersectionObserver(
             intersectionObserverCb,
             {
               root: el,
             },
           );
         }
-        refDragCursorArea.current = el;
-        dndRootDragCursorArea = el;
+        dndState.dndRootDragCursorArea = el;
       },
-      [intersectionObserverCb],
+      [contextId, intersectionObserverCb],
     );
 
-    const childWrapperCallbackRef = useCallback((el: HTMLDivElement) => {
-      refChildrenWrapper.current = el;
-      dndRootChildrenWrapper = el;
-    }, []);
+    const childWrapperCallbackRef = useCallback(
+      (el: HTMLDivElement) => {
+        refChildrenWrapper.current = el;
+
+        const dndState = dndGlobalState.getDndContext({ contextId });
+        if (!dndState) {
+          console.warn("[childWrapperCallbackRef] !dndState");
+          return;
+        }
+
+        dndState.dndRootChildrenWrapper = el;
+      },
+      [contextId],
+    );
 
     return (
       <UseDndRootBase ref={refBase}>
@@ -278,7 +344,7 @@ export const UseDndRoot = withMemoAndRef<
   },
 });
 
-export type GroupHandle = {
+export type DroppableHandle = {
   remove: ({ index }: { index: number }) => void;
   add: ({
     index,
@@ -294,25 +360,23 @@ export type GroupHandle = {
     indexOld: number;
     indexNew: number;
   }) => void;
-  groupKey: string;
-  setGroupKey: ({ groupKey }: { groupKey: string }) => void;
+  // groupKey: string;
+  // setGroupKey: ({ groupKey }: { groupKey: string }) => void;
   elements: (HTMLElement | null)[];
   baseElement: HTMLElement | null;
 };
 
-export type GroupProps = {
+export type DroppableProps<P> = {
   children: React.ReactNode;
   contextId: string;
   droppableId: string;
   tagKeysAcceptable: string[];
-};
-
-export type DroppableProps<P> = GroupProps & P;
+} & P;
 
 export function withDroppable<
   E extends
     keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
-  Ref extends GroupHandle = GroupHandle,
+  Ref extends DroppableHandle = DroppableHandle,
   BaseProps extends object = {},
   Props extends DroppableProps<BaseProps> = DroppableProps<BaseProps>,
 >({
@@ -331,7 +395,7 @@ export function withDroppable<
       { children, contextId, droppableId, tagKeysAcceptable, ...otherProps },
       ref,
     ) => {
-      const refGroupKey = useRef<string>("");
+      // const refGroupKey = useRef<string>("");
       const refItems = useRef<(HTMLElement | null)[]>([]);
       const refHandle = useRef<Ref | null>(null);
       const refBase = useRef<HTMLElement | null>(null);
@@ -347,7 +411,13 @@ export function withDroppable<
           "data-droppable-tag-keys-acceptable",
           JSON.stringify(tagKeysAcceptable).replaceAll(/"/g, "'"),
         );
-        dndRootElementsPendingToBeObserved.set(
+
+        const dndState = dndGlobalState.getDndContext({ contextId });
+        if (!dndState) {
+          console.warn("[setBaseElementAttributes] !dndState");
+          return;
+        }
+        dndState.dndRootElementsPendingToBeObserved.set(
           refBase.current,
           refBase.current,
         );
@@ -360,12 +430,6 @@ export function withDroppable<
               if (React.isValidElement(child)) {
                 if ((child as any).ref) {
                   return React.cloneElement(child as React.ReactElement<any>, {
-                    // ref: mergeRefs(
-                    //   (el: HTMLElement | null) => {
-                    //     refItems.current[index] = el;
-                    //   },
-                    //   (child as any).ref, // Preserve the previously given ref
-                    // ),
                     ref: (el: HTMLElement | null) => {
                       refItems.current[index] = el;
 
@@ -408,19 +472,16 @@ export function withDroppable<
               newItems.splice(
                 index,
                 0,
-                // TODO: ref : just like `copyChildrenAndInjectRefs`
-                // TODO: extract out as mergeRefs
                 React.isValidElement(newItem)
                   ? (newItem as any).ref
                     ? React.cloneElement(newItem as React.ReactElement<any>, {
                         ref: (el: HTMLElement | null) => {
-                          refItems.current[index] = el;
+                          refItems.current.splice(index, 0, el);
 
                           if (typeof (newItem as any).ref === "function") {
                             (newItem as any).ref(el);
                           }
                         },
-                        key: index,
                       })
                     : newItem
                   : newItem,
@@ -439,10 +500,10 @@ export function withDroppable<
             const [targetElement] = refItems.current.splice(indexOld, 1);
             refItems.current.splice(indexNew, 0, targetElement);
           },
-          groupKey: refGroupKey.current,
-          setGroupKey: ({ groupKey }) => {
-            refGroupKey.current = groupKey;
-          },
+          // groupKey: refGroupKey.current,
+          // setGroupKey: ({ groupKey }) => {
+          //   refGroupKey.current = groupKey;
+          // },
           elements: refItems.current,
           baseElement: refBase.current,
         } as Ref;
@@ -503,13 +564,10 @@ export type CustomDragStartEvent = CustomEvent<{
 
 export type UseDndParams = {
   contextId: string;
-  droppableCount: number;
-  draggableCount: number;
+  draggableCount: number; // TODO: remove this prop
 };
 
-export const useDnd = (params: UseDndParams) => {
-  const { contextId, droppableCount, draggableCount } = params;
-
+export const useDnd = ({ contextId, draggableCount }: UseDndParams) => {
   let { ids: draggableIds, keepOrExpandIds: keepOrExpandDraggableIds } =
     useUniqueRandomIds({ count: draggableCount });
   const refDraggableIds = useRef<string[]>(draggableIds);
@@ -544,52 +602,70 @@ export const useDnd = (params: UseDndParams) => {
   ////////////////////////////////////////////
 
   const hideDragCursorArea = useCallback(() => {
-    if (dndRootDragCursorArea && dndRootChildrenWrapper) {
-      const { offsetWidth, offsetHeight } = dndRootDragCursorArea;
+    const dndState = dndGlobalState.getDndContext({ contextId });
+    if (!dndState) {
+      console.warn("[hideDragCursorArea] !dndState");
+      return;
+    }
+
+    if (dndState.dndRootDragCursorArea && dndState.dndRootChildrenWrapper) {
+      const { offsetWidth, offsetHeight } = dndState.dndRootDragCursorArea;
       const x = -offsetWidth;
       const y = -offsetHeight;
-      dndRootDragCursorArea.style.setProperty(
+      dndState.dndRootDragCursorArea.style.setProperty(
         "transform",
         `translate3d(${x}px, ${y}px, 0)`,
       );
-      dndRootChildrenWrapper.style.setProperty(
+      dndState.dndRootChildrenWrapper.style.setProperty(
         "transform",
         `translate3d(${-x}px, ${-y}px, 0)`,
       );
     }
-  }, []);
+  }, [contextId]);
 
   const moveDragCursorAreaAndChildrenWrapper = useCallback(() => {
+    const dndState = dndGlobalState.getDndContext({ contextId });
+    if (!dndState) {
+      console.warn("[moveDragCursorAreaAndChildrenWrapper] !dndState");
+      return;
+    }
+
     if (
-      dndRootDragCursorArea &&
-      dndRootChildrenWrapper &&
+      dndState.dndRootDragCursorArea &&
+      dndState.dndRootChildrenWrapper &&
       curPointerEvent.current
     ) {
-      const { offsetWidth, offsetHeight } = dndRootDragCursorArea;
+      const { offsetWidth, offsetHeight } = dndState.dndRootDragCursorArea;
       const x = curPointerEvent.current.clientX - offsetWidth / 2;
       const y = curPointerEvent.current.clientY - offsetHeight / 2;
-      dndRootDragCursorArea.style.setProperty(
+      dndState.dndRootDragCursorArea.style.setProperty(
         "transform",
         `translate3d(${x}px, ${y}px, 0)`,
       );
-      dndRootChildrenWrapper.style.setProperty(
+      dndState.dndRootChildrenWrapper.style.setProperty(
         "transform",
         `translate3d(${-x}px, ${-y}px, 0)`,
       );
     }
-  }, []);
+  }, [contextId]);
 
   const setCurActiveDroppable = useCallback(() => {
-    if (!curActiveDraggable || !curPointerEvent.current) {
+    const dndState = dndGlobalState.getDndContext({ contextId });
+    if (!dndState) {
+      console.warn("[setCurActiveDroppable] !dndState");
+      return;
+    }
+
+    if (!dndState.curActiveDraggable || !curPointerEvent.current) {
       console.warn("[onPointerMove] !curActiveDraggable");
       return;
     }
 
     const dataActiveDraggableContextId =
-      curActiveDraggable.getAttribute("data-context-id");
+      dndState.curActiveDraggable.getAttribute("data-context-id");
     const dataActiveDraggableId =
-      curActiveDraggable.getAttribute("data-draggable-id");
-    const dataActiveDraggableTagKey = curActiveDraggable.getAttribute(
+      dndState.curActiveDraggable.getAttribute("data-draggable-id");
+    const dataActiveDraggableTagKey = dndState.curActiveDraggable.getAttribute(
       "data-draggable-tag-key",
     );
 
@@ -644,10 +720,10 @@ export const useDnd = (params: UseDndParams) => {
         continue;
       }
 
-      curActiveDroppable = droppable;
+      dndState.curActiveDroppable = droppable;
       return;
     }
-  }, []);
+  }, [contextId]);
 
   const setDragOverlay = useCallback(() => {
     if (!refCurActiveDraggableCandidate.current || !curPointerEvent.current) {
@@ -804,6 +880,12 @@ export const useDnd = (params: UseDndParams) => {
     (event: Event) => {
       console.log("[onCustomDragStart]");
 
+      const dndState = dndGlobalState.getDndContext({ contextId });
+      if (!dndState) {
+        console.warn("[onCustomDragStart] !dndState");
+        return;
+      }
+
       setDragOverlay(); // Initial pos
       isDragging.current = true;
       isDragMoving.current = true;
@@ -813,8 +895,8 @@ export const useDnd = (params: UseDndParams) => {
       curPointerEvent.current = pointerEvent;
 
       if (refCurActiveDraggableCandidate.current) {
-        curActiveDraggable = refCurActiveDraggableCandidate.current;
-        curActiveDraggable.classList.add("drag-placeholder");
+        dndState.curActiveDraggable = refCurActiveDraggableCandidate.current;
+        dndState.curActiveDraggable.classList.add("drag-placeholder");
       }
 
       moveDragCursorAreaAndChildrenWrapper();
@@ -822,6 +904,7 @@ export const useDnd = (params: UseDndParams) => {
       setCurActiveDroppable();
     },
     [
+      contextId,
       setDragOverlay,
       moveDragCursorAreaAndChildrenWrapper,
       setCurActiveDroppable,
@@ -831,6 +914,13 @@ export const useDnd = (params: UseDndParams) => {
   const onPointerDown = useCallback(
     (event: PointerEvent) => {
       console.log("[onPointerDown]");
+
+      const dndState = dndGlobalState.getDndContext({ contextId });
+      if (!dndState) {
+        console.warn("[onPointerDown] !dndState");
+        return;
+      }
+
       isPointerDown.current = true;
       pressStartTime.current = Date.now();
       clearInterval(intervalId.current);
@@ -866,17 +956,24 @@ export const useDnd = (params: UseDndParams) => {
 
           if (draggable) {
             refCurActiveDraggableCandidate.current = draggable;
-            curActiveDraggable = event.currentTarget as HTMLElement;
+            dndState.curActiveDraggable = event.currentTarget as HTMLElement;
           }
         }
       }
     },
-    [updateDuration],
+    [contextId, updateDuration],
   );
 
   const onPointerUp = useCallback(
     (event: PointerEvent) => {
       console.log("[onPointerUp]");
+
+      const dndState = dndGlobalState.getDndContext({ contextId });
+      if (!dndState) {
+        console.warn("[onPointerUp] !dndState");
+        return;
+      }
+
       isPointerDown.current = false;
       pressStartTime.current = 0;
       clearInterval(intervalId.current);
@@ -888,13 +985,13 @@ export const useDnd = (params: UseDndParams) => {
         "drag-placeholder",
       );
       refCurActiveDraggableCandidate.current = null;
-      curActiveDraggable = null;
-      curActiveDroppable = null;
+      dndState.curActiveDraggable = null;
+      dndState.curActiveDroppable = null;
       hideDragCursorArea();
       refDragOverlay.current = null;
       setStateDragOverlay(null);
     },
-    [hideDragCursorArea],
+    [contextId, hideDragCursorArea],
   );
 
   const onDragStart = useCallback((event: React.DragEvent) => {
@@ -960,8 +1057,14 @@ export const useDnd = (params: UseDndParams) => {
   useIsomorphicLayoutEffect(() => {
     refDragOverlay.current?.classList.add("drag-overlay");
     refDragOverlay.current?.classList.remove("drag-placeholder");
-    curActiveDraggable?.classList.add("drag-placeholder");
-  }, [stateDragOverlay]);
+
+    const dndState = dndGlobalState.getDndContext({ contextId });
+    if (!dndState) {
+      console.warn("[useIsomorphicLayoutEffect] !dndState");
+    } else {
+      dndState.curActiveDraggable?.classList.add("drag-placeholder");
+    }
+  }, [contextId, stateDragOverlay]);
 
   ////////////////////////////////////////////
 
@@ -1003,24 +1106,24 @@ export const useDnd = (params: UseDndParams) => {
   //   [idSetDroppableRef, contextId, droppableIds],
   // );
 
-  const idSetGroupsRef = useMemoizeCallbackId();
-  const setGroupsRef = useCallback(
-    ({ droppableId }: { droppableId: string }) =>
-      memoizeCallback({
-        id: idSetGroupsRef,
-        fn: (ref: GroupHandle | null) => {
-          if (ref) {
-            ref.setGroupKey({ groupKey: droppableId });
-            groups.set({
-              keys: [contextId, droppableId],
-              value: [ref],
-            });
-          }
-        },
-        deps: [droppableId, idSetGroupsRef, contextId],
-      }),
-    [idSetGroupsRef, contextId],
-  );
+  // const idSetGroupsRef = useMemoizeCallbackId();
+  // const setGroupsRef = useCallback(
+  //   ({ droppableId }: { droppableId: string }) =>
+  //     memoizeCallback({
+  //       id: idSetGroupsRef,
+  //       fn: (ref: DroppableHandle | null) => {
+  //         if (ref) {
+  //           ref.setGroupKey({ groupKey: droppableId });
+  //           groups.set({
+  //             keys: [contextId, droppableId],
+  //             value: [ref],
+  //           });
+  //         }
+  //       },
+  //       deps: [droppableId, idSetGroupsRef, contextId],
+  //     }),
+  //   [idSetGroupsRef, contextId],
+  // );
 
   const idSetDraggableRef = useMemoizeCallbackId();
   const setDraggableRef = useCallback(
@@ -1028,6 +1131,12 @@ export const useDnd = (params: UseDndParams) => {
       memoizeCallback({
         id: idSetDraggableRef,
         fn: (el: HTMLElement | null) => {
+          const dndState = dndGlobalState.getDndContext({ contextId });
+          if (!dndState) {
+            console.warn("[setDraggableRef] !dndState");
+            return;
+          }
+
           if (el) {
             el.classList.add("draggable");
 
@@ -1035,7 +1144,7 @@ export const useDnd = (params: UseDndParams) => {
             el.setAttribute("data-draggable-id", draggableId);
             el.setAttribute("data-draggable-tag-key", tagKey);
 
-            dndRootElementsPendingToBeObserved.set(el, el);
+            dndState.dndRootElementsPendingToBeObserved.set(el, el);
           }
         },
         deps: [draggableId, tagKey, idSetDraggableRef, contextId, draggableIds],
@@ -1067,7 +1176,7 @@ export const useDnd = (params: UseDndParams) => {
   return {
     DragOverlay: stateDragOverlay,
     onDragStart,
-    setGroupsRef,
+    // setGroupsRef,
     setDraggableRef,
     setDraggableHandleRef,
   };
