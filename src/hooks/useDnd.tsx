@@ -137,6 +137,8 @@ export type UseDndRootProps = {
   dragCollisionDetectionSensitivity?: Partial<DragCursorAreaProps>;
 };
 
+// TODO: add those states into one piece of state
+// the state gets stored as key value in MultiMap. (key: contextId)
 let dndRootIntersectionObserver: IntersectionObserver | null = null;
 const dndRootElementsPendingToBeObserved = new Map<HTMLElement, HTMLElement>();
 
@@ -577,7 +579,7 @@ export const useDnd = (params: UseDndParams) => {
     }
   }, []);
 
-  const setCurActiveDroppable__Deprecated = useCallback(() => {
+  const setCurActiveDroppable = useCallback(() => {
     if (!curActiveDraggable || !curPointerEvent.current) {
       console.warn("[onPointerMove] !curActiveDraggable");
       return;
@@ -647,7 +649,7 @@ export const useDnd = (params: UseDndParams) => {
     }
   }, []);
 
-  const createDragOverlay = useCallback(() => {
+  const setDragOverlay = useCallback(() => {
     if (!refCurActiveDraggableCandidate.current || !curPointerEvent.current) {
       return;
     }
@@ -690,34 +692,43 @@ export const useDnd = (params: UseDndParams) => {
     } satisfies React.CSSProperties;
 
     ////////////////////////////////////////////
+    console.log(refDragOverlay.current);
 
-    const dragOverlayTmp = parse(cloneOfActiveDraggable.outerHTML);
     let dragOverlay: React.ReactNode = null;
-    if (typeof dragOverlayTmp === "string" || Array.isArray(dragOverlayTmp)) {
-      dragOverlay = React.createElement(
-        "div",
-        // refCurActiveDraggableCandidate.current.tagName.toLowerCase(),
-        // Any tag name, it doesn't matter, because this is the wrapper element since we're going to use `outerHTML`.
-        {
-          ref: refDragOverlay,
-          dangerouslySetInnerHTML: {
-            __html: refCurActiveDraggableCandidate.current.outerHTML,
-          },
-          style: dragOverlayStyleToInject,
-        },
-      );
+    if (refDragOverlay.current) {
+      Object.assign(refDragOverlay.current.style, dragOverlayStyleToInject);
     } else {
-      dragOverlay = React.cloneElement(
-        dragOverlayTmp,
-        {
-          ref: refDragOverlay,
-          style: dragOverlayStyleToInject,
-        },
-        // Uncaught Error: Can only set one of `children` or `props.dangerouslySetInnerHTML`.
-      );
-    }
+      const dragOverlayTmp = parse(cloneOfActiveDraggable.outerHTML);
+      if (typeof dragOverlayTmp === "string" || Array.isArray(dragOverlayTmp)) {
+        dragOverlay = React.createElement(
+          "div",
+          // refCurActiveDraggableCandidate.current.tagName.toLowerCase(),
+          // Any tag name, it doesn't matter, because this is the wrapper element since we're going to use `outerHTML`.
+          {
+            ref: (el: HTMLElement | null): void => {
+              refDragOverlay.current = el;
+            },
+            dangerouslySetInnerHTML: {
+              __html: refCurActiveDraggableCandidate.current.outerHTML,
+            },
+            style: dragOverlayStyleToInject,
+          },
+        );
+      } else {
+        dragOverlay = React.cloneElement(
+          dragOverlayTmp,
+          {
+            ref: (el: HTMLElement | null): void => {
+              refDragOverlay.current = el;
+            },
+            style: dragOverlayStyleToInject,
+          },
+          // Uncaught Error: Can only set one of `children` or `props.dangerouslySetInnerHTML`.
+        );
+      }
 
-    setStateDragOverlay(dragOverlay);
+      setStateDragOverlay(dragOverlay);
+    }
   }, []);
 
   const updateDuration = useCallback(() => {
@@ -762,7 +773,7 @@ export const useDnd = (params: UseDndParams) => {
       document.body.dispatchEvent(customDragStartEvent);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createDragOverlay]);
+  }, [setDragOverlay]);
 
   ////////////////////////////////////////////
 
@@ -775,17 +786,17 @@ export const useDnd = (params: UseDndParams) => {
         curPointerDelta.current.y += event.movementY;
 
         moveDragCursorAreaAndChildrenWrapper();
-        createDragOverlay();
-        setCurActiveDroppable__Deprecated();
+        setDragOverlay();
+        setCurActiveDroppable();
 
         curPointerDelta.current.x = 0;
         curPointerDelta.current.y = 0;
       }
     },
     [
-      createDragOverlay,
       moveDragCursorAreaAndChildrenWrapper,
-      setCurActiveDroppable__Deprecated,
+      setDragOverlay,
+      setCurActiveDroppable,
     ],
   );
 
@@ -793,7 +804,7 @@ export const useDnd = (params: UseDndParams) => {
     (event: Event) => {
       console.log("[onCustomDragStart]");
 
-      createDragOverlay(); // Initial pos
+      setDragOverlay(); // Initial pos
       isDragging.current = true;
       isDragMoving.current = true;
 
@@ -807,13 +818,13 @@ export const useDnd = (params: UseDndParams) => {
       }
 
       moveDragCursorAreaAndChildrenWrapper();
-      createDragOverlay();
-      setCurActiveDroppable__Deprecated();
+      setDragOverlay();
+      setCurActiveDroppable();
     },
     [
-      createDragOverlay,
+      setDragOverlay,
       moveDragCursorAreaAndChildrenWrapper,
-      setCurActiveDroppable__Deprecated,
+      setCurActiveDroppable,
     ],
   );
 
