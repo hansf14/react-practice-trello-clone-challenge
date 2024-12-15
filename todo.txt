@@ -20,3 +20,5 @@ DND library
 - drag placeholder 기능
 
 When gap is too big, the curOverDraggable could not exist even though it's droppable in between.
+
+테스트: contextmenu

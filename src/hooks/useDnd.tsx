@@ -1,9 +1,11 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import parse from "html-react-parser";
-import { useBeforeRender } from "@/hooks/useBeforeRender";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
-import { useUniqueRandomIds } from "@/hooks/useUniqueRandomIds";
-import { emptyArray, memoizeCallback } from "@/utils";
+import {
+  memoizeCallback,
+  observeUserAgentChange,
+  ObserveUserAgentChangeCb,
+} from "@/utils";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import { useDeviceDetector } from "@/hooks/useDeviceDetector";
 import { dndGlobalState, UseDndRootHandle } from "@/components/UseDndRoot";
@@ -41,29 +43,53 @@ export type UseDndParams = {
   contextId?: string;
 };
 
+class UseDndLocalState {
+  public pressStartTime: number;
+  public timerId: number;
+  public rafId: number;
+
+  public isPointerDown: boolean;
+  public isDragging: boolean;
+  public isDragMoving: boolean;
+
+  public curPointerEvent: PointerEvent | null;
+  public curPointerDelta: { x: number; y: number };
+  public curDragOverlayPos: { x: number; y: number };
+
+  public dragOverlay: HTMLElement | null;
+  public curActiveDraggableCandidate: HTMLElement | null;
+  // // ㄴ We need this because pointerEvent.target is the drag handle, not the actual `Draggable` target. We need to store the active candidate `Draggable` temporarily in here.
+  public curActiveDraggableForNoContextId: HTMLElement | null;
+
+  constructor() {
+    this.pressStartTime = 0;
+    this.timerId = 0;
+    this.rafId = 0;
+
+    this.isPointerDown = false;
+    this.isDragging = false;
+    this.isDragMoving = false;
+
+    this.curPointerEvent = null;
+    this.curPointerDelta = {
+      x: 0,
+      y: 0,
+    };
+    this.curDragOverlayPos = {
+      x: 0,
+      y: 0,
+    };
+
+    this.dragOverlay = null;
+    this.curActiveDraggableCandidate = null;
+    this.curActiveDraggableForNoContextId = null;
+  }
+}
+
 export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
-  const isPointerDown = useRef<boolean>(false);
-  const pressStartTime = useRef<number>(0);
-  const intervalId = useRef<number>(0);
-  const isDragging = useRef<boolean>(false);
-  const isDragMoving = useRef<boolean>(false);
-
-  const curPointerEvent = useRef<PointerEvent | null>(null);
-  const curPointerDelta = useRef<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  });
-  const curDragOverlayPos = useRef<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  });
-
-  const refDragOverlay = useRef<HTMLElement | null>(null);
+  const refLocalState = useRef<UseDndLocalState>(new UseDndLocalState());
   const [stateDragOverlay, setStateDragOverlay] =
     useState<React.ReactNode | null>(null);
-  const refCurActiveDraggableCandidate = useRef<HTMLElement | null>(null);
-  // ㄴ We need this because pointerEvent.target is the drag handle, not the actual `Draggable` target. We need to store the active candidate `Draggable` temporarily in here.
-  const refCurActiveDraggableForNoContextId = useRef<HTMLElement | null>(null);
 
   ////////////////////////////////////////////
 
@@ -106,14 +132,15 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
       return;
     }
 
+    const { curPointerEvent } = refLocalState.current;
     if (
       dndState.dndRootDragCursorArea &&
       dndState.dndRootChildrenWrapper &&
-      curPointerEvent.current
+      curPointerEvent
     ) {
       const { offsetWidth, offsetHeight } = dndState.dndRootDragCursorArea;
-      const x = curPointerEvent.current.clientX - offsetWidth / 2;
-      const y = curPointerEvent.current.clientY - offsetHeight / 2;
+      const x = curPointerEvent.clientX - offsetWidth / 2;
+      const y = curPointerEvent.clientY - offsetHeight / 2;
       dndState.dndRootDragCursorArea.style.setProperty(
         "transform",
         `translate3d(${x}px, ${y}px, 0)`,
@@ -137,7 +164,8 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
       return;
     }
 
-    if (!dndState.curActiveDraggable || !curPointerEvent.current) {
+    const { curPointerEvent } = refLocalState.current;
+    if (!dndState.curActiveDraggable || !curPointerEvent) {
       console.warn("[setCurActiveDroppable] !curActiveDraggable");
       return;
     }
@@ -163,8 +191,8 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
 
     // Result: topmost -> bottommost in viewport
     const underlyingElements = document.elementsFromPoint(
-      curPointerEvent.current.clientX,
-      curPointerEvent.current.clientY,
+      curPointerEvent.clientX,
+      curPointerEvent.clientY,
     );
     // console.log(underlyingElements);
 
@@ -206,13 +234,21 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
   }, [contextId]);
 
   const setDragOverlay = useCallback(() => {
-    if (!curPointerEvent.current) {
+    const {
+      isDragMoving,
+      curPointerEvent,
+      curPointerDelta,
+      curDragOverlayPos,
+      dragOverlay,
+      curActiveDraggableForNoContextId,
+    } = refLocalState.current;
+    if (!curPointerEvent) {
       return;
     }
 
     let curActiveDraggable: HTMLElement | null = null;
     if (!contextId) {
-      curActiveDraggable = refCurActiveDraggableForNoContextId.current;
+      curActiveDraggable = curActiveDraggableForNoContextId;
     } else {
       const dndState = dndGlobalState.getDndContext({ contextId });
       if (!dndState) {
@@ -230,23 +266,22 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
     let height = 0;
     let x = 0;
     let y = 0;
-    if (!isDragMoving.current) {
+    if (!isDragMoving) {
       // refCurActiveDraggableForNoContextId.
       const draggableRect = curActiveDraggable.getBoundingClientRect();
       width = draggableRect.width;
       height = draggableRect.height;
+
       x = draggableRect.x;
       y = draggableRect.y;
-
-      curDragOverlayPos.current = {
-        x,
-        y,
-      };
+      curDragOverlayPos.x = x;
+      curDragOverlayPos.y = y;
     } else {
       width = curActiveDraggable.offsetWidth;
       height = curActiveDraggable.offsetHeight;
-      x = curDragOverlayPos.current.x += curPointerDelta.current.x;
-      y = curDragOverlayPos.current.y += curPointerDelta.current.y;
+
+      x = curDragOverlayPos.x += curPointerDelta.x;
+      y = curDragOverlayPos.y += curPointerDelta.y;
     }
 
     const dragOverlayStyleToInject = {
@@ -255,20 +290,22 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
       height,
       top: "0",
       left: "0",
-      // backfaceVisibility: "hidden", // For performance and visually smoother 3D transforms
+      backfaceVisibility: "hidden", // For performance and visually smoother 3D transforms
       transform: `translate3d(${x}px, ${y}px, 0)`,
       pointerEvents: "none",
     } satisfies React.CSSProperties;
 
-    let dragOverlay: React.ReactNode = null;
-    if (refDragOverlay.current) {
-      Object.assign(refDragOverlay.current.style, dragOverlayStyleToInject);
+    if (dragOverlay) {
+      Object.assign(dragOverlay.style, dragOverlayStyleToInject);
     } else {
-      const dragOverlayTmp = parse(curActiveDraggable.outerHTML);
+      let dragOverlayTmp = parse(curActiveDraggable.outerHTML);
       if (typeof dragOverlayTmp === "string" || Array.isArray(dragOverlayTmp)) {
-        dragOverlay = React.createElement("div", {
+        dragOverlayTmp = React.createElement("div", {
           ref: (el: HTMLElement | null): void => {
-            refDragOverlay.current = el;
+            refLocalState.current = {
+              ...refLocalState.current,
+              dragOverlay: el,
+            };
           },
           dangerouslySetInnerHTML: {
             __html: curActiveDraggable.outerHTML,
@@ -276,11 +313,14 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
           style: dragOverlayStyleToInject,
         });
       } else {
-        dragOverlay = React.cloneElement(
+        dragOverlayTmp = React.cloneElement(
           dragOverlayTmp,
           {
             ref: (el: HTMLElement | null): void => {
-              refDragOverlay.current = el;
+              refLocalState.current = {
+                ...refLocalState.current,
+                dragOverlay: el,
+              };
             },
             style: dragOverlayStyleToInject,
           },
@@ -288,37 +328,69 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
         );
       }
 
-      setStateDragOverlay(dragOverlay);
+      setStateDragOverlay(dragOverlayTmp);
     }
   }, [contextId]);
+
+  const onPointerMove = useCallback(
+    (event: PointerEvent) => {
+      // console.log("[onPointerMove]");
+
+      const { isDragging } = refLocalState.current;
+      refLocalState.current.isDragMoving = isDragging;
+      refLocalState.current.curPointerEvent = event;
+      const { isDragMoving, curPointerDelta } = refLocalState.current;
+
+      if (isDragMoving && curPointerDelta) {
+        refLocalState.current.rafId = requestAnimationFrame(() => {
+          curPointerDelta.x += event.movementX;
+          curPointerDelta.y += event.movementY;
+
+          moveDragCursorAreaAndChildrenWrapper();
+          setDragOverlay();
+          setCurActiveDroppable();
+
+          curPointerDelta.x = 0;
+          curPointerDelta.y = 0;
+        });
+      }
+    },
+    [
+      moveDragCursorAreaAndChildrenWrapper,
+      setDragOverlay,
+      setCurActiveDroppable,
+    ],
+  );
 
   const onCustomDragStart = useCallback(
     (event: Event) => {
       console.log("[onCustomDragStart]");
 
-      if (!refCurActiveDraggableCandidate.current) {
+      const { curActiveDraggableCandidate } = refLocalState.current;
+      if (!curActiveDraggableCandidate) {
         console.warn(
           "[onCustomDragStart] !refCurActiveDraggableCandidate.current",
         );
         return;
       }
 
-      isDragging.current = true;
-
       const customDragEvent = event as CustomDragStartEvent;
       const { pointerEvent } = customDragEvent.detail;
-      curPointerEvent.current = pointerEvent;
 
-      if (!contextId) {
-        refCurActiveDraggableForNoContextId.current =
-          refCurActiveDraggableCandidate.current;
-      } else {
+      refLocalState.current = {
+        ...refLocalState.current,
+        isDragging: true,
+        curPointerEvent: pointerEvent,
+        curActiveDraggableForNoContextId: curActiveDraggableCandidate,
+      };
+
+      if (contextId) {
         const dndState = dndGlobalState.getDndContext({ contextId });
         if (!dndState) {
           console.warn("[onCustomDragStart] !dndState");
           return;
         }
-        dndState.curActiveDraggable = refCurActiveDraggableCandidate.current;
+        dndState.curActiveDraggable = curActiveDraggableCandidate;
         dndState.curActiveDraggable.classList.add("drag-placeholder");
       }
 
@@ -334,39 +406,15 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
     ],
   );
 
-  const onPointerMove = useCallback(
-    (event: PointerEvent) => {
-      // console.log("[onPointerMove]");
-
-      isDragMoving.current = isDragging.current;
-      curPointerEvent.current = event;
-      
-      if (isDragMoving.current) {
-        curPointerDelta.current.x += event.movementX;
-        curPointerDelta.current.y += event.movementY;
-
-        moveDragCursorAreaAndChildrenWrapper();
-        setDragOverlay();
-        setCurActiveDroppable();
-
-        curPointerDelta.current.x = 0;
-        curPointerDelta.current.y = 0;
-      }
-    },
-    [
-      moveDragCursorAreaAndChildrenWrapper,
-      setDragOverlay,
-      setCurActiveDroppable,
-    ],
-  );
-
   const updateDuration = useCallback(() => {
-    if (isDragging.current || !curPointerEvent.current) {
-      // if (!isPointerDown.current || isDragging.current) {
+    const { pressStartTime, timerId, isDragging, curPointerEvent } =
+      refLocalState.current;
+
+    if (isDragging || !curPointerEvent) {
       return;
     }
-    if (curPointerEvent.current.target) {
-      const target = curPointerEvent.current.target as HTMLElement;
+    if (curPointerEvent.target) {
+      const target = curPointerEvent.target as HTMLElement;
       const dataDraggableHandleId = target.getAttribute(
         "data-draggable-handle-id",
       );
@@ -375,24 +423,21 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
       }
     }
 
-    // console.log("isPointerDown.current:", isPointerDown.current);
-    // console.log("isDragging.current:", isDragging.current);
+    clearTimeout(timerId);
+    refLocalState.current = {
+      ...refLocalState.current,
+      timerId: setTimeout(() => updateDuration(), 500) as unknown as number,
+    };
 
-    clearTimeout(intervalId.current);
-    intervalId.current = setTimeout(
-      () => updateDuration(),
-      500,
-    ) as unknown as number;
-
-    const currentDuration = Date.now() - pressStartTime.current;
+    const currentDuration = Date.now() - pressStartTime;
     console.log(`Held down for ${currentDuration} ms so far.`);
 
-    if (!isDragging.current && currentDuration >= 2000) {
+    if (!isDragging && currentDuration >= 2000) {
       const customDragStartEvent: CustomDragStartEvent = new CustomEvent(
         "custom-drag-start",
         {
           detail: {
-            pointerEvent: curPointerEvent.current,
+            pointerEvent: curPointerEvent,
           },
         },
       );
@@ -416,12 +461,25 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
     (event: PointerEvent) => {
       console.log("[onPointerDown]");
 
-      isPointerDown.current = true;
-      pressStartTime.current = Date.now();
-      clearInterval(intervalId.current);
-      isDragging.current = false;
-
-      curPointerEvent.current = event;
+      const { timerId } = refLocalState.current;
+      clearInterval(timerId);
+      refLocalState.current = {
+        pressStartTime: Date.now(),
+        timerId: 0,
+        rafId: 0,
+        isPointerDown: true,
+        isDragging: false,
+        isDragMoving: false,
+        curPointerEvent: event,
+        curPointerDelta: { x: 0, y: 0 },
+        curDragOverlayPos: {
+          x: 0,
+          y: 0,
+        },
+        dragOverlay: null,
+        curActiveDraggableCandidate: null,
+        curActiveDraggableForNoContextId: null,
+      };
 
       // console.log(event.target);
       // console.log(event.currentTarget);
@@ -444,7 +502,7 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
         if (dataDraggableContextId && dataDraggableHandleId) {
           const draggable = !contextId
             ? (document.querySelector(
-                `[data-draggable="true"][data-draggable-id="${dataDraggableHandleId}"]`, // TODO: add condition: no data-context-id key value pair
+                `[data-draggable="true"][data-draggable-id="${dataDraggableHandleId}"]`,
               ) as HTMLElement | null)
             : (document.querySelector(
                 `[data-draggable="true"][data-context-id="${dataDraggableContextId}"][data-draggable-id="${dataDraggableHandleId}"]`,
@@ -452,7 +510,10 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
 
           console.log(draggable);
           if (draggable) {
-            refCurActiveDraggableCandidate.current = draggable;
+            refLocalState.current = {
+              ...refLocalState.current,
+              curActiveDraggableCandidate: draggable,
+            };
           }
         }
       }
@@ -464,29 +525,27 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
     (event: PointerEvent) => {
       console.log("[onPointerUp]");
 
-      isPointerDown.current = false;
-      pressStartTime.current = 0;
-      clearInterval(intervalId.current);
-      isDragging.current = false;
-      isDragMoving.current = false;
-
-      curPointerEvent.current = event;
-      curPointerDelta.current = {
-        x: 0,
-        y: 0,
+      const { timerId, curActiveDraggableCandidate } = refLocalState.current;
+      clearInterval(timerId);
+      curActiveDraggableCandidate?.classList.remove("drag-placeholder");
+      refLocalState.current = {
+        pressStartTime: 0,
+        timerId: 0,
+        rafId: 0,
+        isPointerDown: false,
+        isDragging: false,
+        isDragMoving: false,
+        curPointerEvent: event,
+        curPointerDelta: { x: 0, y: 0 },
+        curDragOverlayPos: {
+          x: 0,
+          y: 0,
+        },
+        dragOverlay: null,
+        curActiveDraggableCandidate: null,
+        curActiveDraggableForNoContextId: null,
       };
-      curDragOverlayPos.current = {
-        x: 0,
-        y: 0,
-      };
-
-      refDragOverlay.current = null;
       setStateDragOverlay(null);
-
-      refCurActiveDraggableCandidate.current?.classList.remove(
-        "drag-placeholder",
-      );
-      refCurActiveDraggableCandidate.current = null;
 
       if (contextId) {
         const dndState = dndGlobalState.getDndContext({ contextId });
@@ -498,8 +557,6 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
         dndState.curActiveDroppable = null;
 
         hideDragCursorArea();
-      } else {
-        refCurActiveDraggableForNoContextId.current = null;
       }
     },
     [contextId, hideDragCursorArea],
@@ -539,15 +596,29 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
 
   const { getDeviceDetector } = useDeviceDetector();
   const { getIsTouchDevice } = getDeviceDetector();
+  const [stateUserAgentChanged, setStateUserAgentChanged] =
+    useState<boolean>(false);
   const preventContextMenuOnDrag = useCallback(
     (event: MouseEvent) => {
       const isTouchDevice = getIsTouchDevice();
-      if (isTouchDevice && !isDragging.current) {
+      if (isTouchDevice) {
         event.preventDefault();
       }
     },
-    [getIsTouchDevice],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stateUserAgentChanged, getIsTouchDevice],
   );
+
+  const userAgentChangeCb = useCallback<ObserveUserAgentChangeCb>(() => {
+    setStateUserAgentChanged(true);
+  }, []);
+
+  useIsomorphicLayoutEffect(() => {
+    const disconnect = observeUserAgentChange({ cb: userAgentChangeCb });
+    return () => {
+      disconnect();
+    };
+  }, [userAgentChangeCb]);
 
   // Touch device dragging support
   useIsomorphicLayoutEffect(() => {
@@ -599,8 +670,10 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
   ]);
 
   useIsomorphicLayoutEffect(() => {
-    refDragOverlay.current?.classList.add("drag-overlay");
-    refDragOverlay.current?.classList.remove("drag-placeholder");
+    const { dragOverlay, curActiveDraggableForNoContextId } =
+      refLocalState.current;
+    dragOverlay?.classList.add("drag-overlay");
+    dragOverlay?.classList.remove("drag-placeholder");
 
     if (contextId) {
       const dndState = dndGlobalState.getDndContext({
@@ -612,9 +685,7 @@ export const useDnd = ({ dndRootHandle, contextId }: UseDndParams) => {
         dndState.curActiveDraggable?.classList.add("drag-placeholder");
       }
     } else {
-      refCurActiveDraggableForNoContextId.current?.classList.add(
-        "drag-placeholder",
-      );
+      curActiveDraggableForNoContextId?.classList.add("drag-placeholder");
     }
   }, [stateDragOverlay, contextId]);
 

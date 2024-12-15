@@ -281,15 +281,30 @@ export const checkHasScrollbar = ({
   return false;
 };
 
+export type ObserveUserAgentChangeCb = ({
+  prevUserAgent,
+  curUserAgent,
+}: {
+  prevUserAgent: string;
+  curUserAgent: string;
+}) => void;
+
 let lastUserAgent = navigator.userAgent;
-export function detectSwitchingFromOrToEmulator({ cb }: { cb: Function }) {
-  setInterval(() => {
+export function observeUserAgentChange({
+  cb,
+}: {
+  cb: ObserveUserAgentChangeCb;
+}) {
+  const intervalId = setInterval(() => {
     if (navigator.userAgent !== lastUserAgent) {
       // console.log("userAgent changed:", navigator.userAgent);
-      cb();
+      cb({ prevUserAgent: lastUserAgent, curUserAgent: navigator.userAgent });
       lastUserAgent = navigator.userAgent;
     }
   }, 1000);
+  return () => {
+    clearInterval(intervalId);
+  };
 }
 
 export function mergeRefs<T>(
