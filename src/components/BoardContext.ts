@@ -1,11 +1,7 @@
-import {
-  NestedIndexer,
-  NestedIndexerBaseItem,
-  NestedIndexerKey,
-} from "@/indexer";
-import { createKeyValueMapping, SmartMerge } from "@/utils";
 import { atom } from "recoil";
 import { recoilPersist } from "recoil-persist";
+import { NestedIndexer, NestedIndexerBaseItem } from "@/indexer";
+import { createKeyValueMapping, SmartMerge } from "@/utils";
 
 const { persistAtom } = recoilPersist({
   key: "recoilPersist", // this key is using to store data in local storage

@@ -179,6 +179,9 @@ export type KeyMapping<T> = {
 // type AType = NameType<"a", typeof a>; // ["a", 42]
 // type BType = NameType<"b", typeof b>; // ["b", "hello"]
 
+export type StyledComponentProps<E extends React.ElementType> =
+  React.ComponentPropsWithoutRef<E> & ExecutionProps;
+
 export const memoizeCallbackCache = new MultiRefMap<unknown[], Function>();
 
 export type MemoizeCallback<F> = F extends (...args: infer P) => infer R
@@ -278,96 +281,56 @@ export const checkHasScrollbar = ({
   return false;
 };
 
-export type StyledComponentProps<E extends React.ElementType> =
-  React.ComponentPropsWithoutRef<E> & ExecutionProps;
+let lastUserAgent = navigator.userAgent;
+export function detectSwitchingFromOrToEmulator({ cb }: { cb: Function }) {
+  setInterval(() => {
+    if (navigator.userAgent !== lastUserAgent) {
+      // console.log("userAgent changed:", navigator.userAgent);
+      cb();
+      lastUserAgent = navigator.userAgent;
+    }
+  }, 1000);
+}
 
-// export type WithMemoAndRef<
-//   E extends
-//     keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
-//   Ref = React.ElementRef<E>,
-//   Props extends {} = {},
-// > = (
-//   component: React.ForwardRefRenderFunction<Ref, React.PropsWithoutRef<Props>>,
-// ) => ReturnType<
-//   typeof React.memo<ReturnType<typeof React.forwardRef<Ref, Props>>>
-// >;
+export function mergeRefs<T>(
+  ...refs: (React.Ref<T> | undefined)[]
+): React.RefCallback<T> {
+  return (value: T) => {
+    refs.forEach((ref) => {
+      if (typeof ref === "function") {
+        ref(value);
+      }
+      // else if (ref && typeof ref === "object") {
+      //   (ref as React.MutableRefObject<T | null>).current = value;
+      // }
+    });
+  };
+}
 
-// export const withMemoAndRef = <
-//   E extends
-//     keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
-//   Ref = React.ElementRef<E>,
-//   Props extends {} = {},
-// >(
-//   component: React.ForwardRefRenderFunction<Ref, React.PropsWithoutRef<Props>>,
-// ) => React.memo(React.forwardRef<Ref, Props>(component));
-
-//////////////////
-
-// export type WithMemoAndRef<
-//   E extends
-//     keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
-//   Ref = React.ElementRef<E>,
-//   Props extends {} = {},
-// > = typeof React.memo<ReturnType<typeof React.forwardRef<Ref, Props>>>;
-
-export type WithMemoAndRef<
-  E extends
-    keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
-  Ref = React.ElementRef<E>,
-  Props extends {} = {},
-> = ({
-  displayName,
-  Component,
-}: {
-  displayName?: string;
-  Component: React.ForwardRefRenderFunction<Ref, React.PropsWithoutRef<Props>>;
-}) => ReturnType<
-  typeof React.memo<ReturnType<typeof React.forwardRef<Ref, Props>>>
->;
-
-// export const withMemoAndRef = <
-//   E extends
-//     keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
-//   Ref = React.ForwardedRef<E>,
-//   Props extends {} = {},
-// >({
-//   displayName,
-//   Component,
-// }: {
-//   displayName?: string;
-//   Component: React.ForwardRefRenderFunction<Ref, React.PropsWithoutRef<Props>>;
-//   // ㄴ component: React Hook "useRef" is called in function "component" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word "use".eslintreact-hooks/rules-of-hooks
-// }) => {
-//   const memoizedComponentWithRef = React.memo(
-//     React.forwardRef<Ref, Props>(Component),
-//   );
-//   memoizedComponentWithRef.displayName = displayName;
-//   return memoizedComponentWithRef as
-//     | ReturnType<WithMemoAndRef<E, Ref, Props>>
-//     | typeof Component;
-// };
-
-export const withMemoAndRef = <
-  E extends
-    keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
-  Ref = React.ElementRef<E>,
-  Props extends object = {},
->({
-  displayName,
-  Component,
-}: {
-  displayName?: string;
-  Component: React.ForwardRefRenderFunction<Ref, React.PropsWithoutRef<Props>>;
-  // ㄴ component: React Hook "useRef" is called in function "component" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word "use".eslintreact-hooks/rules-of-hooks
-}) => {
-  const memoizedComponentWithRef = React.memo(
-    React.forwardRef<Ref, Props>(Component),
+export function isReactPortal(node: React.ReactNode) {
+  return (
+    node != null &&
+    typeof node === "object" &&
+    (node as any).$$typeof === Symbol.for("react.portal")
   );
-  memoizedComponentWithRef.displayName = displayName;
-  return memoizedComponentWithRef;
-};
+}
+
+export function getAllNodesAtSameHierarchy(
+  element: HTMLElement,
+): HTMLElement[] {
+  if (!element) {
+    return [];
+  }
+  if (!element.parentNode) {
+    // <html>
+    return [document.documentElement];
+  }
+  return Array.from(element.parentNode.children) as HTMLElement[];
+}
 
 export type IsFunction<T> = T extends (...args: any[]) => any ? T : never;
 
 export const isFunction = <T extends {}>(value: T): value is IsFunction<T> =>
   typeof value === "function";
+
+export const emptyArray = Object.freeze([]);

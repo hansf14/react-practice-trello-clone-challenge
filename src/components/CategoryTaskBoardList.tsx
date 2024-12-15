@@ -17,21 +17,22 @@ import {
   BoardList,
   BoardListExtendProps,
   BoardListProps,
-  BoardListPropsChildren,
 } from "@/components/BoardList";
-import { SmartOmit, withMemoAndRef } from "@/utils";
+import { SmartOmit } from "@/utils";
 import { nestedIndexerAtom } from "@/components/BoardContext";
 import { NestedIndexer } from "@/indexer";
 import { BoardMain, ForEachChildItem } from "@/components/BoardMain";
 import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
+import { useDnd } from "@/hooks/useDnd";
+import { StatViewer } from "@/components/StatViwer";
 import {
-  DroppableProps,
   DroppableHandle,
-  useDnd,
-  UseDndRoot,
+  DroppableProps,
   withDroppable,
-} from "@/hooks/useDnd";
+} from "@/hocs/withDroppable";
+import { withMemoAndRef } from "@/hocs/withMemoAndRef";
+import { UseDndRoot, UseDndRootHandle } from "@/components/UseDndRoot";
 
 const BoardListBase = withDroppable<"div", DroppableHandle, BoardListProps>({
   BaseComponent: BoardList,
@@ -183,6 +184,8 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     //   ],
     // );
 
+    const refDndRoot = useRef<UseDndRootHandle | null>(null);
+
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
@@ -195,90 +198,102 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       setDraggableRef,
       setDraggableHandleRef,
     } = useDnd({
+      dndRootHandle: refDndRoot.current,
       contextId: boardListId,
-      draggableCount: 3,
     });
 
     return (
-      <UseDndRoot contextId={boardListId}>
-        <CategoryTaskBoardListInternalBase
-          ref={(el) => {
-            refBase.current = el;
-            // setDroppableRef({
-            //   droppableId: "0",
-            //   tagKeysAcceptable: ["category"],
-            // })(el);
-            // setGroupsRef({ droppableId: "0" });
-          }}
-          contextId={boardListId}
-          droppableId={"0"}
-          tagKeysAcceptable={["category", "task"]}
-          boardListId={boardListId} // TODO: remove and replace it with contextId
-          {...otherProps}
-        >
-          <Board
-            ref={setDraggableRef({
-              draggableId: "0",
-              tagKey: "category",
-            })}
+      <>
+        <StatViewer
+          WrapperComponent={React.memo(({ children }) => (
+            <div>{children}</div>
+          ))}
+        />
+        {/* <StatViewer
+          WrapperComponent={React.memo(({ children }) => (
+            <div>{children}</div>
+          ))}
+        /> */}
+        <UseDndRoot ref={refDndRoot} contextId={boardListId}>
+          <CategoryTaskBoardListInternalBase
+            ref={(el) => {
+              refBase.current = el;
+              // setDroppableRef({
+              //   droppableId: "0",
+              //   tagKeysAcceptable: ["category"],
+              // })(el);
+              // setGroupsRef({ droppableId: "0" });
+            }}
+            contextId={boardListId}
+            droppableId={"0"}
+            tagKeysAcceptable={["category", "task"]}
+            boardListId={boardListId} // TODO: remove and replace it with contextId
+            {...otherProps}
           >
-            <div
-              ref={setDraggableHandleRef({
+            <Board
+              ref={setDraggableRef({
                 draggableId: "0",
+                tagKey: "category",
               })}
-              onDragStart={onDragStart}
             >
-              DOH1
-            </div>
-          </Board>
-          <Board
-            ref={setDraggableRef({
-              draggableId: "1",
-              tagKey: "category",
-            })}
-          >
-            <div
-              ref={setDraggableHandleRef({
+              <div
+                ref={setDraggableHandleRef({
+                  draggableId: "0",
+                })}
+                onDragStart={onDragStart}
+              >
+                DOH1
+              </div>
+            </Board>
+            <Board
+              ref={setDraggableRef({
                 draggableId: "1",
+                tagKey: "category",
               })}
-              onDragStart={onDragStart}
             >
-              DOH2
-            </div>
-          </Board>
-          <Board
-            ref={setDraggableRef({
-              draggableId: "2",
-              tagKey: "category",
-            })}
-          >
-            <div
-              ref={setDraggableHandleRef({
+              <div
+                ref={setDraggableHandleRef({
+                  draggableId: "1",
+                })}
+                onDragStart={onDragStart}
+              >
+                DOH2
+              </div>
+            </Board>
+            <Board
+              ref={setDraggableRef({
                 draggableId: "2",
+                tagKey: "category",
               })}
-              onDragStart={onDragStart}
             >
-              DOH3
-            </div>
-          </Board>
-          <Board
-            ref={setDraggableRef({
-              draggableId: "3",
-              tagKey: "category",
-            })}
-          >
-            <div
-              ref={setDraggableHandleRef({
+              <div
+                ref={setDraggableHandleRef({
+                  draggableId: "2",
+                })}
+                onDragStart={onDragStart}
+              >
+                DOH3
+              </div>
+            </Board>
+            <Board
+              ref={setDraggableRef({
                 draggableId: "3",
+                tagKey: "category",
               })}
-              onDragStart={onDragStart}
             >
-              DOH4
-            </div>
-          </Board>
-          {DragOverlay}
-        </CategoryTaskBoardListInternalBase>
-      </UseDndRoot>
+              <div
+                ref={setDraggableHandleRef({
+                  draggableId: "3",
+                })}
+                onDragStart={onDragStart}
+              >
+                DOH4
+              </div>
+            </Board>
+            {DragOverlay}
+          </CategoryTaskBoardListInternalBase>
+        </UseDndRoot>
+      </>
     );
   },
 });

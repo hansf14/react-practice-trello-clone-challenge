@@ -1,6 +1,6 @@
 import React from "react";
 import { ExecutionProps, styled } from "styled-components";
-import { withMemoAndRef } from "@/utils";
+import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 
 const BoardFooterBase = styled.div``;
 

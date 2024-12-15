@@ -3,17 +3,16 @@ import { styled } from "styled-components";
 import { useRecoilState } from "recoil";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import { GripVertical, XCircleFill } from "react-bootstrap-icons";
-import { NestedIndexer } from "@/indexer";
 import { Input } from "antd";
-import { StyledComponentProps, withMemoAndRef } from "@/utils";
+import { StyledComponentProps } from "@/utils";
 import {
   boardClassNameKvMapping,
   boardDragHandlesAtom,
-  nestedIndexerAtom,
   ParentItem,
 } from "@/components/BoardContext";
 import { useStateWithCb } from "@/hooks/useStateWithCb";
 import { TextAreaRef } from "antd/es/input/TextArea";
+import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 const { TextArea } = Input;
 
 const BoardHeaderBase = styled.div``;

@@ -2,16 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { styled } from "styled-components";
 import { useRecoilState } from "recoil";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import Sortable, { MultiDrag, Swap } from "sortablejs";
 import { Board } from "@/components/Board";
-import { CssScrollbar } from "@/css/scrollbar";
+import { CssScrollbar } from "@/csses/scrollbar";
 import { NestedIndexer } from "@/indexer";
-import {
-  isFunction,
-  SmartOmit,
-  StyledComponentProps,
-  withMemoAndRef,
-} from "@/utils";
+import { isFunction, SmartOmit, StyledComponentProps } from "@/utils";
 import { cardsContainerAtom } from "@/components/BoardMain";
 import {
   dataAttributeKvMapping,
@@ -26,12 +20,7 @@ import {
   boardClassNameKvMapping,
   cardClassNameKvMapping,
 } from "@/components/BoardContext";
-import {
-  DragDropContext,
-  Droppable,
-  DroppableProvided,
-  DroppableStateSnapshot,
-} from "@hello-pangea/dnd";
+import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 
 const BoardListBase = styled.div`
   ${CssScrollbar}
@@ -72,16 +61,6 @@ const BoardListBase = styled.div`
 
 // Sortable extra-plugins
 // Sortable.mount(new MultiDrag(), new Swap());
-
-export type BoardListPropsChildren = ({
-  items,
-  droppableProvidedPlaceholder,
-  droppableStateSnapshot,
-}: {
-  items: ParentItem[];
-  droppableProvidedPlaceholder: React.ReactNode;
-  droppableStateSnapshot: DroppableStateSnapshot;
-}) => React.ReactNode; //React.ReactElement<typeof Board>;
 
 // export type BoardListExtendProps = SmartOmit<
 //   BoardListProps,

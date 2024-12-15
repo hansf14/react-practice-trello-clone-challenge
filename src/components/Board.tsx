@@ -1,22 +1,6 @@
 import { styled } from "styled-components";
-import {
-  isFunction,
-  SmartOmit,
-  StyledComponentProps,
-  withMemoAndRef,
-} from "@/utils";
-import {
-  boardClassNameKvMapping,
-  ChildItem,
-  ParentItem,
-} from "@/components/BoardContext";
-import {
-  Draggable,
-  DraggableProvided,
-  DraggableProvidedDragHandleProps,
-  DraggableRubric,
-  DraggableStateSnapshot,
-} from "@hello-pangea/dnd";
+import { StyledComponentProps } from "@/utils";
+import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 
 const BoardBase = styled.div`
   flex-shrink: 0;
@@ -36,16 +20,6 @@ const BoardBase = styled.div`
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
 `;
-
-export type BoardPropsChildren = ({
-  draggableProvidedDragHandleProps,
-  draggableStateSnapshot,
-  draggableRubric,
-}: {
-  draggableProvidedDragHandleProps: DraggableProvidedDragHandleProps | null;
-  draggableStateSnapshot: DraggableStateSnapshot;
-  draggableRubric: DraggableRubric;
-}) => React.ReactNode;
 
 export type BoardProps = {} & StyledComponentProps<"div">;
 

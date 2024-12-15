@@ -22,12 +22,11 @@ import {
   generateUniqueRandomId,
   memoizeCallback,
   StyledComponentProps,
-  withMemoAndRef,
 } from "@/utils";
 import { NestedIndexer } from "@/indexer";
 import { Input } from "antd";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
-import { CssScrollbar } from "@/css/scrollbar";
+import { CssScrollbar } from "@/csses/scrollbar";
 import { throttle } from "lodash-es";
 import {
   ChildItem,
@@ -36,6 +35,7 @@ import {
   nestedIndexerAtom,
   ParentItem,
 } from "@/components/BoardContext";
+import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`

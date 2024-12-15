@@ -5,7 +5,8 @@ import { styled } from "styled-components";
 import { GripVertical } from "react-bootstrap-icons";
 import { Input } from "antd";
 import { cardClassNameKvMapping, ChildItem } from "@/components/BoardContext";
-import { StyledComponentProps, withMemoAndRef } from "@/utils";
+import { StyledComponentProps } from "@/utils";
+import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 const { TextArea } = Input;
 
 export const cardsAtom = atom<{

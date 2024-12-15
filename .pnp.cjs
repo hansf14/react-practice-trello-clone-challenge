@@ -41,6 +41,7 @@ const RAW_RUNTIME_STATE =
           ["@types/react-query", "npm:1.2.9"],\
           ["@types/react-router-dom", "npm:5.3.3"],\
           ["@types/sortablejs", "npm:1.15.8"],\
+          ["@types/stats.js", "npm:0.17.3"],\
           ["@types/uuid", "npm:10.0.0"],\
           ["@typescript-eslint/eslint-plugin", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:8.17.0"],\
           ["@typescript-eslint/parser", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:8.17.0"],\
@@ -63,6 +64,7 @@ const RAW_RUNTIME_STATE =
           ["react", "npm:18.3.1"],\
           ["react-bootstrap-icons", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:1.11.5"],\
           ["react-dom", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:18.3.1"],\
+          ["react-draggable", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.4.6"],\
           ["react-helmet-async", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:2.0.5"],\
           ["react-hook-form", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:7.54.0"],\
           ["react-query", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:3.39.3"],\
@@ -73,6 +75,7 @@ const RAW_RUNTIME_STATE =
           ["recoil-persist", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.1.0"],\
           ["reflect-metadata", "npm:0.2.2"],\
           ["sortablejs", "npm:1.15.6"],\
+          ["stats.js", "npm:0.17.0"],\
           ["styled-components", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:6.1.13"],\
           ["styled-reset", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.5.2"],\
           ["type-fest", "npm:4.30.0"],\
@@ -1712,6 +1715,15 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["@types/stats.js", [\
+      ["npm:0.17.3", {\
+        "packageLocation": "./.yarn/cache/@types-stats.js-npm-0.17.3-72645350c6-ccccc992c6.zip/node_modules/@types/stats.js/",\
+        "packageDependencies": [\
+          ["@types/stats.js", "npm:0.17.3"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["@types/stylis", [\
       ["npm:4.2.5", {\
         "packageLocation": "./.yarn/cache/@types-stylis-npm-4.2.5-402b8fb751-23f5b35a3a.zip/node_modules/@types/stylis/",\
@@ -2528,6 +2540,15 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./.yarn/cache/classnames-npm-2.5.1-c7273f3423-afff4f77e6.zip/node_modules/classnames/",\
         "packageDependencies": [\
           ["classnames", "npm:2.5.1"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["clsx", [\
+      ["npm:1.2.1", {\
+        "packageLocation": "./.yarn/cache/clsx-npm-1.2.1-77792dc182-34dead8bee.zip/node_modules/clsx/",\
+        "packageDependencies": [\
+          ["clsx", "npm:1.2.1"]\
         ],\
         "linkType": "HARD"\
       }]\
@@ -6751,6 +6772,34 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["react-draggable", [\
+      ["npm:4.4.6", {\
+        "packageLocation": "./.yarn/cache/react-draggable-npm-4.4.6-4867b50158-1e8cf47414.zip/node_modules/react-draggable/",\
+        "packageDependencies": [\
+          ["react-draggable", "npm:4.4.6"]\
+        ],\
+        "linkType": "SOFT"\
+      }],\
+      ["virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.4.6", {\
+        "packageLocation": "./.yarn/__virtual__/react-draggable-virtual-4910a13132/0/cache/react-draggable-npm-4.4.6-4867b50158-1e8cf47414.zip/node_modules/react-draggable/",\
+        "packageDependencies": [\
+          ["react-draggable", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.4.6"],\
+          ["@types/react", "npm:18.3.14"],\
+          ["@types/react-dom", "npm:18.3.2"],\
+          ["clsx", "npm:1.2.1"],\
+          ["prop-types", "npm:15.8.1"],\
+          ["react", "npm:18.3.1"],\
+          ["react-dom", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:18.3.1"]\
+        ],\
+        "packagePeers": [\
+          "@types/react-dom",\
+          "@types/react",\
+          "react-dom",\
+          "react"\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["react-fast-compare", [\
       ["npm:3.2.2", {\
         "packageLocation": "./.yarn/cache/react-fast-compare-npm-3.2.2-45b585a872-0bbd2f3eb4.zip/node_modules/react-fast-compare/",\
@@ -6849,6 +6898,7 @@ const RAW_RUNTIME_STATE =
           ["@types/react-query", "npm:1.2.9"],\
           ["@types/react-router-dom", "npm:5.3.3"],\
           ["@types/sortablejs", "npm:1.15.8"],\
+          ["@types/stats.js", "npm:0.17.3"],\
           ["@types/uuid", "npm:10.0.0"],\
           ["@typescript-eslint/eslint-plugin", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:8.17.0"],\
           ["@typescript-eslint/parser", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:8.17.0"],\
@@ -6871,6 +6921,7 @@ const RAW_RUNTIME_STATE =
           ["react", "npm:18.3.1"],\
           ["react-bootstrap-icons", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:1.11.5"],\
           ["react-dom", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:18.3.1"],\
+          ["react-draggable", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.4.6"],\
           ["react-helmet-async", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:2.0.5"],\
           ["react-hook-form", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:7.54.0"],\
           ["react-query", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:3.39.3"],\
@@ -6881,6 +6932,7 @@ const RAW_RUNTIME_STATE =
           ["recoil-persist", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:5.1.0"],\
           ["reflect-metadata", "npm:0.2.2"],\
           ["sortablejs", "npm:1.15.6"],\
+          ["stats.js", "npm:0.17.0"],\
           ["styled-components", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:6.1.13"],\
           ["styled-reset", "virtual:a721315414c0d23b257274f29c93989ebe1fbf3d02b1a1271ec023d9ada9a986d83e8dec4237815d96bf9793ae085cfc04af8ecedd8064024de337a040db6100#npm:4.5.2"],\
           ["type-fest", "npm:4.30.0"],\
@@ -7591,6 +7643,15 @@ const RAW_RUNTIME_STATE =
         "packageDependencies": [\
           ["stack-utils", "npm:2.0.6"],\
           ["escape-string-regexp", "npm:2.0.0"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["stats.js", [\
+      ["npm:0.17.0", {\
+        "packageLocation": "./.yarn/cache/stats.js-npm-0.17.0-a42aaf2235-03392b4b9e.zip/node_modules/stats.js/",\
+        "packageDependencies": [\
+          ["stats.js", "npm:0.17.0"]\
         ],\
         "linkType": "HARD"\
       }]\
