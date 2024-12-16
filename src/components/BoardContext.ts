@@ -1,7 +1,40 @@
-import { atom } from "recoil";
+import { atom, atomFamily } from "recoil";
 import { recoilPersist } from "recoil-persist";
-import { NestedIndexer, NestedIndexerBaseItem } from "@/indexer";
+import {
+  NestedIndexer,
+  NestedIndexerBaseItem,
+  NestedIndexerEntry,
+} from "@/indexer";
 import { createKeyValueMapping, SmartMerge } from "@/utils";
+
+export type DndDataInterface = {
+  type: "parent" | "child";
+  item: ParentItem | ChildItem;
+};
+
+export const DraggableCustomAttributes = ["data-draggable-id"] as const;
+export type DraggableCustomAttributeType =
+  (typeof DraggableCustomAttributes)[number];
+export const DraggableCustomAttributesKvMapping = createKeyValueMapping({
+  arr: DraggableCustomAttributes,
+});
+export type DraggableCustomAttributesKvObj = Record<
+  DraggableCustomAttributeType,
+  string
+>;
+
+export const DraggableHandleCustomAttributes = [
+  "data-draggable-handle-id",
+] as const;
+export type DraggableHandleCustomAttributeType =
+  (typeof DraggableHandleCustomAttributes)[number];
+export const DraggableHandleCustomAttributesKvMapping = createKeyValueMapping({
+  arr: DraggableHandleCustomAttributes,
+});
+export type DraggableHandleCustomAttributesKvObj = Record<
+  DraggableHandleCustomAttributeType,
+  string
+>;
 
 const { persistAtom } = recoilPersist({
   key: "recoilPersist", // this key is using to store data in local storage
@@ -20,15 +53,23 @@ export type ParentItem = NestedIndexerBaseItem & {
 export type ChildItem = NestedIndexerBaseItem & {
   content: string;
 } & Record<any, any>;
+export type NestedIndexerAtomParams = {
+  parentKeyName: string;
+  childKeyName: string;
+  items: ParentItem[];
+};
 
-// TODO: parentKeyName, childKeyName => atomFamily
-export const nestedIndexerAtom = atom<NestedIndexer<ParentItem, ChildItem>>({
+export const nestedIndexerAtom = atomFamily<
+  NestedIndexer<ParentItem, ChildItem>,
+  NestedIndexerAtomParams
+>({
   key: recoilKeys["nestedIndexerAtom"],
-  default: new NestedIndexer({
-    parentKeyName: "Parent",
-    childKeyName: "Child",
-    entries: [],
-  }),
+  default: ({ parentKeyName, childKeyName, items }) =>
+    new NestedIndexer({
+      parentKeyName,
+      childKeyName,
+      items,
+    }),
   effects_UNSTABLE: [persistAtom],
   effects: [
     ({ setSelf, onSet }) => {

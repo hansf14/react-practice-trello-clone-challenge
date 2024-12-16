@@ -13,6 +13,8 @@ import {
 import { useStateWithCb } from "@/hooks/useStateWithCb";
 import { TextAreaRef } from "antd/es/input/TextArea";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
+import { DraggableAttributes } from "@dnd-kit/core";
+import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 const { TextArea } = Input;
 
 const BoardHeaderBase = styled.div``;
@@ -80,6 +82,8 @@ const BoardDragHandle = styled.div`
 
   display: flex;
   align-items: center;
+
+  cursor: grab;
 `;
 
 export type OnEditStartParentItem = ({
@@ -114,6 +118,9 @@ export type OnEditFinishParentItem = <P extends ParentItem>({
 
 export type BoardHeaderProps = {
   parentItem: ParentItem;
+  draggableHandleAttributes: DraggableAttributes;
+  draggableHandleListeners: SyntheticListenerMap | undefined;
+  draggableHandleCustomAttributes: Record<string, string>;
   onEditStartParentItem?: OnEditStartParentItem;
   onEditCancelParentItem?: OnEditCancelParentItem;
   onEditingParentItem?: OnEditingParentItem;
@@ -129,6 +136,9 @@ export const BoardHeader = withMemoAndRef<
   Component: (
     {
       parentItem,
+      draggableHandleAttributes,
+      draggableHandleListeners,
+      draggableHandleCustomAttributes,
       onEditStartParentItem,
       onEditCancelParentItem,
       onEditingParentItem,
@@ -186,24 +196,6 @@ export const BoardHeader = withMemoAndRef<
       ],
     );
 
-    const boardHeaderTitleEditHandler = useCallback<
-      React.ChangeEventHandler<HTMLTextAreaElement>
-    >(
-      (event) => {
-        setStateParentItemTitle(event.target.value);
-
-        onEditingParentItem?.({
-          event,
-          oldParentItem: parentItem,
-          newParentItem: {
-            id: parentItem.id,
-            title: event.target.value,
-          },
-        });
-      },
-      [parentItem, onEditingParentItem],
-    );
-
     const boardHeaderTitleEditFinishHandler = useCallback<
       React.KeyboardEventHandler<HTMLTextAreaElement>
     >(
@@ -230,17 +222,23 @@ export const BoardHeader = withMemoAndRef<
       ],
     );
 
-    const [stateBoardDragHandles, setStateBoardDragHandles] =
-      useRecoilState(boardDragHandlesAtom);
-    const refDragHandle = useRef<HTMLDivElement | null>(null);
-    useIsomorphicLayoutEffect(() => {
-      if (refDragHandle.current) {
-        setStateBoardDragHandles((cur) => ({
-          ...cur,
-          [parentItem.id]: refDragHandle.current,
-        }));
-      }
-    }, [parentItem.id, setStateBoardDragHandles]);
+    const boardHeaderTitleEditHandler = useCallback<
+      React.ChangeEventHandler<HTMLTextAreaElement>
+    >(
+      (event) => {
+        setStateParentItemTitle(event.target.value);
+
+        onEditingParentItem?.({
+          event,
+          oldParentItem: parentItem,
+          newParentItem: {
+            id: parentItem.id,
+            title: event.target.value,
+          },
+        });
+      },
+      [parentItem, onEditingParentItem],
+    );
 
     return (
       <BoardHeaderBase ref={ref} {...otherProps}>
@@ -261,8 +259,9 @@ export const BoardHeader = withMemoAndRef<
             onChange={boardHeaderTitleEditHandler}
           />
           <BoardDragHandle
-            ref={refDragHandle}
-            className={boardClassNameKvMapping["board-sortable-handle"]}
+            {...draggableHandleAttributes}
+            {...draggableHandleListeners}
+            {...draggableHandleCustomAttributes}
           >
             <GripVertical />
           </BoardDragHandle>

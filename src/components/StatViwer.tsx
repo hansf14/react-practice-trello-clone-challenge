@@ -338,14 +338,12 @@ export const StatViewer = withMemoAndRef<
       if (!refStats.current) {
         return;
       }
-      console.log("123123");
 
       refBase.current?.appendChild(refStats.current.container);
       if (!refIsRunning.current) {
         run();
       }
-
-      console.log(refStats.current);
+      // console.log(refStats.current);
 
       // const _refBase = refBase.current;
       return () => {

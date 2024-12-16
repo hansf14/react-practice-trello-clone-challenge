@@ -66,6 +66,9 @@ export type DragCursorAreaProps = {
 const DragCursorArea = styled.div.withConfig({
   shouldForwardProp: (prop) => !["width", "height"].includes(prop),
 })<DragCursorAreaProps>`
+  will-change: transform;
+  backface-visibility: hidden;
+
   position: fixed;
   width: ${({ width }) => width + "px"};
   height: ${({ height }) => height + "px"};
@@ -88,6 +91,9 @@ const UseDndRootChildrenWrapper = styled.div.withConfig({
   shouldForwardProp: (prop) =>
     !["dragCursorAreaWidth", "dragCursorAreaHeight"].includes(prop),
 })<UseDndRootChildrenWrapper>`
+  will-change: transform;
+  backface-visibility: hidden;
+
   width: 100cqw;
   height: 100cqh;
 

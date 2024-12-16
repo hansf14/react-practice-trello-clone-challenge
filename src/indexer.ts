@@ -275,19 +275,19 @@ export type NestedIndexerKey = IndexerKey;
 export type NestedIndexerBaseItem = IndexerBaseItem & {};
 // ㄴ {}: For intellisense
 
-export type NestedIndexerEntry<
-  Parent extends NestedIndexerBaseItem,
-  Child extends NestedIndexerBaseItem,
-> = [NestedIndexerKey, string[] | [string] | [Parent] | [Child]];
-
 export type NestedIndexerItem = SmartMerge<
   NestedIndexerBaseItem & {
     items?: NestedIndexerBaseItem[];
   }
 >;
 
+export type NestedIndexerEntry<
+  Parent extends NestedIndexerItem,
+  Child extends NestedIndexerBaseItem,
+> = [NestedIndexerKey, string[] | [string] | [Parent] | [Child]];
+
 export class NestedIndexer<
-  Parent extends NestedIndexerBaseItem,
+  Parent extends NestedIndexerItem,
   Child extends NestedIndexerBaseItem,
 > extends MultiMap<NestedIndexerKey, string | Parent | Child> {
   @Expose()
@@ -304,7 +304,7 @@ export class NestedIndexer<
     parentKeyName: string;
     childKeyName: string;
     entries?: NestedIndexerEntry<Parent, Child>[];
-    items?: NestedIndexerItem[];
+    items?: Parent[];
   });
   constructor(original: NestedIndexer<Parent, Child>);
 
@@ -314,7 +314,7 @@ export class NestedIndexer<
           parentKeyName: string;
           childKeyName: string;
           entries?: NestedIndexerEntry<Parent, Child>[];
-          items?: NestedIndexerItem[];
+          items?: Parent[];
         }
       | NestedIndexer<Parent, Child>,
   ) {
@@ -336,7 +336,6 @@ export class NestedIndexer<
         ] as [[string], string[]];
         entries.push(parentIdList);
 
-        // const
         parents.forEach((parent) => {
           entries.push([[`${parentKeyName}Id`, parent.id], [parent]] as [
             string[],

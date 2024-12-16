@@ -3,6 +3,7 @@ import React, {
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -13,124 +14,88 @@ import {
   OnEditFinishParentItem,
   OnEditStartParentItem,
 } from "@/components/BoardHeader";
-import {
-  BoardList,
-  BoardListExtendProps,
-  BoardListProps,
-} from "@/components/BoardList";
-import { SmartOmit } from "@/utils";
-import { nestedIndexerAtom } from "@/components/BoardContext";
-import { NestedIndexer } from "@/indexer";
+import { BoardList, BoardListProps } from "@/components/BoardList";
+import { getEmptyArray, SmartOmit } from "@/utils";
+import { nestedIndexerAtom, ParentItem } from "@/components/BoardContext";
+import { NestedIndexer, NestedIndexerItem } from "@/indexer";
 import { BoardMain, ForEachChildItem } from "@/components/BoardMain";
 import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
-import { useDnd } from "@/hooks/useDnd";
 import { StatViewer } from "@/components/StatViwer";
-import {
-  DroppableHandle,
-  DroppableProps,
-  withDroppable,
-} from "@/hocs/withDroppable";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { UseDndRoot, UseDndRootHandle } from "@/components/UseDndRoot";
+import {
+  closestCorners,
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { defaultCategoryTaskItems } from "@/data";
 
-const BoardListBase = withDroppable<"div", DroppableHandle, BoardListProps>({
-  BaseComponent: BoardList,
-});
-const CategoryTaskBoardListInternalBase = styled(BoardListBase)<
-  DroppableProps<BoardListProps>
->`
-  height: 100%;
-  padding: 0 10px;
-` as ReturnType<
-  typeof React.forwardRef<HTMLDivElement, DroppableProps<BoardListProps>>
->;
+const CategoryTaskBoardListInternalBase = styled(BoardList)``;
 
-export type CategoryBoardListInternalProps = SmartOmit<
-  BoardListExtendProps,
-  "children"
->;
+export type CategoryBoardListInternalProps = {
+  boardListId: string;
+  parentKeyName: string;
+  childKeyName: string;
+  parentItems: ParentItem[];
+};
 
 export const CategoryTaskBoardListInternal = withMemoAndRef<
   "div",
   HTMLDivElement,
   CategoryBoardListInternalProps
 >({
-  Component: ({ boardListId, ...otherProps }, ref) => {
-    const [stateIndexer, setStateIndexer] = useRecoilState(nestedIndexerAtom);
+  Component: (
+    { boardListId, parentKeyName, childKeyName, parentItems },
+    ref,
+  ) => {
+    // const onUpdateChildItem = useCallback<OnUpdateChildItem>(
+    //   ({ event, oldChildItem, newChildItem }) => {
+    //     // console.log(event.target.value);
+    //     setStateNestedIndexer((cur) => {
+    //       const newIndexer = new NestedIndexer(cur);
+    //       newIndexer.updateChild({
+    //         childId: oldChildItem.id,
+    //         child: newChildItem,
+    //       });
+    //       return newIndexer;
+    //     });
+    //   },
+    //   [setStateNestedIndexer],
+    // );
 
-    const onEditStartParentItem = useCallback<OnEditStartParentItem>(
-      ({ elementTextArea, handlers: { editCancelHandler } }) => {
-        alert("Press enter when the edit is finished.");
-
-        elementTextArea.focus({ cursor: "all" });
-
-        // Delay execution to prevent interference. For example, `focus` event.
-        // Introduce a small delay before execution using a setTimeout.
-        // cf> https://stackoverflow.com/a/53702815/11941803
-        setTimeout(() =>
-          elementTextArea.resizableTextArea?.textArea.addEventListener(
-            "blur",
-            editCancelHandler,
-            {
-              once: true,
-            },
-          ),
-        );
-      },
-      [],
-    );
-
-    const onEditFinishParentItem = useCallback<OnEditFinishParentItem>(
-      ({ oldParentItem, newParentItem }) => {
-        setStateIndexer((cur) => {
-          const newIndexer = new NestedIndexer(cur);
-          newIndexer.updateParent({
-            parentId: oldParentItem.id,
-            parent: newParentItem,
-          });
-          return newIndexer;
-        });
-      },
-      [setStateIndexer],
-    );
-
-    const onUpdateChildItem = useCallback<OnUpdateChildItem>(
-      ({ event, oldChildItem, newChildItem }) => {
-        // console.log(event.target.value);
-        setStateIndexer((cur) => {
-          const newIndexer = new NestedIndexer(cur);
-          newIndexer.updateChild({
-            childId: oldChildItem.id,
-            child: newChildItem,
-          });
-          return newIndexer;
-        });
-      },
-      [setStateIndexer],
-    );
-
-    const forEachChildItem = useCallback<ForEachChildItem>(
-      ({ idx, item, items }) => {
-        return (
-          <Card
-            // key={item.id}
-            childItem={item}
-            onUpdateChildItem={onUpdateChildItem}
-          />
-        );
-        // return items.map((item) => {
-        //   return (
-        //     <Card
-        //       // key={item.id}
-        //       childItem={item}
-        //       onUpdateChildItem={onUpdateChildItem}
-        //     />
-        //   );
-        // });
-      },
-      [onUpdateChildItem],
-    );
+    // const forEachChildItem = useCallback<ForEachChildItem>(
+    //   ({ idx, item, items }) => {
+    //     return (
+    //       <Card
+    //         // key={item.id}
+    //         childItem={item}
+    //         onUpdateChildItem={onUpdateChildItem}
+    //       />
+    //     );
+    //     // return items.map((item) => {
+    //     //   return (
+    //     //     <Card
+    //     //       // key={item.id}
+    //     //       childItem={item}
+    //     //       onUpdateChildItem={onUpdateChildItem}
+    //     //     />
+    //     //   );
+    //     // });
+    //   },
+    //   [onUpdateChildItem],
+    // );
 
     // const forEachParentItem = useCallback<ForEachParentItem>(
     //   ({ idx, item, items, droppableProvided, droppableStateSnapshot }) => {
@@ -184,115 +149,121 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     //   ],
     // );
 
-    const refDndRoot = useRef<UseDndRootHandle | null>(null);
+    // const refDndRoot = useRef<UseDndRootHandle | null>(null);
 
-    const refBase = useRef<HTMLDivElement | null>(null);
-    useImperativeHandle(ref, () => {
-      return refBase.current as HTMLDivElement;
-    });
+    // const refBase = useRef<HTMLDivElement | null>(null);
+    // useImperativeHandle(ref, () => {
+    //   return refBase.current as HTMLDivElement;
+    // });
 
-    const {
-      DragOverlay,
-      onDragStart,
-      // setGroupsRef,
-      setDraggableRef,
-      setDraggableHandleRef,
-    } = useDnd({
-      dndRootHandle: refDndRoot.current,
-      contextId: boardListId,
-    });
+    // const {
+    //   DragOverlay,
+    //   onDragStart,
+    //   // setGroupsRef,
+    //   setDraggableRef,
+    //   setDraggableHandleRef,
+    // } = useDnd({
+    //   dndRootHandle: refDndRoot.current,
+    //   contextId: boardListId,
+    // });
+
+    // const [stateNestedIndexer, setStateNestedIndexer] = useRecoilState(nestedIndexerAtom);
+
+    // const categoryList = stateNestedIndexer.getCategoryList__MutableCategory();
+
+    const [stateCategoryTaskNestedIndexer, setStateCategoryTaskNestedIndexer] =
+      useRecoilState(
+        nestedIndexerAtom({
+          parentKeyName,
+          childKeyName,
+          items: defaultCategoryTaskItems,
+        }),
+      );
+    const categoryList = useMemo(
+      () =>
+        stateCategoryTaskNestedIndexer.getParentList__MutableParent() ??
+        getEmptyArray<ParentItem>(),
+      [stateCategoryTaskNestedIndexer],
+    );
+
+    const onEditStartParentItem = useCallback<OnEditStartParentItem>(
+      ({ elementTextArea, handlers: { editCancelHandler } }) => {
+        alert("Press enter when the edit is finished.");
+
+        elementTextArea.focus({ cursor: "all" });
+
+        // Delay execution to prevent interference. For example, `focus` event.
+        // Introduce a small delay before execution using a setTimeout.
+        // cf> https://stackoverflow.com/a/53702815/11941803
+        setTimeout(() =>
+          elementTextArea.resizableTextArea?.textArea.addEventListener(
+            "blur",
+            editCancelHandler,
+            {
+              once: true,
+            },
+          ),
+        );
+      },
+      [],
+    );
+
+    const onEditFinishParentItem = useCallback<OnEditFinishParentItem>(
+      ({ oldParentItem, newParentItem }) => {
+        setStateCategoryTaskNestedIndexer((curNestedIndexer) => {
+          const newIndexer = new NestedIndexer(curNestedIndexer);
+          newIndexer.updateParent({
+            parentId: oldParentItem.id,
+            parent: newParentItem,
+          });
+          return newIndexer;
+        });
+      },
+      [setStateCategoryTaskNestedIndexer],
+    );
 
     return (
       <>
         <StatViewer
-          WrapperComponent={React.memo(({ children }) => (
-            <div>{children}</div>
-          ))}
+        // TODO: make this draggable and movable (reposition)
+        // WrapperComponent={(({ children }) => (
+        //   <div>{children}</div>
+        // ))}
         />
-        {/* <StatViewer
-          WrapperComponent={React.memo(({ children }) => (
-            <div>{children}</div>
-          ))}
-        /> */}
-        <UseDndRoot ref={refDndRoot} contextId={boardListId}>
-          <CategoryTaskBoardListInternalBase
-            ref={(el) => {
-              refBase.current = el;
-              // setDroppableRef({
-              //   droppableId: "0",
-              //   tagKeysAcceptable: ["category"],
-              // })(el);
-              // setGroupsRef({ droppableId: "0" });
-            }}
-            contextId={boardListId}
-            droppableId={"0"}
-            tagKeysAcceptable={["category", "task"]}
-            boardListId={boardListId} // TODO: remove and replace it with contextId
-            {...otherProps}
-          >
-            <Board
-              ref={setDraggableRef({
-                draggableId: "0",
-                tagKey: "category",
-              })}
-            >
-              <div
-                ref={setDraggableHandleRef({
-                  draggableId: "0",
-                })}
-                onDragStart={onDragStart}
-              >
-                DOH1
-              </div>
-            </Board>
-            <Board
-              ref={setDraggableRef({
-                draggableId: "1",
-                tagKey: "category",
-              })}
-            >
-              <div
-                ref={setDraggableHandleRef({
-                  draggableId: "1",
-                })}
-                onDragStart={onDragStart}
-              >
-                DOH2
-              </div>
-            </Board>
-            <Board
-              ref={setDraggableRef({
-                draggableId: "2",
-                tagKey: "category",
-              })}
-            >
-              <div
-                ref={setDraggableHandleRef({
-                  draggableId: "2",
-                })}
-                onDragStart={onDragStart}
-              >
-                DOH3
-              </div>
-            </Board>
-            <Board
-              ref={setDraggableRef({
-                draggableId: "3",
-                tagKey: "category",
-              })}
-            >
-              <div
-                ref={setDraggableHandleRef({
-                  draggableId: "3",
-                })}
-                onDragStart={onDragStart}
-              >
-                DOH4
-              </div>
-            </Board>
-            {DragOverlay}
-          </CategoryTaskBoardListInternalBase>
-        </UseDndRoot>
+
+        <CategoryTaskBoardListInternalBase
+          boardListId={boardListId}
+          parentKeyName={parentKeyName}
+          childKeyName={childKeyName}
+          parentItems={categoryList}
+        >
+          {categoryList.map((parentItem) => {
+            return (
+              <Board key={parentItem.id} item={parentItem}>
+                {({
+                  draggableHandleAttributes,
+                  draggableHandleListeners,
+                  draggableHandleCustomAttributes,
+                }) => {
+                  return (
+                    <>
+                      <BoardHeader
+                        parentItem={parentItem}
+                        onEditStartParentItem={onEditStartParentItem}
+                        onEditFinishParentItem={onEditFinishParentItem}
+                        draggableHandleAttributes={draggableHandleAttributes}
+                        draggableHandleListeners={draggableHandleListeners}
+                        draggableHandleCustomAttributes={
+                          draggableHandleCustomAttributes
+                        }
+                      />
+                    </>
+                  );
+                }}
+              </Board>
+            );
+          })}
+        </CategoryTaskBoardListInternalBase>
       </>
     );
   },
@@ -324,19 +295,19 @@ export const CategoryTaskBoardList = withMemoAndRef<
   ) => {
     return (
       <RecoilRoot
-        initializeState={(snapshot) => {
-          if (items) {
-            // Inject default value
-            snapshot.set(
-              nestedIndexerAtom,
-              new NestedIndexer({
-                parentKeyName,
-                childKeyName,
-                items,
-              }),
-            );
-          }
-        }}
+      // initializeState={(snapshot) => {
+      //   if (items) {
+      //     // Inject default value
+      //     snapshot.set(
+      //       nestedIndexerAtom,
+      //       new NestedIndexer({
+      //         parentKeyName,
+      //         childKeyName,
+      //         items,
+      //       }),
+      //     );
+      //   }
+      // }}
       >
         <CategoryTaskBoardListInternal
           ref={ref}

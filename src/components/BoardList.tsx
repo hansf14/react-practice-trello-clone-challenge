@@ -1,11 +1,24 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { styled } from "styled-components";
 import { useRecoilState } from "recoil";
+import parse from "html-react-parser";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Board } from "@/components/Board";
 import { CssScrollbar } from "@/csses/scrollbar";
 import { NestedIndexer } from "@/indexer";
-import { isFunction, SmartOmit, StyledComponentProps } from "@/utils";
+import {
+  getEmptyArray,
+  getMemoizedArray,
+  isFunction,
+  SmartOmit,
+  StyledComponentProps,
+} from "@/utils";
 import { cardsContainerAtom } from "@/components/BoardMain";
 import {
   dataAttributeKvMapping,
@@ -19,16 +32,42 @@ import {
   grabbingClassNameKvMapping,
   boardClassNameKvMapping,
   cardClassNameKvMapping,
+  DndDataInterface,
+  DraggableHandleCustomAttributesKvMapping,
+  DraggableCustomAttributesKvMapping,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
+import { SortableContext } from "@dnd-kit/sortable";
+import {
+  ClientRect,
+  closestCenter,
+  closestCorners,
+  defaultDropAnimation,
+  defaultDropAnimationSideEffects,
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  KeyboardSensor,
+  Modifier,
+  MouseSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { createPortal } from "react-dom";
+import { defaultCategoryTaskItems } from "@/data";
+import {
+  restrictToFirstScrollableAncestor,
+  restrictToHorizontalAxis,
+} from "@dnd-kit/modifiers";
 
 const BoardListBase = styled.div`
   ${CssScrollbar}
 
   overflow-x: auto;
-  /* overflow-y: hidden; */
-  /* scroll-behavior: smooth; */
-  /* ㄴ Not compatible with Sortable.js */
+  overflow-y: hidden;
   width: 100%;
   height: 100%;
   padding: 0 10px;
@@ -38,23 +77,15 @@ const BoardListBase = styled.div`
   align-items: center;
   gap: 10px;
 
-  &.${grabbingClassNameKvMapping["sortable-grabbing"]} * {
-    cursor: grabbing !important;
-  }
-
-  .drag-overlay {
-    opacity: 0.7;
-  }
-
-  .drag-placeholder {
-    opacity: 0.7;
-    border: 2px solid yellow;
-  }
-
-  .drag-handle {
+  [data-draggable-handle-id] {
     cursor: grab;
+    // touch-action: none;
+    // touch-action: manipulation;
+    // https://docs.dndkit.com/api-documentation/sensors/pointer#touch-action
+    // https://docs.dndkit.com/api-documentation/sensors/touch#touch-action
   }
 `;
+
 /* &.${boardClassNameKvMapping["board-sortable-handle"]} {
     cursor: grab;
   } */
@@ -67,8 +98,6 @@ const BoardListBase = styled.div`
 //   // "forEachParentItem"
 // >;
 
-export type BoardListExtendProps = BoardListProps;
-
 export type BoardListProps = {
   boardListId: string;
   parentKeyName: string;
@@ -79,41 +108,20 @@ export type BoardListProps = {
 
 export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
   displayName: "BoardList",
-  Component: (
-    {
+  Component: (props, ref) => {
+    const {
       boardListId,
       parentKeyName,
       childKeyName,
-      parentItems,
+      parentItems = getEmptyArray<ParentItem>(),
       // forEachParentItem,
       children,
       ...otherProps
-    },
-    ref,
-  ) => {
-    // TODO: extend (useEffect/useIsomorphicLayoutEffect)
+    } = props;
 
     const refBoardList = useRef<HTMLDivElement | null>(null);
     const [stateCardsContainer, setStateCardsContainer] =
       useRecoilState(cardsContainerAtom);
-
-    const [stateNestedIndexer, setStateNestedIndexer] =
-      useRecoilState(nestedIndexerAtom);
-
-    useEffect(() => {
-      setStateNestedIndexer(
-        new NestedIndexer<ParentItem, ChildItem>({
-          parentKeyName,
-          childKeyName,
-          items: parentItems ?? [],
-        }),
-      );
-    }, [parentItems, parentKeyName, childKeyName, setStateNestedIndexer]);
-
-    const categoryList = useMemo(
-      () => stateNestedIndexer.getParentList__MutableParent() ?? [],
-      [stateNestedIndexer],
-    );
 
     // const onDragEnd = useCallback(
     //   (evt: Sortable.SortableEvent) => {
@@ -355,48 +363,221 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     // console.log("stateActiveCategory:", stateActiveCategory);
     // console.log("isDragging:", isDragging);
 
-    const customDataAttributes: DataAttributesOfItemList = {
-      "data-board-list-id": boardListId,
-      "data-item-list-type": "parents",
-      "data-item-list-id": "root",
-    };
+    const sensors = useSensors(
+      // useSensor(PointerSensor, {
+      //   activationConstraint: {
+      //     distance: 3,
+      //     // ㄴ Need to move 3px to activate drag event.
+      //   },
+      // }),
+      useSensor(MouseSensor),
+      useSensor(TouchSensor),
+      // useSensor(KeyboardSensor, {
+      //   coordinateGetter: sortableKeyboardCoordinates,
+      // }),
+    );
+
+    const [stateActiveParent, setStateActiveParent] =
+      useState<ParentItem | null>(null);
+
+    const refDragOverlayReactElement = useRef<React.ReactElement | null>(null);
+    // const refDragOverlaySize = useRef<{ width: number; height: number } | null>(
+    //   null,
+    // );
+
+    const onDragStart = useCallback((event: DragStartEvent) => {
+      console.log("[onDragStart]");
+
+      // console.log(event.active.data.current);
+      if (event.active.data.current) {
+        const activator = event.activatorEvent.target as HTMLElement | null;
+        if (!activator) {
+          return;
+        }
+
+        const draggableHandle = activator.closest(
+          `[${DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"]}]`,
+        );
+        // console.log(draggableHandle);
+        if (!draggableHandle) {
+          return;
+        }
+
+        const draggableHandleId = draggableHandle.getAttribute(
+          DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"],
+        );
+        // console.log(draggableHandleId);
+        if (!draggableHandleId) {
+          return;
+        }
+
+        const draggableId = draggableHandleId;
+        const draggable = draggableHandle.closest(
+          `[${DraggableCustomAttributesKvMapping["data-draggable-id"]}="${draggableId}"]`,
+        ) as HTMLElement;
+        // console.log(draggable);
+        if (!draggable) {
+          return;
+        }
+
+        refDragOverlayReactElement.current = parse(
+          draggable.outerHTML,
+        ) as React.ReactElement;
+        refDragOverlayReactElement.current = React.cloneElement(
+          refDragOverlayReactElement.current,
+          {
+            style: {
+              width: draggable.offsetWidth,
+              height: draggable.offsetHeight,
+              cursor: "grabbing",
+              opacity: "0.7",
+            } satisfies React.CSSProperties,
+          },
+        );
+
+        const dndData = event.active.data.current as DndDataInterface;
+        if (dndData.type === "parent") {
+          setStateActiveParent(event.active.data.current.item);
+        }
+      }
+    }, []);
+
+    const [stateNestedIndexer, setStateNestedIndexer] = useRecoilState(
+      nestedIndexerAtom({
+        parentKeyName,
+        childKeyName,
+        items: defaultCategoryTaskItems,
+      }),
+    );
+
+    const onDragEnd = useCallback(
+      (event: DragEndEvent) => {
+        const { active, over } = event;
+        // console.log(event);
+        if (!over) {
+          return;
+        }
+
+        const activeId = active.id;
+        const overId = over.id;
+        if (activeId === overId) {
+          return;
+        }
+
+        const idxFrom = parentItems.findIndex(
+          (parentItem) => parentItem.id === activeId,
+        );
+        const idxTo = parentItems.findIndex(
+          (parentItem) => parentItem.id === overId,
+        );
+
+        setStateNestedIndexer((curNestedIndexer) => {
+          const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
+            curNestedIndexer,
+          );
+          newNestedIndexer.moveParent({
+            idxFrom,
+            idxTo,
+          });
+          return newNestedIndexer;
+        });
+
+        setStateActiveParent(null);
+      },
+      [parentItems, setStateNestedIndexer],
+    );
 
     return (
-      <BoardListBase
-        ref={ref}
-        // {...otherProps}
-        // {...customDataAttributes}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={
+          closestCorners
+          // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#when-should-i-use-the-closest-corners-algorithm-instead-of-closest-center
+        }
+        onDragStart={onDragStart}
+        // onDragOver={() => console.log("Over")}
+        onDragEnd={onDragEnd}
       >
-        {children}
-        {/* {categoryList.length === 0 && <div>Empty!</div>} */}
-        {/* {categoryList.length !== 0 &&
-              categoryList.map((category, idx) => {
-                const customDataAttributes: DataAttributesOfItem = {
-                  "data-board-list-id": boardListId,
-                  "data-item-type": "parent",
-                  "data-item-id": category.id,
-                };
-                return React.Children.map(
-                  forEachParentItem({
-                    idx,
-                    item: category,
-                    items: categoryList,
-                    droppableProvided,
-                    droppableStateSnapshot,
-                  }),
-                  (child) => {
-                    const _child = React.isValidElement(child)
-                      ? React.cloneElement(child as React.ReactElement, {
-                          key: category.id,
-                          ...customDataAttributes,
-                        })
-                      : child;
-                    // console.log(_child);
-                    return _child;
-                  },
-                );
-              })} */}
-      </BoardListBase>
+        <SortableContext items={parentItems}>
+          <BoardListBase ref={ref} {...otherProps}>
+            {children}
+          </BoardListBase>
+        </SortableContext>
+        {createPortal(
+          <DragOverlay
+            modifiers={
+              stateActiveParent
+                ? getMemoizedArray({
+                    refs: [
+                      restrictToHorizontalAxis,
+                      restrictToFirstScrollableAncestor,
+                    ],
+                  })
+                : getEmptyArray<Modifier>()
+            }
+            dropAnimation={null}
+            // dropAnimation={{
+            //   // ...defaultDropAnimation,
+            //   sideEffects: defaultDropAnimationSideEffects({
+            //     styles: {
+            //       active: {
+            //         opacity: "1",
+            //       },
+            //     },
+            //   }),
+            // }}
+            // https://github.com/clauderic/dnd-kit/issues/317
+            // ㄴ Removes flickering due to opacity animation
+          >
+            {refDragOverlayReactElement.current}
+          </DragOverlay>,
+          document.body,
+        )}
+      </DndContext>
     );
   },
 });
+
+// https://github.com/clauderic/dnd-kit/pull/334#issuecomment-1965708784
+// import { snapCenterToCursor } from '@dnd-kit/modifiers';
+// import {
+//   CollisionDetection, DndContext, DragOverlay, rectIntersection
+// } from '@dnd-kit/core';
+
+// const fixCursorSnapOffset: CollisionDetection = (args) => {
+//   // Bail out if keyboard activated
+//   if (!args.pointerCoordinates) {
+//     return rectIntersection(args);
+//   }
+//   const { x, y } = args.pointerCoordinates;
+//   const { width, height } = args.collisionRect;
+//   const updated = {
+//     ...args,
+//     // The collision rectangle is broken when using snapCenterToCursor. Reset
+//     // the collision rectangle based on pointer location and overlay size.
+//     collisionRect: {
+//       width,
+//       height,
+//       bottom: y + height / 2,
+//       left: x - width / 2,
+//       right: x + width / 2,
+//       top: y - height / 2,
+//     },
+//   };
+//   return rectIntersection(updated);
+// };
+
+// const Component = () => {
+//   return (
+//     <DndContext
+//       collisionDetection={fixCursorSnapOffset}
+//     >
+//       {/* ... */}
+//       <DragOverlay modifiers={[snapCenterToCursor]}>
+//           <div>
+//             Your overlay
+//           </div>
+//       </DragOverlay>
+//     </DndContext>
+//   );
+// };

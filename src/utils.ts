@@ -348,4 +348,15 @@ export type IsFunction<T> = T extends (...args: any[]) => any ? T : never;
 export const isFunction = <T extends {}>(value: T): value is IsFunction<T> =>
   typeof value === "function";
 
-export const emptyArray = Object.freeze([]);
+const emptyArray = Object.freeze<any[]>([]);
+export function getEmptyArray<T>() {
+  return emptyArray as T[];
+}
+
+const memoizedArrayMap = new MultiRefMap();
+export function getMemoizedArray<T>({ refs }: { refs: T[] }) {
+  if (!memoizedArrayMap.has(refs)) {
+    memoizedArrayMap.set(refs, [...refs]);
+  }
+  return memoizedArrayMap.get(refs) as T[] | undefined;
+}

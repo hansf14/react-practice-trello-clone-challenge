@@ -117,8 +117,8 @@ function App() {
           <CategoryTaskBoardList
             boardListId="category-task-board"
             parentItems={defaultCategoryTaskItems}
-            parentKeyName="Category"
-            childKeyName="Task"
+            parentKeyName="category"
+            childKeyName="task"
           />
         </Main>
         {/* <ReactQueryDevtools initialIsOpen={true} /> */}
