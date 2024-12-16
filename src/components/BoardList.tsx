@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -35,26 +36,42 @@ import {
   DndDataInterface,
   DraggableHandleCustomAttributesKvMapping,
   DraggableCustomAttributesKvMapping,
+  DroppableCustomAttributesKvObj,
+  DndActiveDataInterface,
+  DndOverDataInterface,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { createPortal } from "react-dom";
 import { defaultCategoryTaskItems } from "@/data";
 import {
-  DragDropContext,
-  Droppable,
-  DroppableProvided,
-  DroppableStateSnapshot,
-  OnDragEndResponder,
-  OnDragStartResponder,
-  useMouseSensor,
-} from "@hello-pangea/dnd";
+  closestCenter,
+  closestCorners,
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragOverlay,
+  DragStartEvent,
+  Modifier,
+  MouseSensor,
+  TouchSensor,
+  useDndMonitor,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { SortableContext } from "@dnd-kit/sortable";
+import {
+  restrictToFirstScrollableAncestor,
+  restrictToHorizontalAxis,
+} from "@dnd-kit/modifiers";
 
 const BoardListBase = styled.div`
   ${CssScrollbar}
 
   overflow-x: auto;
   overflow-y: hidden;
-  width: 100%;
+  // width: 100%;
+  width: 1000vw;
   height: 100%;
   padding: 0 10px;
 
@@ -330,96 +347,72 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     //   return sortables;
     // }, [boardListId, categoryList, stateCardsContainer, onDragEnd]);
 
-    // useEffect(() => {
-    //   const sortables = initSortables();
-    //   return () => {
-    //     sortables.forEach((sortable) => sortable.destroy());
-    //   };
-    // }, [initSortables]);
-
-    // const [stateBoardDragHandles, setStateBoardDragHandles] =
-    //   useRecoilState(boardDragHandlesAtom);
-    // const [stateCards, setStateCards] = useRecoilState(cardsAtom);
-    // const [stateCardDragHandles, setStateCardDragHandles] =
-    //   useRecoilState(cardDragHandlesAtom);
-
-    // const { getDeviceDetector } = useDeviceDetector();
-    // const { getIsTouchDevice } = getDeviceDetector();
-
-    // console.log(refDashboard.current);
-    // console.log(refBoards.current);
-    // console.log(stateBoardDragHandles);
-    // console.log(stateCardDragHandles);
-
-    // console.log(categoryList);
-
-    // console.log(stateNestedIndexer.toPlain());
-    // console.log("stateActiveCategory:", stateActiveCategory);
-    // console.log("isDragging:", isDragging);
-
-    const [stateActiveParent, setStateActiveParent] =
+    const [stateActiveParentItem, setStateActiveParentItem] =
       useState<ParentItem | null>(null);
+    const [stateActiveChildItem, setStateActiveChildItem] =
+      useState<ChildItem | null>(null);
 
     const refDragOverlayReactElement = useRef<React.ReactElement | null>(null);
-    // const refDragOverlaySize = useRef<{ width: number; height: number } | null>(
-    //   null,
-    // );
 
-    const onDragStart = useCallback<OnDragStartResponder>((event) => {
+    const onDragStart = useCallback((event: DragStartEvent) => {
       console.log("[onDragStart]");
 
       // console.log(event.active.data.current);
-      // if (event.active.data.current) {
-      //   const activator = event.activatorEvent.target as HTMLElement | null;
-      //   if (!activator) {
-      //     return;
-      //   }
+      if (event.active.data.current) {
+        const activator = event.activatorEvent.target as HTMLElement | null;
+        if (!activator) {
+          return;
+        }
 
-      //   const draggableHandle = activator.closest(
-      //     `[${DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"]}]`,
-      //   );
-      //   // console.log(draggableHandle);
-      //   if (!draggableHandle) {
-      //     return;
-      //   }
+        const draggableHandle = activator.closest(
+          `[${DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"]}]`,
+        );
+        // console.log(draggableHandle);
+        if (!draggableHandle) {
+          return;
+        }
 
-      //   const draggableHandleId = draggableHandle.getAttribute(
-      //     DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"],
-      //   );
-      //   // console.log(draggableHandleId);
-      //   if (!draggableHandleId) {
-      //     return;
-      //   }
+        const draggableHandleId = draggableHandle.getAttribute(
+          DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"],
+        );
+        // console.log(draggableHandleId);
+        if (!draggableHandleId) {
+          return;
+        }
 
-      //   const draggableId = draggableHandleId;
-      //   const draggable = draggableHandle.closest(
-      //     `[${DraggableCustomAttributesKvMapping["data-draggable-id"]}="${draggableId}"]`,
-      //   ) as HTMLElement;
-      //   // console.log(draggable);
-      //   if (!draggable) {
-      //     return;
-      //   }
+        const draggableId = draggableHandleId;
+        const draggable = draggableHandle.closest(
+          `[${DraggableCustomAttributesKvMapping["data-draggable-id"]}="${draggableId}"]`,
+        ) as HTMLElement;
+        console.log(draggable);
+        if (!draggable) {
+          return;
+        }
 
-      //   refDragOverlayReactElement.current = parse(
-      //     draggable.outerHTML,
-      //   ) as React.ReactElement;
-      //   refDragOverlayReactElement.current = React.cloneElement(
-      //     refDragOverlayReactElement.current,
-      //     {
-      //       style: {
-      //         width: draggable.offsetWidth,
-      //         height: draggable.offsetHeight,
-      //         cursor: "grabbing",
-      //         opacity: "0.7",
-      //       } satisfies React.CSSProperties,
-      //     },
-      //   );
+        refDragOverlayReactElement.current = parse(
+          draggable.outerHTML,
+        ) as React.ReactElement;
+        refDragOverlayReactElement.current = React.cloneElement(
+          refDragOverlayReactElement.current,
+          {
+            style: {
+              width: draggable.offsetWidth,
+              height: draggable.offsetHeight,
+              cursor: "grabbing",
+              opacity: "1",
+            } satisfies React.CSSProperties,
+          },
+        );
 
-      //   const dndData = event.active.data.current as DndDataInterface;
-      //   if (dndData.type === "parent") {
-      //     setStateActiveParent(event.active.data.current.item);
-      //   }
-      // }
+        const dndData = event.active.data.current as DndDataInterface;
+        if (dndData.type === "parent") {
+          setStateActiveParentItem(event.active.data.current.item);
+        } else if (dndData.type === "child") {
+          setStateActiveChildItem(event.active.data.current.item);
+        } else {
+          console.warn("[onDragStart] invalid dndData.type");
+        }
+      }
     }, []);
 
     const [stateNestedIndexer, setStateNestedIndexer] = useRecoilState(
@@ -430,78 +423,196 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       }),
     );
 
-    const onDragEnd = useCallback<OnDragEndResponder>(
-      (event) => {
-        // const { active, over } = event;
-        // // console.log(event);
-        // if (!over) {
-        //   return;
-        // }
-        // const activeId = active.id;
-        // const overId = over.id;
-        // if (activeId === overId) {
-        //   return;
-        // }
-        // const idxFrom = parentItems.findIndex(
-        //   (parentItem) => parentItem.id === activeId,
-        // );
-        // const idxTo = parentItems.findIndex(
-        //   (parentItem) => parentItem.id === overId,
-        // );
-        // setStateNestedIndexer((curNestedIndexer) => {
-        //   const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
-        //     curNestedIndexer,
-        //   );
-        //   newNestedIndexer.moveParent({
-        //     idxFrom,
-        //     idxTo,
-        //   });
-        //   return newNestedIndexer;
-        // });
-        // setStateActiveParent(null);
+    const onDragOver = useCallback(
+      (event: DragOverEvent) => {
+        const { active, over } = event;
+
+        // console.log("active:", active);
+        // console.log("over:", over);
+
+        if (!over) {
+          return;
+        }
+
+        const activeId = active.id;
+        const overId = over.id;
+        if (typeof activeId !== "string" || typeof overId !== "string") {
+          console.warn("[onDragOver] id should only be string.");
+          return;
+        }
+        const activeData = active.data.current as DndActiveDataInterface;
+        const overData = over.data.current as DndOverDataInterface;
+        const activeType = activeData.type;
+        const overType = overData.type;
+        const activeIndex = activeData.sortable.index;
+        const overIndex = overData.sortable.index;
+
+        // console.log("activeType:", activeType);
+        // console.log("overType:", overType);
+        // console.log("activeIndex:", activeIndex);
+        // console.log("overIndex:", overIndex);
+
+        if (activeIndex === -1 || overIndex === -1) {
+          return;
+        }
+
+        if (activeType === "child" && overType === "child") {
+          // setStateNestedIndexer((curNestedIndexer) => {
+          //   const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
+          //     curNestedIndexer,
+          //   );
+          //   const [parentIdFrom] =
+          //     newNestedIndexer.getParentIdFromChildId({
+          //       childId: activeId,
+          //     }) ?? getEmptyArray<string>();
+          //   const [parentIdTo] =
+          //     newNestedIndexer.getParentIdFromChildId({
+          //       childId: overId,
+          //     }) ?? getEmptyArray<string>();
+          //   if (!parentIdFrom || !parentIdTo) {
+          //     console.warn("[onDragOver] !parentIdFrom || !parentIdTo");
+          //     return newNestedIndexer;
+          //   }
+          //   newNestedIndexer.moveChild({
+          //     parentIdFrom,
+          //     parentIdTo,
+          //     idxFrom: activeIndex,
+          //     idxTo: overIndex,
+          //   });
+          //   return newNestedIndexer;
+          // });
+        } else if (activeType === "child" && overType === "parent") {
+          // setStateNestedIndexer((curNestedIndexer) => {
+          //   const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
+          //     curNestedIndexer,
+          //   );
+          //   const [parentIdFrom] =
+          //     newNestedIndexer.getParentIdFromChildId({
+          //       childId: activeId,
+          //     }) ?? getEmptyArray<string>();
+          //   const [parentIdTo] =
+          //     newNestedIndexer.getParentIdFromChildId({
+          //       childId: overId,
+          //     }) ?? getEmptyArray<string>();
+          //   if (!parentIdFrom || !parentIdTo) {
+          //     console.warn("[onDragOver] !parentIdFrom || !parentIdTo");
+          //     return newNestedIndexer;
+          //   }
+          //   newNestedIndexer.moveChild({
+          //     parentIdFrom,
+          //     parentIdTo,
+          //     idxFrom: activeIndex,
+          //     idxTo: overIndex,
+          //   });
+          //   return newNestedIndexer;
+          // });
+        }
       },
-      [
-        // parentItems, setStateNestedIndexer
-      ],
+      [setStateNestedIndexer],
     );
 
+    const onDragEnd = useCallback(
+      (event: DragEndEvent) => {
+        console.log("[onDragEnd]");
+        const { active, over } = event;
+
+        // console.log(event);
+        console.log("active:", active);
+        console.log("over:", over);
+
+        if (!over) {
+          return;
+        }
+
+        const activeId = active.id;
+        const overId = over.id;
+        const activeData = active.data.current as DndActiveDataInterface;
+        const overData = over.data.current as DndOverDataInterface;
+
+        if (activeId === overId) {
+          return;
+        }
+
+        const idxFrom = activeData.sortable.index;
+        const idxTo = overData.sortable.index;
+        setStateNestedIndexer((curNestedIndexer) => {
+          const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
+            curNestedIndexer,
+          );
+          newNestedIndexer.moveParent({
+            idxFrom,
+            idxTo,
+          });
+          return newNestedIndexer;
+        });
+        setStateActiveParentItem(null);
+        setStateActiveChildItem(null);
+      },
+      [setStateNestedIndexer],
+    );
+
+    const sensors = useSensors(
+      // useSensor(PointerSensor, {
+      //   activationConstraint: {
+      //     distance: 3,
+      //     // ㄴ Need to move 3px to activate drag event.
+      //   },
+      // }),
+      useSensor(MouseSensor),
+      useSensor(TouchSensor),
+      // useSensor(KeyboardSensor, {
+      //   coordinateGetter: sortableKeyboardCoordinates,
+      // }),
+    );
+
+    const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
+      "data-droppable-id": boardListId,
+      "data-droppable-allowed-types": "parent",
+    };
+
+    const refBase = useRef<HTMLDivElement | null>(null);
+    useImperativeHandle(ref, () => {
+      return refBase.current as HTMLDivElement;
+    });
+
+    const { setNodeRef } = useDroppable({
+      id: boardListId,
+      data: {
+        accepts: ["type1", "type2"],
+      },
+    });
+
     return (
-      <DragDropContext
+      <DndContext
+        sensors={sensors}
+        collisionDetection={
+          // closestCenter
+          closestCorners
+          // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#when-should-i-use-the-closest-corners-algorithm-instead-of-closest-center
+        }
         onDragStart={onDragStart}
+        onDragOver={onDragOver}
         onDragEnd={onDragEnd}
-        // sensors={}
+        autoScroll={{ acceleration: 1 }}
       >
-        {/* sensors={sensors}
-        // collisionDetection={
-        //   closestCorners
-        //   // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#when-should-i-use-the-closest-corners-algorithm-instead-of-closest-center
-        // }
-        autoScroll={{ layoutShiftCompensation: false }}
-        onDragStart={onDragStart}
-        // onDragOver={() => console.log("Over")}
-        onDragEnd={onDragEnd}
-      > */}
-        {/* <SortableContext items={parentItems}> */}
-        <Droppable droppableId={boardListId} direction="horizontal">
-          {(droppableProvided, droppableStateSnapshot) => {
-            return (
-              <BoardListBase
-                //  ref={ref} // TODO: cf> Board
-                ref={droppableProvided.innerRef}
-                {...droppableProvided.droppableProps}
-                {...otherProps}
-              >
-                {children}
-                {droppableProvided.placeholder}
-              </BoardListBase>
-            );
-          }}
-        </Droppable>
-        {/* </SortableContext> */}
-        {/* {createPortal(
+        <SortableContext items={parentItems}>
+          <BoardListBase
+            ref={(el: HTMLDivElement | null) => {
+              if (el) {
+                refBase.current = el;
+                setNodeRef(el);
+              }
+            }}
+            {...droppableCustomAttributes}
+            {...otherProps}
+          >
+            {children}
+          </BoardListBase>
+        </SortableContext>
+        {createPortal(
           <DragOverlay
             modifiers={
-              stateActiveParent
+              stateActiveParentItem
                 ? getMemoizedArray({
                     refs: [
                       restrictToHorizontalAxis,
@@ -527,8 +638,8 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
             {refDragOverlayReactElement.current}
           </DragOverlay>,
           document.body,
-        )} */}
-      </DragDropContext>
+        )}
+      </DndContext>
     );
   },
 });

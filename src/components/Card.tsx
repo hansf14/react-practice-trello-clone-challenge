@@ -1,27 +1,38 @@
-import React, { useCallback, useRef, useState } from "react";
-import { atom, useSetRecoilState } from "recoil";
-import { useIsomorphicLayoutEffect } from "usehooks-ts";
+import React, {
+  useCallback,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { styled } from "styled-components";
 import { GripVertical } from "react-bootstrap-icons";
 import { Input } from "antd";
-import { cardClassNameKvMapping, ChildItem } from "@/components/BoardContext";
+import {
+  cardClassNameKvMapping,
+  ChildItem,
+  DndDataInterface,
+  DraggableCustomAttributesKvObj,
+  DraggableHandleCustomAttributesKvObj,
+} from "@/components/BoardContext";
 import { StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
+import { CSS } from "@dnd-kit/utilities";
+import { useSortable } from "@dnd-kit/sortable";
 const { TextArea } = Input;
 
-export const cardsAtom = atom<{
-  [id: string]: HTMLDivElement | null;
-}>({
-  key: "cardsAtom",
-  default: {},
-});
+// export const cardsAtom = atom<{
+//   [id: string]: HTMLDivElement | null;
+// }>({
+//   key: "cardsAtom",
+//   default: {},
+// });
 
-export const cardDragHandlesAtom = atom<{
-  [id: string]: HTMLDivElement | null;
-}>({
-  key: "taskDragHandlesAtom",
-  default: {},
-});
+// export const cardDragHandlesAtom = atom<{
+//   [id: string]: HTMLDivElement | null;
+// }>({
+//   key: "taskDragHandlesAtom",
+//   default: {},
+// });
 
 const CardBase = styled.div`
   padding: 10px;
@@ -65,36 +76,36 @@ export type OnUpdateChildItem = <C extends ChildItem>({
 }) => void;
 
 export type CardProps = {
-  childItem: ChildItem;
+  item: ChildItem;
   onUpdateChildItem?: OnUpdateChildItem;
 } & StyledComponentProps<"div">;
 
 export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
   displayName: "Card",
-  Component: ({ childItem, onUpdateChildItem, ...otherProps }, ref) => {
+  Component: ({ item, onUpdateChildItem, ...otherProps }, ref) => {
     console.log("[CardBase]");
 
-    const setStateCards = useSetRecoilState(cardsAtom);
-    const refCard = useRef<HTMLDivElement | null>(null);
-    useIsomorphicLayoutEffect(() => {
-      if (refCard.current) {
-        setStateCards((cur) => ({
-          ...cur,
-          [childItem.id]: refCard.current,
-        }));
-      }
-    }, [childItem.id, setStateCards]);
+    // const setStateCards = useSetRecoilState(cardsAtom);
+    // const refCard = useRef<HTMLDivElement | null>(null);
+    // useIsomorphicLayoutEffect(() => {
+    //   if (refCard.current) {
+    //     setStateCards((cur) => ({
+    //       ...cur,
+    //       [item.id]: refCard.current,
+    //     }));
+    //   }
+    // }, [item.id, setStateCards]);
 
-    const setStateCardDragHandles = useSetRecoilState(cardDragHandlesAtom);
-    const refDragHandle = useRef<HTMLDivElement | null>(null);
-    useIsomorphicLayoutEffect(() => {
-      if (refDragHandle.current) {
-        setStateCardDragHandles((cur) => ({
-          ...cur,
-          [childItem.id]: refDragHandle.current,
-        }));
-      }
-    }, [childItem.id, setStateCardDragHandles]);
+    // const setStateCardDragHandles = useSetRecoilState(cardDragHandlesAtom);
+    // const refDragHandle = useRef<HTMLDivElement | null>(null);
+    // useIsomorphicLayoutEffect(() => {
+    //   if (refDragHandle.current) {
+    //     setStateCardDragHandles((cur) => ({
+    //       ...cur,
+    //       [item.id]: refDragHandle.current,
+    //     }));
+    //   }
+    // }, [item.id, setStateCardDragHandles]);
 
     const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
 
@@ -125,21 +136,71 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       (event) => {
         onUpdateChildItem?.({
           event,
-          oldChildItem: childItem,
+          oldChildItem: item,
           newChildItem: {
-            id: childItem.id,
+            id: item.id,
             content: event.target.value,
           },
         });
       },
-      [childItem, onUpdateChildItem],
+      [item, onUpdateChildItem],
     );
 
+    const refBase = useRef<HTMLDivElement | null>(null);
+    useImperativeHandle(ref, () => {
+      return refBase.current as HTMLDivElement;
+    });
+
+    const {
+      setNodeRef,
+      attributes: draggableHandleAttributes,
+      listeners: draggableHandleListeners,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({
+      id: item.id,
+      data: {
+        type: "child",
+        item,
+      } satisfies DndDataInterface,
+    });
+
+    const style = {
+      transition,
+      // transition: "none",
+      transform: CSS.Transform.toString(transform),
+    };
+
+    const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
+      "data-draggable-id": item.id,
+    };
+
+    const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
+      {
+        "data-draggable-handle-id": item.id,
+      };
+
     return (
-      <CardBase ref={ref} {...otherProps}>
+      <CardBase
+        ref={(el: HTMLDivElement | null) => {
+          if (el) {
+            // Object.entries(draggableCustomAttributes).forEach(
+            //   ([key, value]) => {
+            //     el.setAttribute(key, value as string);
+            //   },
+            // );
+            refBase.current = el;
+            setNodeRef(el);
+          }
+        }}
+        style={style}
+        {...draggableCustomAttributes}
+        {...otherProps}
+      >
         {/* {childItem.content} */}
         <CardContentInput
-          value={childItem.content}
+          value={item.content}
           // autoFocus
           autoSize
           readOnly={!stateIsEditMode}
@@ -149,8 +210,9 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
           onChange={cardContentEditHandler}
         />
         <CardDragHandle
-          ref={refDragHandle}
-          className={cardClassNameKvMapping["card-sortable-handle"]}
+          {...draggableHandleAttributes}
+          {...draggableHandleListeners}
+          {...draggableHandleCustomAttributes}
         >
           <GripVertical />
         </CardDragHandle>

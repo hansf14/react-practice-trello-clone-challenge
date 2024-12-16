@@ -16,7 +16,11 @@ import {
 } from "@/components/BoardHeader";
 import { BoardList, BoardListProps } from "@/components/BoardList";
 import { getEmptyArray, SmartOmit } from "@/utils";
-import { nestedIndexerAtom, ParentItem } from "@/components/BoardContext";
+import {
+  ChildItem,
+  nestedIndexerAtom,
+  ParentItem,
+} from "@/components/BoardContext";
 import { NestedIndexer, NestedIndexerItem } from "@/indexer";
 import { BoardMain, ForEachChildItem } from "@/components/BoardMain";
 import { Card, OnUpdateChildItem } from "@/components/Card";
@@ -169,6 +173,16 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       [stateCategoryTaskNestedIndexer],
     );
 
+    const taskList = useMemo(() => {
+      return categoryList.map((category) => {
+        return (
+          stateCategoryTaskNestedIndexer.getChildListFromParentId__MutableChild(
+            { parentId: category.id },
+          ) ?? getEmptyArray<ChildItem>()
+        );
+      });
+    }, [categoryList, stateCategoryTaskNestedIndexer]);
+
     const onEditStartParentItem = useCallback<OnEditStartParentItem>(
       ({ elementTextArea, handlers: { editCancelHandler } }) => {
         alert("Press enter when the edit is finished.");
@@ -213,11 +227,12 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
           childKeyName={childKeyName}
           parentItems={categoryList}
         >
-          {categoryList.map((parentItem, index) => {
+          {categoryList.map((parentItem, idx) => {
             return (
-              <Board key={parentItem.id} item={parentItem} index={index}>
+              <Board key={parentItem.id} item={parentItem}>
                 {({
-                  draggableHandleProps,
+                  draggableHandleAttributes,
+                  draggableHandleListeners,
                   draggableHandleCustomAttributes,
                 }) => {
                   return (
@@ -226,11 +241,26 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                         parentItem={parentItem}
                         onEditStartParentItem={onEditStartParentItem}
                         onEditFinishParentItem={onEditFinishParentItem}
-                        draggableHandleProps={draggableHandleProps}
+                        draggableHandleAttributes={draggableHandleAttributes}
+                        draggableHandleListeners={draggableHandleListeners}
                         draggableHandleCustomAttributes={
                           draggableHandleCustomAttributes
                         }
                       />
+                      <BoardMain
+                        boardListId={boardListId}
+                        parentItem={parentItem}
+                      >
+                        {taskList[idx].map((childItem) => {
+                          return (
+                            <Card
+                              key={childItem.id}
+                              item={childItem}
+                              // onUpdateChildItem={onUpdateChildItem}
+                            />
+                          );
+                        })}
+                      </BoardMain>
                     </>
                   );
                 }}

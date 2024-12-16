@@ -12,6 +12,32 @@ export type DndDataInterface = {
   item: ParentItem | ChildItem;
 };
 
+export type DndActiveDataInterface = SmartMerge<
+  DndDataInterface & {
+    sortable: {
+      containerId: string;
+      index: number;
+      items: string[];
+    };
+  }
+>;
+export type DndOverDataInterface = DndActiveDataInterface;
+
+export const DroppableCustomAttributes = [
+  "data-droppable-id",
+  "data-droppable-allowed-types",
+] as const;
+export type DroppableCustomAttributeType =
+  (typeof DroppableCustomAttributes)[number];
+export const DroppableCustomAttributesKvMapping = createKeyValueMapping({
+  arr: DroppableCustomAttributes,
+});
+export type DroppableCustomAttributesKvObj = {
+  [P in (typeof DroppableCustomAttributesKvMapping)["data-droppable-id"]]: string;
+} & {
+  [P in (typeof DroppableCustomAttributesKvMapping)["data-droppable-allowed-types"]]: DndDataInterface["type"];
+};
+
 export const DraggableCustomAttributes = ["data-draggable-id"] as const;
 export type DraggableCustomAttributeType =
   (typeof DraggableCustomAttributes)[number];

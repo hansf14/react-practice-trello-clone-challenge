@@ -13,7 +13,8 @@ import {
 import { useStateWithCb } from "@/hooks/useStateWithCb";
 import { TextAreaRef } from "antd/es/input/TextArea";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
+import { DraggableAttributes } from "@dnd-kit/core";
+import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 const { TextArea } = Input;
 
 const BoardHeaderBase = styled.div``;
@@ -123,7 +124,8 @@ export type OnEditFinishParentItem = <P extends ParentItem>({
 
 export type BoardHeaderProps = {
   parentItem: ParentItem;
-  draggableHandleProps: DraggableProvidedDragHandleProps | null;
+  draggableHandleAttributes: DraggableAttributes;
+  draggableHandleListeners: SyntheticListenerMap | undefined;
   draggableHandleCustomAttributes: Record<string, string>;
   onEditStartParentItem?: OnEditStartParentItem;
   onEditCancelParentItem?: OnEditCancelParentItem;
@@ -140,7 +142,8 @@ export const BoardHeader = withMemoAndRef<
   Component: (
     {
       parentItem,
-      draggableHandleProps,
+      draggableHandleAttributes,
+      draggableHandleListeners,
       draggableHandleCustomAttributes,
       onEditStartParentItem,
       onEditCancelParentItem,
@@ -262,7 +265,8 @@ export const BoardHeader = withMemoAndRef<
             onChange={boardHeaderTitleEditHandler}
           />
           <BoardDragHandle
-            {...draggableHandleProps}
+            {...draggableHandleAttributes}
+            {...draggableHandleListeners}
             {...draggableHandleCustomAttributes}
           >
             <GripVertical />

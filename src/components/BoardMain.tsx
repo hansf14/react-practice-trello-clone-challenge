@@ -171,183 +171,152 @@ export type ForEachChildItem = ({
 
 export type BoardMainProps = {
   boardListId: string;
-  forEachChildItem: ForEachChildItem;
+  // forEachChildItem: ForEachChildItem;
   parentItem: ParentItem;
 } & StyledComponentProps<"div">;
 
 export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
   displayName: "BoardMain",
-  Component: ({ boardListId, parentItem, forEachChildItem, children }, ref) => {
-    const [stateNestedIndexer, setNestedStateIndexer] =
-      useRecoilState(nestedIndexerAtom);
+  Component: ({ boardListId, parentItem, children }, ref) => {
+    // const setStateCardsContainer = useSetRecoilState(cardsContainerAtom);
+    // const refCardsContainer = useRef<HTMLDivElement | null>(null);
+    // useIsomorphicLayoutEffect(() => {
+    //   if (refCardsContainer.current) {
+    //     setStateCardsContainer((cur) => ({
+    //       ...cur,
+    //       [parentItem.id]: refCardsContainer.current,
+    //     }));
+    //   }
+    // }, [parentItem.id, setStateCardsContainer]);
 
-    const setStateCardsContainer = useSetRecoilState(cardsContainerAtom);
-    const refCardsContainer = useRef<HTMLDivElement | null>(null);
-    useIsomorphicLayoutEffect(() => {
-      if (refCardsContainer.current) {
-        setStateCardsContainer((cur) => ({
-          ...cur,
-          [parentItem.id]: refCardsContainer.current,
-        }));
-      }
-    }, [parentItem.id, setStateCardsContainer]);
+    // const taskList = useMemo<ChildItem[]>(
+    //   () =>
+    //     stateNestedIndexer.getChildListFromParentId__MutableChild({
+    //       parentId: parentItem.id,
+    //     }) ?? [],
+    //   [parentItem.id, stateNestedIndexer],
+    // );
 
-    const taskList = useMemo<ChildItem[]>(
-      () =>
-        stateNestedIndexer.getChildListFromParentId__MutableChild({
-          parentId: parentItem.id,
-        }) ?? [],
-      [parentItem.id, stateNestedIndexer],
-    );
+    // const [stateNestedIndexer, setNestedStateIndexer] =
+    //   useRecoilState(nestedIndexerAtom);
 
-    const {
-      register,
-      handleSubmit,
-      // setValue,
-      reset,
-      formState: { errors },
-    } = useForm<FormData>();
-    const [stateChildItemContent, setStateChildItemContent] =
-      useState<string>("");
+    // const {
+    //   register,
+    //   handleSubmit,
+    //   // setValue,
+    //   reset,
+    //   formState: { errors },
+    // } = useForm<FormData>();
+    // const [stateChildItemContent, setStateChildItemContent] =
+    //   useState<string>("");
 
-    const onValid = useCallback<SubmitHandler<FormData>>(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (data: FormData, event) => {
-        console.log(data);
+    // const onValid = useCallback<SubmitHandler<FormData>>(
+    //   // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    //   (data: FormData, event) => {
+    //     console.log(data);
 
-        setNestedStateIndexer((cur) => {
-          const newItem = {
-            id: generateUniqueRandomId(),
-            content: data.childItem,
-          } satisfies ChildItem;
+    //     setNestedStateIndexer((cur) => {
+    //       const newItem = {
+    //         id: generateUniqueRandomId(),
+    //         content: data.childItem,
+    //       } satisfies ChildItem;
 
-          const newIndexer = new NestedIndexer(cur);
-          newIndexer.createChild({
-            parentId: parentItem.id,
-            child: newItem,
-            shouldAppend: false,
-          });
-          return newIndexer;
-        });
+    //       const newIndexer = new NestedIndexer(cur);
+    //       newIndexer.createChild({
+    //         parentId: parentItem.id,
+    //         child: newItem,
+    //         shouldAppend: false,
+    //       });
+    //       return newIndexer;
+    //     });
 
-        reset();
-      },
-      [parentItem.id, setNestedStateIndexer, reset],
-    );
+    //     reset();
+    //   },
+    //   [parentItem.id, setNestedStateIndexer, reset],
+    // );
 
-    const onChangeChildItemInput = useCallback<
-      React.ChangeEventHandler<HTMLTextAreaElement>
-    >(
-      (event) => {
-        setStateChildItemContent(event.target.value);
-      },
-      [setStateChildItemContent],
-    );
+    // const onChangeChildItemInput = useCallback<
+    //   React.ChangeEventHandler<HTMLTextAreaElement>
+    // >(
+    //   (event) => {
+    //     setStateChildItemContent(event.target.value);
+    //   },
+    //   [setStateChildItemContent],
+    // );
 
-    const onClearChildItemInput = useCallback<
-      React.MouseEventHandler<SVGElement>
-    >(() => {
-      setStateChildItemContent("");
-    }, [setStateChildItemContent]);
+    // const onClearChildItemInput = useCallback<
+    //   React.MouseEventHandler<SVGElement>
+    // >(() => {
+    //   setStateChildItemContent("");
+    // }, [setStateChildItemContent]);
 
-    const onAddChildItem = useCallback<React.MouseEventHandler<SVGElement>>(
-      (event) => {
-        setNestedStateIndexer((cur) => {
-          const newItem = {
-            id: generateUniqueRandomId(),
-            content: stateChildItemContent,
-          } satisfies ChildItem;
-          const newIndexer = new NestedIndexer(cur);
-          newIndexer.createChild({
-            parentId: parentItem.id,
-            child: newItem,
-            shouldAppend: true,
-          });
-          return newIndexer;
-        });
-      },
-      [parentItem.id, stateChildItemContent, setNestedStateIndexer],
-    );
+    // const onAddChildItem = useCallback<React.MouseEventHandler<SVGElement>>(
+    //   (event) => {
+    //     setNestedStateIndexer((cur) => {
+    //       const newItem = {
+    //         id: generateUniqueRandomId(),
+    //         content: stateChildItemContent,
+    //       } satisfies ChildItem;
+    //       const newIndexer = new NestedIndexer(cur);
+    //       newIndexer.createChild({
+    //         parentId: parentItem.id,
+    //         child: newItem,
+    //         shouldAppend: true,
+    //       });
+    //       return newIndexer;
+    //     });
+    //   },
+    //   [parentItem.id, stateChildItemContent, setNestedStateIndexer],
+    // );
 
-    const onClearChildItems = useCallback<
-      React.MouseEventHandler<SVGElement>
-    >(() => {
-      setNestedStateIndexer((cur) => {
-        const newIndexer = new NestedIndexer(cur);
-        newIndexer.clearChildListFromParentId({ parentId: parentItem.id });
-        return newIndexer;
-      });
-    }, [parentItem.id, setNestedStateIndexer]);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const scrollDownHandler = useCallback<React.MouseEventHandler<SVGElement>>(
-      (event) => {
-        refCardsContainer.current?.scrollBy({
-          top: 50,
-          behavior: "smooth",
-        });
-      },
-      [],
-    );
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const scrollUpHandler = useCallback<React.MouseEventHandler<SVGElement>>(
-      (event) => {
-        refCardsContainer.current?.scrollBy({
-          top: -50,
-          behavior: "smooth",
-        });
-      },
-      [],
-    );
+    // const onClearChildItems = useCallback<
+    //   React.MouseEventHandler<SVGElement>
+    // >(() => {
+    //   setNestedStateIndexer((cur) => {
+    //     const newIndexer = new NestedIndexer(cur);
+    //     newIndexer.clearChildListFromParentId({ parentId: parentItem.id });
+    //     return newIndexer;
+    //   });
+    // }, [parentItem.id, setNestedStateIndexer]);
 
     // * ResizeObserver doesn't work for scrollHeight. It works for clientHeight.
-    // // eslint-disable-next-line react-hooks/exhaustive-deps
-    // const checkHasVerticalScrollbar = useCallback(
-    //   throttle(
-    //     ((entries, observer) => {
-    //       const element = entries[0].target as HTMLElement;
-    //       const hasVerticalScrollbar = checkHasScrollbar({
-    //         element,
-    //         condition: "vertical",
-    //       });
-    //       console.log(hasVerticalScrollbar);
-    //       if (hasVerticalScrollbar) {
-    //         element.style.setProperty("padding-right", "10px");
-    //       } else {
-    //         element.style.removeProperty("padding-right");
-    //       }
-    //     }) satisfies ResizeObserverCallback,
-    //     17,
-    //   ),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // const scrollDownHandler = useCallback<React.MouseEventHandler<SVGElement>>(
+    //   (event) => {
+    //     refCardsContainer.current?.scrollBy({
+    //       top: 50,
+    //       behavior: "smooth",
+    //     });
+    //   },
     //   [],
     // );
 
-    // useEffect(() => {
-    //   let resizeObserver: ResizeObserver | null = null;
-    //   if (refCardsContainer.current) {
-    //     // resizeObserver = new ResizeObserver(checkHasVerticalScrollbar);
-    //     resizeObserver = new ResizeObserver(checkHasVerticalScrollbar);
-    //     resizeObserver.observe(refCardsContainer.current, {
-    //       box: "border-box",
+    // // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // const scrollUpHandler = useCallback<React.MouseEventHandler<SVGElement>>(
+    //   (event) => {
+    //     refCardsContainer.current?.scrollBy({
+    //       top: -50,
+    //       behavior: "smooth",
     //     });
-    //   }
-    //   return () => {
-    //     resizeObserver?.disconnect();
-    //   };
-    // }, [checkHasVerticalScrollbar]);
+    //   },
+    //   [],
+    // );
 
-    const customDataAttributes: DataAttributesOfItemList = {
-      "data-board-list-id": boardListId,
-      "data-item-list-type": "children",
-      "data-item-list-id": parentItem.id,
-    };
+    // const customDataAttributes: DataAttributesOfItemList = {
+    //   "data-board-list-id": boardListId,
+    //   "data-item-list-type": "children",
+    //   "data-item-list-id": parentItem.id,
+    // };
 
     return (
       <BoardMainBase ref={ref}>
         <BoardMainContentContainer>
-          <BoardMainContent ref={refCardsContainer} {...customDataAttributes}>
-            {!taskList || taskList.length === 0 ? (
+          <BoardMainContent
+          // ref={refCardsContainer}
+          //  {...customDataAttributes}
+          >
+            {children}
+            {/* {!taskList || taskList.length === 0 ? (
               <div>Empty!</div>
             ) : (
               taskList.map((task, idx) => {
@@ -417,30 +386,42 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                 // console.log(_child);
                 // return _child;
               })
-            )}
+            )} */}
           </BoardMainContent>
         </BoardMainContentContainer>
         <Toolbar>
-          <ChildItemAdder onSubmit={handleSubmit(onValid)}>
+          <ChildItemAdder
+          // onSubmit={handleSubmit(onValid)}
+          >
             <ChildItemAdderInput
               rows={2}
               placeholder={`Add a task on ${parentItem.title}`}
-              {...register("childItem", {
-                required: true,
-              })}
-              value={stateChildItemContent}
-              onChange={onChangeChildItemInput}
+              // {...register("childItem", {
+              //   required: true,
+              // })}
+              // value={stateChildItemContent}
+              // onChange={onChangeChildItemInput}
             />
           </ChildItemAdder>
           <ToolbarButtons>
             <ScrollButtons>
-              <ScrollDownButton onClick={scrollDownHandler} />
-              <ScrollUpButton onClick={scrollUpHandler} />
-              <ClearChildItemsButton onClick={onClearChildItems} />
+              <ScrollDownButton
+              //  onClick={scrollDownHandler}
+              />
+              <ScrollUpButton
+              // onClick={scrollUpHandler}
+              />
+              <ClearChildItemsButton
+              // onClick={onClearChildItems}
+              />
             </ScrollButtons>
             <TaskButtons>
-              <ChildItemAddButton onClick={onAddChildItem} />
-              <ChildItemAdderInputClearButton onClick={onClearChildItemInput} />
+              <ChildItemAddButton
+              // onClick={onAddChildItem}
+              />
+              <ChildItemAdderInputClearButton
+              //  onClick={onClearChildItemInput}
+              />
             </TaskButtons>
           </ToolbarButtons>
         </Toolbar>
