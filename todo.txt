@@ -14,8 +14,8 @@ Optimization (prevent rendering of all cards due to subscribing the atom)
 4. TaskAdder task 추가
 3. TaskAdder input clear
 
-- 모바일(에뮬레이터 말고)에서 스크롤 laggy (delayed)
-- 페이지 로드 되자마자 스크롤 옮기면 이상한 element가 보이는 문제
-- 데스크탑, 에뮬레이터에서 텍스트 드래그 선택 또는 텍스트 커서 깜빡일때 바로 전에 index draggable이 깜빡이는 버그
-- 드래그 시 active draggable이 다른 draggable 보다 아래로 움즥이는 animation -> 위로 움직이게
+- 모바일(에뮬레이터 말고)에서 스크롤 laggy (delayed) => 해결 (Stats class 문제여서 사용 안 하기로 함)
+- 모바일 크롬 & 삼성인터넷 등 페이지 로드 되자마자 빠르게 오른쪽으로 스크롤 옮기면 backdrop-filter 적용된 element에 잔상이 크게 잠깐 보이는 버그 => 해결 (backdrop-filter 사용 안 하기로 함)
+- 모바일 크롬에서 텍스트 드래그 선택 또는 텍스트 커서 깜빡일때 바로 전의 index draggable이 다른 색상으로 보이는(드래그시)/깜빡이는(커서 올려놓을 시) 버그 발생 => 해결 (opacity로 대체)
+
 

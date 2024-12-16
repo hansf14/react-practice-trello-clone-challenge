@@ -13,8 +13,7 @@ import {
 import { useStateWithCb } from "@/hooks/useStateWithCb";
 import { TextAreaRef } from "antd/es/input/TextArea";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { DraggableAttributes } from "@dnd-kit/core";
-import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
+import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 const { TextArea } = Input;
 
 const BoardHeaderBase = styled.div``;
@@ -48,26 +47,32 @@ const BoardHeaderTitleTextArea = styled(TextArea)`
 
     width: 100%;
     padding: 5px 32px;
-    background-color: transparent;
     border: none;
     border-radius: 0;
+    background: transparent;
 
     font-weight: bold;
     font-size: 22px;
     text-align: center;
 
+    transition: none;
+
     background-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-    backdrop-filter: blur(13.5px);
-    -webkit-backdrop-filter: blur(13.5px);
+    box-shadow: 0 8px 16px 0 rgba(31, 38, 135, 0.37);
+    // backdrop-filter: blur(13.5px);
+    // -webkit-backdrop-filter: blur(13.5px);
+    // ㄴ 모바일 크롬에서 텍스트 드래그 선택 또는 텍스트 커서 깜빡일때 바로 전의 index draggable이 다른 색상으로 보이는(드래그시)/깜빡이는(커서 올려놓을 시) 버그 발생 => opacity로 대체
+    opacity: 0.95;
     border-radius: 5px;
     border: 1px solid rgba(255, 255, 255, 0.18);
-
-    transition: none;
 
     &:not([readonly]) {
       outline: 2px solid yellow;
     }
+
+    // &:focus {
+    //   all: initial;
+    // }
   }
 `;
 
@@ -118,8 +123,7 @@ export type OnEditFinishParentItem = <P extends ParentItem>({
 
 export type BoardHeaderProps = {
   parentItem: ParentItem;
-  draggableHandleAttributes: DraggableAttributes;
-  draggableHandleListeners: SyntheticListenerMap | undefined;
+  draggableHandleProps: DraggableProvidedDragHandleProps | null;
   draggableHandleCustomAttributes: Record<string, string>;
   onEditStartParentItem?: OnEditStartParentItem;
   onEditCancelParentItem?: OnEditCancelParentItem;
@@ -136,8 +140,7 @@ export const BoardHeader = withMemoAndRef<
   Component: (
     {
       parentItem,
-      draggableHandleAttributes,
-      draggableHandleListeners,
+      draggableHandleProps,
       draggableHandleCustomAttributes,
       onEditStartParentItem,
       onEditCancelParentItem,
@@ -259,8 +262,7 @@ export const BoardHeader = withMemoAndRef<
             onChange={boardHeaderTitleEditHandler}
           />
           <BoardDragHandle
-            {...draggableHandleAttributes}
-            {...draggableHandleListeners}
+            {...draggableHandleProps}
             {...draggableHandleCustomAttributes}
           >
             <GripVertical />

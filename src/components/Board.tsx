@@ -1,10 +1,6 @@
 import { css, styled } from "styled-components";
 import { SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { DraggableAttributes } from "@dnd-kit/core";
-import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import React, { useImperativeHandle, useRef } from "react";
 import {
   DraggableCustomAttributesKvObj,
@@ -12,6 +8,12 @@ import {
   ParentItem,
 } from "@/components/BoardContext";
 import { DndDataInterface } from "@/components/BoardContext";
+import {
+  Draggable,
+  DraggableProvided,
+  DraggableProvidedDragHandleProps,
+  DraggableStateSnapshot,
+} from "@hello-pangea/dnd";
 
 type BoardBaseProps = {
   isDragging?: boolean;
@@ -32,8 +34,9 @@ const BoardBase = styled.div.withConfig({
   // Glassmorphism
   background-color: rgba(255, 255, 255, 0.3);
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-  backdrop-filter: blur(13.5px);
-  -webkit-backdrop-filter: blur(13.5px);
+  // backdrop-filter: blur(13.5px);
+  // -webkit-backdrop-filter: blur(13.5px);
+  // ㄴ 모바일 크롬 & 삼성인터넷 등 페이지 로드 되자마자 빠르게 오른쪽으로 스크롤 옮기면 backdrop-filter 적용된 element에 잔상이 크게 잠깐 보이는 버그가 있다.
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
 
@@ -56,44 +59,25 @@ const BoardBase = styled.div.withConfig({
 
 export type BoardProps = {
   item: ParentItem;
+  index: number;
   children?: ({
-    draggableHandleAttributes,
-    draggableHandleListeners,
-    draggableHandleCustomAttributes,
+    draggableHandleProps,
+    // draggableStateSnapshot,
+    // draggableHandleCustomAttributes,
   }: {
-    draggableHandleAttributes: DraggableAttributes;
-    draggableHandleListeners: SyntheticListenerMap | undefined;
+    draggableHandleProps: DraggableProvidedDragHandleProps | null;
+    // draggableStateSnapshot: DraggableStateSnapshot;
     draggableHandleCustomAttributes: Record<string, string>;
   }) => React.ReactNode;
 } & SmartOmit<StyledComponentProps<"div">, "children">;
 
 export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
-  Component: ({ item, children, ...otherProps }, ref) => {
+  Component: ({ item, index, children, ...otherProps }, ref) => {
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
-
-    const {
-      setNodeRef,
-      attributes: draggableHandleAttributes,
-      listeners: draggableHandleListeners,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({
-      id: item.id,
-      data: {
-        type: "parent",
-        item,
-      } satisfies DndDataInterface,
-    });
-
-    const style = {
-      transition,
-      transform: CSS.Transform.toString(transform),
-    };
 
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-draggable-id": item.id,
@@ -105,28 +89,34 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       };
 
     return (
-      <BoardBase
-        ref={(el: HTMLDivElement | null) => {
-          if (el) {
-            Object.entries(draggableCustomAttributes).forEach(
-              ([key, value]) => {
-                el.setAttribute(key, value as string);
-              },
-            );
-            refBase.current = el;
-            setNodeRef(el);
-          }
+      <Draggable draggableId={item.id} index={index}>
+        {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
+          return (
+            <BoardBase
+              ref={(el: HTMLDivElement | null) => {
+                if (el) {
+                  Object.entries(draggableCustomAttributes).forEach(
+                    ([key, value]) => {
+                      el.setAttribute(key, value as string);
+                    },
+                  );
+                  refBase.current = el;
+                  draggableProvided.innerRef(el);
+                }
+              }}
+              // isDragging={isDragging}
+              // style={style}
+              {...draggableProvided.draggableProps}
+              {...otherProps}
+            >
+              {children?.({
+                draggableHandleProps: draggableProvided.dragHandleProps,
+                draggableHandleCustomAttributes,
+              })}
+            </BoardBase>
+          );
         }}
-        isDragging={isDragging}
-        style={style}
-        {...otherProps}
-      >
-        {children?.({
-          draggableHandleAttributes,
-          draggableHandleListeners,
-          draggableHandleCustomAttributes,
-        })}
-      </BoardBase>
+      </Draggable>
     );
   },
 });

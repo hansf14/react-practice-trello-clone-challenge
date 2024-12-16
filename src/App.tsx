@@ -2,7 +2,6 @@ import { ThemeProvider, createGlobalStyle, styled } from "styled-components";
 import { Helmet } from "react-helmet-async";
 import { ReactQueryDevtools } from "react-query/devtools";
 import { darkTheme } from "./theme";
-import { BoardList } from "@/components/BoardList";
 import { CategoryTaskBoardList } from "@/components/CategoryTaskBoardList";
 import { defaultCategoryTaskItems } from "@/data";
 

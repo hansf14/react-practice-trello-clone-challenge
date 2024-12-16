@@ -23,23 +23,6 @@ import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
 import { StatViewer } from "@/components/StatViwer";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { UseDndRoot, UseDndRootHandle } from "@/components/UseDndRoot";
-import {
-  closestCorners,
-  DndContext,
-  KeyboardSensor,
-  MouseSensor,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { defaultCategoryTaskItems } from "@/data";
 
 const CategoryTaskBoardListInternalBase = styled(BoardList)``;
@@ -224,25 +207,17 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
 
     return (
       <>
-        <StatViewer
-        // TODO: make this draggable and movable (reposition)
-        // WrapperComponent={(({ children }) => (
-        //   <div>{children}</div>
-        // ))}
-        />
-
         <CategoryTaskBoardListInternalBase
           boardListId={boardListId}
           parentKeyName={parentKeyName}
           childKeyName={childKeyName}
           parentItems={categoryList}
         >
-          {categoryList.map((parentItem) => {
+          {categoryList.map((parentItem, index) => {
             return (
-              <Board key={parentItem.id} item={parentItem}>
+              <Board key={parentItem.id} item={parentItem} index={index}>
                 {({
-                  draggableHandleAttributes,
-                  draggableHandleListeners,
+                  draggableHandleProps,
                   draggableHandleCustomAttributes,
                 }) => {
                   return (
@@ -251,8 +226,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                         parentItem={parentItem}
                         onEditStartParentItem={onEditStartParentItem}
                         onEditFinishParentItem={onEditFinishParentItem}
-                        draggableHandleAttributes={draggableHandleAttributes}
-                        draggableHandleListeners={draggableHandleListeners}
+                        draggableHandleProps={draggableHandleProps}
                         draggableHandleCustomAttributes={
                           draggableHandleCustomAttributes
                         }

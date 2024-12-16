@@ -1,3 +1,5 @@
+// 1. Has a bug that causes scrollbar's positioning delay. (scrollbar catches up with the current scroll position with delay)
+// TODO: make this draggable and movable (reposition)
 import { createPortal } from "react-dom";
 import { useLikeConstructor } from "@/hooks/useLikeConstructor";
 import React, {
@@ -39,8 +41,8 @@ class Stats {
     this.prevTime = this.beginTime;
 
     this.container = document.createElement("div");
-    this.container.style.cssText =
-      "position:fixed;top:0;left:0;cursor:pointer;opacity:0.9;z-index:10000";
+    // this.container.style.cssText =
+    //   "position:fixed;top:0;left:0;cursor:pointer;opacity:0.9;z-index:10000";
     this.container.addEventListener(
       "click",
       (event) => {
@@ -309,10 +311,12 @@ export const StatViewer = withMemoAndRef<
     useLikeConstructor(() => {
       refStats.current = new Stats();
 
-      refStats.current.container.style.setProperty("position", "");
-      refStats.current.container.style.setProperty("top", "");
-      refStats.current.container.style.setProperty("left", "");
-      refStats.current.container.style.setProperty("z-index", "");
+      console.log(refStats.current.container);
+      refStats.current.container.style.setProperty("position", "fixed");
+      refStats.current.container.style.setProperty("top", "0");
+      refStats.current.container.style.setProperty("left", "0");
+      refStats.current.container.style.setProperty("z-index", "10000");
+      refStats.current.container.style.setProperty("overflow", "hidden");
     });
 
     useImperativeHandle(ref, () => {
