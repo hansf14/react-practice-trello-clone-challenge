@@ -15,6 +15,7 @@ Optimization (prevent rendering of all cards due to subscribing the atom)
 3. TaskAdder input clear
 
 - 모바일(에뮬레이터 말고)에서 스크롤 laggy (delayed)
+- 페이지 로드 되자마자 스크롤 옮기면 이상한 element가 보이는 문제
 - 데스크탑, 에뮬레이터에서 텍스트 드래그 선택 또는 텍스트 커서 깜빡일때 바로 전에 index draggable이 깜빡이는 버그
 - 드래그 시 active draggable이 다른 draggable 보다 아래로 움즥이는 animation -> 위로 움직이게
 

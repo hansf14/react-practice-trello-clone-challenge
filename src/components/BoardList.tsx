@@ -490,10 +490,11 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     return (
       <DndContext
         sensors={sensors}
-        collisionDetection={
-          closestCorners
-          // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#when-should-i-use-the-closest-corners-algorithm-instead-of-closest-center
-        }
+        // collisionDetection={
+        //   closestCorners
+        //   // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#when-should-i-use-the-closest-corners-algorithm-instead-of-closest-center
+        // }
+        autoScroll={{ layoutShiftCompensation: false }}
         onDragStart={onDragStart}
         // onDragOver={() => console.log("Over")}
         onDragEnd={onDragEnd}
@@ -503,7 +504,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
             {children}
           </BoardListBase>
         </SortableContext>
-        {createPortal(
+        {/* {createPortal(
           <DragOverlay
             modifiers={
               stateActiveParent
@@ -532,7 +533,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
             {refDragOverlayReactElement.current}
           </DragOverlay>,
           document.body,
-        )}
+        )} */}
       </DndContext>
     );
   },
