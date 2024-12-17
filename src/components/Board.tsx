@@ -75,7 +75,7 @@ const BoardBase = styled.div.withConfig({
 `;
 
 export type BoardProps = {
-  item: ParentItem;
+  parentItem: ParentItem;
   index: number;
   children?: ({
     // draggableHandleAttributes,
@@ -92,7 +92,7 @@ export type BoardProps = {
 
 export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
-  Component: ({ item, index, children, ...otherProps }, ref) => {
+  Component: ({ parentItem: item, index, children, ...otherProps }, ref) => {
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;

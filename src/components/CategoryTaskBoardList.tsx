@@ -232,75 +232,60 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     // https://next.dndkit.com/concepts/drag-drop-manager
 
     return (
-      <>
-        <CategoryTaskBoardListInternalBase
-          boardListId={boardListId}
-          parentKeyName={parentKeyName}
-          childKeyName={childKeyName}
-          parentItems={categoryList}
-        >
-          {categoryList.map((parentItem, index) => {
-            return (
-              <Board key={parentItem.id} item={parentItem} index={index}>
-                {({
-                  // draggableHandleAttributes,
-                  // draggableHandleListeners,
-                  setDraggableHandleRef,
-                  draggableHandleCustomAttributes,
-                }) => {
-                  return (
-                    <>
-                      <BoardHeader
-                        parentItem={parentItem}
-                        onEditStartParentItem={onEditStartParentItem}
-                        onEditFinishParentItem={onEditFinishParentItem}
-                        setDraggableHandleRef={setDraggableHandleRef}
-                        // draggableHandleAttributes={draggableHandleAttributes}
-                        // draggableHandleListeners={draggableHandleListeners}
-                        draggableHandleCustomAttributes={
-                          draggableHandleCustomAttributes
-                        }
-                      />
-                      <BoardMain
-                        boardListId={boardListId}
-                        parentItem={parentItem}
-                      >
-                        {taskList[index].map((childItem, index) => {
-                          return (
-                            <Card
-                              key={childItem.id}
-                              item={childItem}
-                              index={index}
-                              // onUpdateChildItem={onUpdateChildItem}
-                            />
-                          );
-                        })}
-                      </BoardMain>
-                    </>
-                  );
-                }}
-              </Board>
-            );
-          })}
-        </CategoryTaskBoardListInternalBase>
-        {/* </DragDropProvider> */}
-      </>
+      <CategoryTaskBoardListInternalBase
+        ref={ref}
+        boardListId={boardListId}
+        parentKeyName={parentKeyName}
+        childKeyName={childKeyName}
+        parentItems={categoryList}
+      >
+        {categoryList.map((parentItem, index) => {
+          return (
+            <Board key={parentItem.id} parentItem={parentItem} index={index}>
+              {({
+                // draggableHandleAttributes,
+                // draggableHandleListeners,
+                setDraggableHandleRef,
+                draggableHandleCustomAttributes,
+              }) => {
+                return (
+                  <>
+                    <BoardHeader
+                      parentItem={parentItem}
+                      onEditStartParentItem={onEditStartParentItem}
+                      onEditFinishParentItem={onEditFinishParentItem}
+                      setDraggableHandleRef={setDraggableHandleRef}
+                      // draggableHandleAttributes={draggableHandleAttributes}
+                      // draggableHandleListeners={draggableHandleListeners}
+                      draggableHandleCustomAttributes={
+                        draggableHandleCustomAttributes
+                      }
+                    />
+                    <BoardMain
+                      boardListId={boardListId}
+                      parentItem={parentItem}
+                    >
+                      {taskList[index].map((childItem, index) => {
+                        return (
+                          <Card
+                            key={childItem.id}
+                            item={childItem}
+                            index={index}
+                            // onUpdateChildItem={onUpdateChildItem}
+                          />
+                        );
+                      })}
+                    </BoardMain>
+                  </>
+                );
+              }}
+            </Board>
+          );
+        })}
+      </CategoryTaskBoardListInternalBase>
     );
   },
 });
-
-{
-  /* <BoardHeader
-            parentItem={item}
-            onEditStartParentItem={onEditStartParentItem}
-            onEditFinishParentItem={onEditFinishParentItem}
-          />
-          <BoardMain
-            boardListId={boardListId}
-            parentItem={item}
-            forEachChildItem={forEachChildItem}
-          ></BoardMain> */
-}
 
 export type CategoryBoardListProps = CategoryBoardListInternalProps;
 
