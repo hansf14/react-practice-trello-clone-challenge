@@ -144,7 +144,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@dnd-kit/abstract@npm:^0.0.5":
+"@dnd-kit/abstract@npm:0.0.5, @dnd-kit/abstract@npm:^0.0.5":
   version: 0.0.5
   resolution: "@dnd-kit/abstract@npm:0.0.5"
   dependencies:
@@ -166,7 +166,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@dnd-kit/collision@npm:^0.0.5":
+"@dnd-kit/collision@npm:0.0.5, @dnd-kit/collision@npm:^0.0.5":
   version: 0.0.5
   resolution: "@dnd-kit/collision@npm:0.0.5"
   dependencies:
@@ -191,7 +191,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@dnd-kit/dom@npm:^0.0.5":
+"@dnd-kit/dom@npm:0.0.5, @dnd-kit/dom@npm:^0.0.5":
   version: 0.0.5
   resolution: "@dnd-kit/dom@npm:0.0.5"
   dependencies:
@@ -214,6 +214,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@dnd-kit/helpers@npm:^0.0.5":
+  version: 0.0.5
+  resolution: "@dnd-kit/helpers@npm:0.0.5"
+  dependencies:
+    "@dnd-kit/abstract": "npm:^0.0.5"
+    tslib: "npm:^2.6.2"
+  checksum: 10c0/95c7f123a3b8a045240377bfd8964e3e318b6d5f61400e2d74d37a519b07491e4788c9c3e7201ed4d25f49ab57b912a5098b344b357e3e9b0e96dc196971f77a
+  languageName: node
+  linkType: hard
+
 "@dnd-kit/modifiers@npm:^9.0.0":
   version: 9.0.0
   resolution: "@dnd-kit/modifiers@npm:9.0.0"
@@ -227,7 +237,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@dnd-kit/react@npm:^0.0.5":
+"@dnd-kit/react@npm:0.0.5":
   version: 0.0.5
   resolution: "@dnd-kit/react@npm:0.0.5"
   dependencies:
@@ -239,19 +249,6 @@ __metadata:
     react: ^18.0.0
     react-dom: ^18.0.0
   checksum: 10c0/11accaf9e64e1ace063fad7f727b379789110ce46dc5b7c25b58bb96dc9c521cf5121060df69f3ec45d9c8cf3adaa60afb066db908c0b454e1548bc4f0882697
-  languageName: node
-  linkType: hard
-
-"@dnd-kit/sortable@npm:^10.0.0":
-  version: 10.0.0
-  resolution: "@dnd-kit/sortable@npm:10.0.0"
-  dependencies:
-    "@dnd-kit/utilities": "npm:^3.2.2"
-    tslib: "npm:^2.0.0"
-  peerDependencies:
-    "@dnd-kit/core": ^6.3.0
-    react: ">=16.8.0"
-  checksum: 10c0/37ee48bc6789fb512dc0e4c374a96d19abe5b2b76dc34856a5883aaa96c3297891b94cc77bbc409e074dcce70967ebcb9feb40cd9abadb8716fc280b4c7f99af
   languageName: node
   linkType: hard
 
@@ -5191,11 +5188,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "react-practice-trello-clone-challenge@workspace:."
   dependencies:
+    "@dnd-kit/abstract": "npm:0.0.5"
+    "@dnd-kit/collision": "npm:0.0.5"
     "@dnd-kit/core": "npm:^6.3.1"
+    "@dnd-kit/dom": "npm:0.0.5"
+    "@dnd-kit/helpers": "npm:^0.0.5"
     "@dnd-kit/modifiers": "npm:^9.0.0"
-    "@dnd-kit/react": "npm:^0.0.5"
-    "@dnd-kit/sortable": "npm:^10.0.0"
-    "@dnd-kit/utilities": "npm:^3.2.2"
+    "@dnd-kit/react": "npm:0.0.5"
     "@testing-library/dom": "npm:^10.4.0"
     "@testing-library/jest-dom": "npm:^5.14.1"
     "@testing-library/react": "npm:^11.2.7"

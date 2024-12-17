@@ -10,19 +10,34 @@ import {
 import { DndDataInterface } from "@/components/BoardContext";
 import { DraggableAttributes, useDndMonitor } from "@dnd-kit/core";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { SortableContext, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+// import { SortableContext, useSortable } from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/react/sortable";
+import { closestCenter, pointerIntersection } from "@dnd-kit/collision";
+import { RestrictToHorizontalAxis } from "@dnd-kit/abstract/modifiers";
+import {
+  CollisionPriority,
+  Modifier,
+  ModifierConstructor,
+} from "@dnd-kit/abstract";
+import {
+  AutoScroller,
+  DragDropManager,
+  KeyboardSensor,
+  PointerSensor,
+  Scroller,
+} from "@dnd-kit/dom";
+import { useDroppable } from "@dnd-kit/react";
 
 type BoardBaseProps = {
-  isDragging?: boolean;
+  isDragSource?: boolean;
 };
 
 const BoardBase = styled.div.withConfig({
-  shouldForwardProp: (prop) => !["isDragging"].includes(prop),
+  shouldForwardProp: (prop) => !["isDragSource"].includes(prop),
 })<BoardBaseProps>`
   flex-shrink: 0;
   height: 85%;
-  width: min(100%, 300px);
+  max-width: 300px;
   min-height: 300px;
   padding: 10px;
   display: flex;
@@ -38,9 +53,9 @@ const BoardBase = styled.div.withConfig({
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
 
-  ${({ isDragging }) => {
+  ${({ isDragSource }) => {
     return css`
-      ${(isDragging ?? false)
+      ${(isDragSource ?? false)
         ? `
         border: 2px solid yellow;
         opacity: 0.7;
@@ -53,49 +68,79 @@ const BoardBase = styled.div.withConfig({
         : ""}
     `;
   }}
+
+  &[data-dnd-placeholder] {
+    opacity: 0.7 !important;
+  }
 `;
 
 export type BoardProps = {
   item: ParentItem;
+  index: number;
   children?: ({
-    draggableHandleAttributes,
-    draggableHandleListeners,
+    // draggableHandleAttributes,
+    // draggableHandleListeners,
+    setDraggableHandleRef,
     draggableHandleCustomAttributes,
   }: {
-    draggableHandleAttributes: DraggableAttributes;
-    draggableHandleListeners: SyntheticListenerMap | undefined;
+    setDraggableHandleRef: (el: HTMLElement | null) => void;
+    // draggableHandleAttributes: DraggableAttributes;
+    // draggableHandleListeners: SyntheticListenerMap | undefined;
     draggableHandleCustomAttributes: Record<string, string>;
   }) => React.ReactNode;
 } & SmartOmit<StyledComponentProps<"div">, "children">;
 
 export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
-  Component: ({ item, children, ...otherProps }, ref) => {
+  Component: ({ item, index, children, ...otherProps }, ref) => {
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
 
     const {
-      setNodeRef,
-      attributes: draggableHandleAttributes,
-      listeners: draggableHandleListeners,
-      transform,
-      transition,
-      isDragging,
+      ref: setNodeRef,
+      targetRef: setDroppableRef,
+      sourceRef: setDraggableRef,
+      handleRef: setDraggableHandleRef,
+      isDragSource,
+      isDropTarget,
+      status,
     } = useSortable({
       id: item.id,
-      data: {
-        type: "parent",
-        item,
-      } satisfies DndDataInterface,
-    });
-
-    const style = {
+      index,
       // transition,
-      transition: "none",
-      transform: CSS.Transform.toString(transform),
-    };
+      // transition: {
+      //   duration,
+      //   easing,
+      //   idle,
+      // },
+      // element,
+      // handle,
+      modifiers: [RestrictToHorizontalAxis as unknown as ModifierConstructor],
+      sensors: [PointerSensor.configure({}), KeyboardSensor],
+      // target,
+      accept: ["parent", "child"] satisfies DndDataInterface["type"][],
+      // collisionDetector,
+      // collisionDetector: pointerIntersection,
+      collisionDetector: closestCenter,
+      // collisionPriority,
+      disabled: false,
+      data: item,
+      // effects,
+      // feedback,
+      // group,
+      // plugins,
+      plugins: [AutoScroller], // Slows down the scroll speed
+      type: "parent",
+    });
+    // https://next.dndkit.com/react/hooks/use-sortable
+
+    // const style = {
+    //   // transition,
+    //   transition: "none",
+    //   transform: CSS.Transform.toString(transform),
+    // };
 
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-draggable-id": item.id,
@@ -107,31 +152,33 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       };
 
     return (
-      <SortableContext items={item.items ?? getEmptyArray()}>
-        <BoardBase
-          ref={(el: HTMLDivElement | null) => {
-            if (el) {
-              // Object.entries(draggableCustomAttributes).forEach(
-              //   ([key, value]) => {
-              //     el.setAttribute(key, value as string);
-              //   },
-              // );
-              refBase.current = el;
-              setNodeRef(el);
-            }
-          }}
-          isDragging={isDragging}
-          style={style}
-          {...draggableCustomAttributes}
-          {...otherProps}
-        >
-          {children?.({
-            draggableHandleAttributes,
-            draggableHandleListeners,
-            draggableHandleCustomAttributes,
-          })}
-        </BoardBase>
-      </SortableContext>
+      // <SortableContext items={item.items ?? getEmptyArray()}>
+      <BoardBase
+        ref={(el: HTMLDivElement | null) => {
+          if (el) {
+            // Object.entries(draggableCustomAttributes).forEach(
+            //   ([key, value]) => {
+            //     el.setAttribute(key, value as string);
+            //   },
+            // );
+            refBase.current = el;
+            setDraggableRef(el);
+            setDroppableRef(el);
+          }
+        }}
+        isDragSource={isDragSource}
+        // style={style}
+        {...draggableCustomAttributes}
+        {...otherProps}
+      >
+        {children?.({
+          // draggableHandleAttributes,
+          // draggableHandleListeners,
+          setDraggableHandleRef,
+          draggableHandleCustomAttributes,
+        })}
+      </BoardBase>
+      // </SortableContext>
     );
   },
 });

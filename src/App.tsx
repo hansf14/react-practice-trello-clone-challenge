@@ -1,6 +1,6 @@
 import { ThemeProvider, createGlobalStyle, styled } from "styled-components";
 import { Helmet } from "react-helmet-async";
-import { ReactQueryDevtools } from "react-query/devtools";
+// import { ReactQueryDevtools } from "react-query/devtools";
 import { darkTheme } from "./theme";
 import { CategoryTaskBoardList } from "@/components/CategoryTaskBoardList";
 import { defaultCategoryTaskItems } from "@/data";
@@ -87,7 +87,7 @@ const GlobalStyle = createGlobalStyle`
 `;
 
 const Main = styled.main`
-  min-width: fit-content;
+  width: 100%;
   height: 100%;
   background: ${({ theme }) => theme.background};
   background-repeat: no-repeat;

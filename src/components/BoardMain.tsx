@@ -39,7 +39,6 @@ import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
-  contain: size;
   height: 100%;
   gap: 10px;
   display: flex;

@@ -14,7 +14,7 @@ import {
   OnEditFinishParentItem,
   OnEditStartParentItem,
 } from "@/components/BoardHeader";
-import { BoardList, BoardListProps } from "@/components/BoardList";
+import { BoardListInternal, BoardListProps } from "@/components/BoardList";
 import { getEmptyArray, SmartOmit } from "@/utils";
 import {
   ChildItem,
@@ -28,8 +28,11 @@ import { styled } from "styled-components";
 import { StatViewer } from "@/components/StatViwer";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { defaultCategoryTaskItems } from "@/data";
+import { DragDropProvider } from "@dnd-kit/react";
+import { DragDropManager, KeyboardSensor, PointerSensor } from "@dnd-kit/dom";
+import { RestrictToHorizontalAxis } from "@dnd-kit/abstract/modifiers";
 
-const CategoryTaskBoardListInternalBase = styled(BoardList)``;
+const CategoryTaskBoardListInternalBase = styled(BoardListInternal)``;
 
 export type CategoryBoardListInternalProps = {
   boardListId: string;
@@ -219,6 +222,15 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       [setStateCategoryTaskNestedIndexer],
     );
 
+    // const manager = new DragDropManager({
+    //   // global sensors
+    //   sensors: [PointerSensor, KeyboardSensor],
+    //   // global modifiers
+    //   // modifiers: [RestrictToHorizontalAxis],
+    // });
+    // https://next.dndkit.com/react/components/drag-drop-provider
+    // https://next.dndkit.com/concepts/drag-drop-manager
+
     return (
       <>
         <CategoryTaskBoardListInternalBase
@@ -227,12 +239,13 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
           childKeyName={childKeyName}
           parentItems={categoryList}
         >
-          {categoryList.map((parentItem, idx) => {
+          {categoryList.map((parentItem, index) => {
             return (
-              <Board key={parentItem.id} item={parentItem}>
+              <Board key={parentItem.id} item={parentItem} index={index}>
                 {({
-                  draggableHandleAttributes,
-                  draggableHandleListeners,
+                  // draggableHandleAttributes,
+                  // draggableHandleListeners,
+                  setDraggableHandleRef,
                   draggableHandleCustomAttributes,
                 }) => {
                   return (
@@ -241,8 +254,9 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                         parentItem={parentItem}
                         onEditStartParentItem={onEditStartParentItem}
                         onEditFinishParentItem={onEditFinishParentItem}
-                        draggableHandleAttributes={draggableHandleAttributes}
-                        draggableHandleListeners={draggableHandleListeners}
+                        setDraggableHandleRef={setDraggableHandleRef}
+                        // draggableHandleAttributes={draggableHandleAttributes}
+                        // draggableHandleListeners={draggableHandleListeners}
                         draggableHandleCustomAttributes={
                           draggableHandleCustomAttributes
                         }
@@ -251,11 +265,12 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                         boardListId={boardListId}
                         parentItem={parentItem}
                       >
-                        {taskList[idx].map((childItem) => {
+                        {taskList[index].map((childItem, index) => {
                           return (
                             <Card
                               key={childItem.id}
                               item={childItem}
+                              index={index}
                               // onUpdateChildItem={onUpdateChildItem}
                             />
                           );
@@ -268,6 +283,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
             );
           })}
         </CategoryTaskBoardListInternalBase>
+        {/* </DragDropProvider> */}
       </>
     );
   },
@@ -293,6 +309,7 @@ export const CategoryTaskBoardList = withMemoAndRef<
   HTMLDivElement,
   CategoryBoardListProps
 >({
+  displayName: "CategoryTaskBoardList",
   Component: (
     { parentKeyName, childKeyName, parentItems: items, ...otherProps },
     ref,
