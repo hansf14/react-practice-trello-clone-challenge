@@ -26,16 +26,16 @@ export const defaultCategoryTaskItems: ParentItem[] = [
         // text: "ToDo4",
         text: "16def70c-2057-4ad5-9261-cb833728f30a",
       },
-      // {
-      //   id: "0cd50106-6130-4da0-b0a0-39e0496da2ca",
-      //   // text: "ToDo5",
-      //   text: "0cd50106-6130-4da0-b0a0-39e0496da2ca",
-      // },
-      // {
-      //   id: "5f3cf3e9-0a7a-4445-b571-74a1c64c996e",
-      //   // text: "ToDo6",
-      //   text: "5f3cf3e9-0a7a-4445-b571-74a1c64c996e",
-      // },
+      {
+        id: "0cd50106-6130-4da0-b0a0-39e0496da2ca",
+        // text: "ToDo5",
+        text: "0cd50106-6130-4da0-b0a0-39e0496da2ca",
+      },
+      {
+        id: "5f3cf3e9-0a7a-4445-b571-74a1c64c996e",
+        // text: "ToDo6",
+        text: "5f3cf3e9-0a7a-4445-b571-74a1c64c996e",
+      },
     ],
   },
   {

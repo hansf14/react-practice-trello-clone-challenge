@@ -7,12 +7,13 @@ import {
   DraggableHandleCustomAttributesKvObj,
   ParentItem,
 } from "@/components/BoardContext";
-import { DndDataInterface } from "@/components/BoardContext";
-import { DraggableAttributes, useDndMonitor } from "@dnd-kit/core";
-import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { SortableContext, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-// import { SortableContext, useSortable } from "@dnd-kit/sortable";
+import {
+  Draggable,
+  DraggableProvidedDragHandleProps,
+  DraggableStateSnapshot,
+  Droppable,
+  DroppableStateSnapshot,
+} from "@hello-pangea/dnd";
 
 type BoardBaseProps = {
   isDragSource?: boolean;
@@ -55,8 +56,8 @@ const BoardBase = styled.div.withConfig({
     `;
   }}
 
-  &[data-dnd-placeholder] {
-    opacity: 0.7 !important;
+  &:not(:last-child) {
+    margin-right: 10px;
   }
 `;
 
@@ -64,14 +65,12 @@ export type BoardProps = {
   parentItem: ParentItem;
   index: number;
   children?: ({
-    draggableHandleAttributes,
-    draggableHandleListeners,
-    // setDraggableHandleRef,
+    draggableHandleProps,
+    draggableStateSnapshot,
     draggableHandleCustomAttributes,
   }: {
-    draggableHandleAttributes: DraggableAttributes;
-    draggableHandleListeners: SyntheticListenerMap | undefined;
-    // setDraggableHandleRef: (el: HTMLElement | null) => void;
+    draggableHandleProps: DraggableProvidedDragHandleProps | null;
+    draggableStateSnapshot: DraggableStateSnapshot;
     draggableHandleCustomAttributes: Record<string, string>;
   }) => React.ReactNode;
 } & SmartOmit<StyledComponentProps<"div">, "children">;
@@ -84,27 +83,6 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       return refBase.current as HTMLDivElement;
     });
 
-    const {
-      setNodeRef,
-      attributes: draggableHandleAttributes,
-      listeners: draggableHandleListeners,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({
-      id: item.id,
-      data: {
-        type: "parent",
-        item,
-      } satisfies DndDataInterface,
-    });
-
-    const style = {
-      // transition,
-      transition: "none",
-      transform: CSS.Transform.toString(transform),
-    };
-
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-draggable-id": item.id,
     };
@@ -115,6 +93,40 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       };
 
     return (
+      <Draggable draggableId={item.id} index={index}>
+        {(draggableProvided, draggableStateSnapshot, draggableRubric) =>
+          // TODO: Rubric
+          {
+            return (
+              <BoardBase
+                ref={(el: HTMLDivElement | null) => {
+                  if (el) {
+                    refBase.current = el;
+                    draggableProvided.innerRef(el);
+                  }
+                }}
+                // isDragging={isDragging}
+                // style={style}
+                {...draggableProvided.draggableProps}
+                {...draggableCustomAttributes}
+                {...otherProps}
+              >
+                {children?.({
+                  draggableHandleProps: draggableProvided.dragHandleProps,
+                  draggableStateSnapshot,
+                  draggableHandleCustomAttributes,
+                })}
+              </BoardBase>
+            );
+          }
+        }
+      </Draggable>
+    );
+  },
+});
+
+{
+  /* </Draggable>
       <SortableContext items={item.items ?? getEmptyArray()}>
         <BoardBase
           ref={(el: HTMLDivElement | null) => {
@@ -140,7 +152,5 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
             draggableHandleCustomAttributes,
           })}
         </BoardBase>
-      </SortableContext>
-    );
-  },
-});
+      </SortableContext> */
+}

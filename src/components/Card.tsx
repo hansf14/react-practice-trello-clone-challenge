@@ -16,8 +16,7 @@ import {
 } from "@/components/BoardContext";
 import { StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { CSS } from "@dnd-kit/utilities";
-import { useSortable } from "@dnd-kit/sortable";
+import { Draggable } from "@hello-pangea/dnd";
 const { TextArea } = Input;
 
 // export const cardsAtom = atom<{
@@ -76,14 +75,14 @@ export type OnUpdateChildItem = <C extends ChildItem>({
 }) => void;
 
 export type CardProps = {
-  item: ChildItem;
+  childItem: ChildItem;
   index: number;
   onUpdateChildItem?: OnUpdateChildItem;
 } & StyledComponentProps<"div">;
 
 export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
   displayName: "Card",
-  Component: ({ item, index, onUpdateChildItem, ...otherProps }, ref) => {
+  Component: ({ childItem, index, onUpdateChildItem, ...otherProps }, ref) => {
     console.log("[CardBase]");
 
     // const setStateCards = useSetRecoilState(cardsAtom);
@@ -137,14 +136,14 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       (event) => {
         onUpdateChildItem?.({
           event,
-          oldChildItem: item,
+          oldChildItem: childItem,
           newChildItem: {
-            id: item.id,
+            id: childItem.id,
             content: event.target.value,
           },
         });
       },
-      [item, onUpdateChildItem],
+      [childItem, onUpdateChildItem],
     );
 
     const refBase = useRef<HTMLDivElement | null>(null);
@@ -152,71 +151,63 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       return refBase.current as HTMLDivElement;
     });
 
-    const {
-      setNodeRef,
-      attributes: draggableHandleAttributes,
-      listeners: draggableHandleListeners,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({
-      id: item.id,
-      data: {
-        type: "child",
-        item,
-      } satisfies DndDataInterface,
-    });
-
-    const style = {
-      transition,
-      // transition: "none",
-      transform: CSS.Transform.toString(transform),
-    };
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
-      "data-draggable-id": item.id,
+      "data-draggable-id": childItem.id,
     };
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
       {
-        "data-draggable-handle-id": item.id,
+        "data-draggable-handle-id": childItem.id,
       };
 
     return (
-      <CardBase
-        ref={(el: HTMLDivElement | null) => {
-          if (el) {
-            // Object.entries(draggableCustomAttributes).forEach(
-            //   ([key, value]) => {
-            //     el.setAttribute(key, value as string);
-            //   },
-            // );
-            refBase.current = el;
-            setNodeRef(el);
-          }
-        }}
-        style={style}
-        {...draggableCustomAttributes}
-        {...otherProps}
+      <Draggable
+        draggableId={childItem.id}
+        index={index}
+        {...{ type: "child" }}
       >
-        {/* {childItem.content} */}
-        <CardContentInput
-          value={item.content}
-          // autoFocus
-          autoSize
-          readOnly={!stateIsEditMode}
-          onClick={cardContentEditEnableHandler}
-          onBlur={cardContentEditDisableHandler}
-          onKeyDown={cardContentEditFinishHandler}
-          onChange={cardContentEditHandler}
-        />
-        <CardDragHandle
-          // ref={setDraggableHandleRef}
-          {...draggableHandleAttributes}
-          {...draggableHandleListeners}
-          {...draggableHandleCustomAttributes}
-        >
-          <GripVertical />
-        </CardDragHandle>
-      </CardBase>
+        {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
+          return (
+            <CardBase
+              ref={(el: HTMLDivElement | null) => {
+                if (el) {
+                  // Object.entries(draggableCustomAttributes).forEach(
+                  //   ([key, value]) => {
+                  //     el.setAttribute(key, value as string);
+                  //   },
+                  // );
+                  refBase.current = el;
+                  // setNodeRef(el);
+                  draggableProvided.innerRef(el);
+                }
+              }}
+              {...draggableProvided.draggableProps}
+              {...draggableCustomAttributes}
+              {...otherProps}
+            >
+              {/* {childItem.content} */}
+              <CardContentInput
+                value={childItem.content}
+                // autoFocus
+                autoSize
+                readOnly={!stateIsEditMode}
+                onClick={cardContentEditEnableHandler}
+                onBlur={cardContentEditDisableHandler}
+                onKeyDown={cardContentEditFinishHandler}
+                onChange={cardContentEditHandler}
+              />
+              <CardDragHandle
+                {...draggableProvided.dragHandleProps}
+                // ref={setDraggableHandleRef}
+                // {...draggableHandleAttributes}
+                // {...draggableHandleListeners}
+                {...draggableHandleCustomAttributes}
+              >
+                <GripVertical />
+              </CardDragHandle>
+            </CardBase>
+          );
+        }}
+      </Draggable>
     );
   },
 });

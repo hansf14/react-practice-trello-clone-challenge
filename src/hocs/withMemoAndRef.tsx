@@ -1,4 +1,4 @@
-import React from "react";
+import React, { PropsWithChildren } from "react";
 
 export type WithMemoAndRef<
   E extends
@@ -41,7 +41,7 @@ export const withMemoAndRef = <
   E extends
     keyof React.JSX.IntrinsicElements = keyof React.JSX.IntrinsicElements,
   Ref = React.ElementRef<E>,
-  Props extends object = {},
+  Props = PropsWithChildren<object>,
 >({
   displayName,
   Component,
