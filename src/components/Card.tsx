@@ -16,17 +16,8 @@ import {
 } from "@/components/BoardContext";
 import { StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { useSortable } from "@dnd-kit/react/sortable";
-import { RestrictToElement, RestrictToWindow } from "@dnd-kit/dom/modifiers";
-import { AutoScroller, KeyboardSensor, PointerSensor } from "@dnd-kit/dom";
-import {
-  closestCenter,
-  directionBiased,
-  pointerDistance,
-  pointerIntersection,
-  shapeIntersection,
-} from "@dnd-kit/collision";
-import { CollisionPriority } from "@dnd-kit/abstract";
+import { CSS } from "@dnd-kit/utilities";
+import { useSortable } from "@dnd-kit/sortable";
 const { TextArea } = Input;
 
 // export const cardsAtom = atom<{
@@ -161,65 +152,33 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       return refBase.current as HTMLDivElement;
     });
 
-    // const {
-    //   setNodeRef,
-    //   attributes: draggableHandleAttributes,
-    //   listeners: draggableHandleListeners,
-    //   transform,
-    //   transition,
-    //   isDragging,
-    // } = useSortable({
-    //   id: item.id,
-    //   data: {
-    //     type: "child",
-    //     item,
-    //   } satisfies DndDataInterface,
-    // });
+    const {
+      setNodeRef,
+      attributes: draggableHandleAttributes,
+      listeners: draggableHandleListeners,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({
+      id: item.id,
+      data: {
+        type: "child",
+        item,
+      } satisfies DndDataInterface,
+    });
 
-    // const style = {
-    //   transition,
-    //   // transition: "none",
-    //   transform: CSS.Transform.toString(transform),
-    // };
-
+    const style = {
+      transition,
+      // transition: "none",
+      transform: CSS.Transform.toString(transform),
+    };
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-draggable-id": item.id,
     };
-
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
       {
         "data-draggable-handle-id": item.id,
       };
-
-    const {
-      ref: setNodeRef,
-      targetRef: setDroppableRef,
-      sourceRef: setDraggableRef,
-      handleRef: setDraggableHandleRef,
-      isDragSource,
-      isDropTarget,
-      status,
-    } = useSortable({
-      id: item.id,
-      index,
-      // transition,
-      // element,
-      // handle,
-      modifiers: [RestrictToWindow],
-      sensors: [PointerSensor.configure({}), KeyboardSensor],
-      // target,
-      accept: ["child"] satisfies DndDataInterface["type"][],
-      collisionDetector: closestCenter,
-      // collisionPriority,
-      disabled: false,
-      data: item,
-      // effects,
-      // feedback,
-      // group,
-      // plugins,
-      plugins: [AutoScroller],
-      type: "child",
-    });
 
     return (
       <CardBase
@@ -231,11 +190,10 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
             //   },
             // );
             refBase.current = el;
-            setDraggableRef(el);
-            setDroppableRef(el);
+            setNodeRef(el);
           }
         }}
-        // style={style}
+        style={style}
         {...draggableCustomAttributes}
         {...otherProps}
       >
@@ -251,9 +209,9 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
           onChange={cardContentEditHandler}
         />
         <CardDragHandle
-          ref={setDraggableHandleRef}
-          // {...draggableHandleAttributes}
-          // {...draggableHandleListeners}
+          // ref={setDraggableHandleRef}
+          {...draggableHandleAttributes}
+          {...draggableHandleListeners}
           {...draggableHandleCustomAttributes}
         >
           <GripVertical />

@@ -28,9 +28,6 @@ import { styled } from "styled-components";
 import { StatViewer } from "@/components/StatViwer";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { defaultCategoryTaskItems } from "@/data";
-import { DragDropProvider } from "@dnd-kit/react";
-import { DragDropManager, KeyboardSensor, PointerSensor } from "@dnd-kit/dom";
-import { RestrictToHorizontalAxis } from "@dnd-kit/abstract/modifiers";
 
 const CategoryTaskBoardListInternalBase = styled(BoardListInternal)``;
 
@@ -243,9 +240,9 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
           return (
             <Board key={parentItem.id} parentItem={parentItem} index={index}>
               {({
-                // draggableHandleAttributes,
-                // draggableHandleListeners,
-                setDraggableHandleRef,
+                draggableHandleAttributes,
+                draggableHandleListeners,
+                // setDraggableHandleRef,
                 draggableHandleCustomAttributes,
               }) => {
                 return (
@@ -254,9 +251,9 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                       parentItem={parentItem}
                       onEditStartParentItem={onEditStartParentItem}
                       onEditFinishParentItem={onEditFinishParentItem}
-                      setDraggableHandleRef={setDraggableHandleRef}
-                      // draggableHandleAttributes={draggableHandleAttributes}
-                      // draggableHandleListeners={draggableHandleListeners}
+                      // setDraggableHandleRef={setDraggableHandleRef}
+                      draggableHandleAttributes={draggableHandleAttributes}
+                      draggableHandleListeners={draggableHandleListeners}
                       draggableHandleCustomAttributes={
                         draggableHandleCustomAttributes
                       }
