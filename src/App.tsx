@@ -4,8 +4,6 @@ import { Helmet } from "react-helmet-async";
 import { darkTheme } from "./theme";
 import { CategoryTaskBoardList } from "@/components/CategoryTaskBoardList";
 import { defaultCategoryTaskItems } from "@/data";
-import ListExample from "@/components/a-1";
-import { EntireEntityIsDraggableWithDragHandleButton } from "@/components/a-2";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`

@@ -236,73 +236,49 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         childKeyName={childKeyName}
         parentItems={categoryList}
       >
-        {({ droppablePlaceholder, droppableStateSnapshot }) => {
+        {categoryList.map((parentItem, index) => {
           return (
-            <>
-              {categoryList.map((parentItem, index) => {
+            <Board key={parentItem.id} parentItem={parentItem} index={index}>
+              {({
+                draggableHandleAttributes,
+                draggableHandleListeners,
+                // setDraggableHandleRef,
+                draggableHandleCustomAttributes,
+              }) => {
                 return (
-                  <Board
-                    key={parentItem.id}
-                    parentItem={parentItem}
-                    index={index}
-                  >
-                    {({
-                      draggableHandleProps,
-                      draggableStateSnapshot,
-                      draggableHandleCustomAttributes,
-                    }) => {
-                      return (
-                        <>
-                          <BoardHeader
-                            parentItem={parentItem}
-                            onEditStartParentItem={onEditStartParentItem}
-                            onEditFinishParentItem={onEditFinishParentItem}
-                            draggableHandleProps={draggableHandleProps}
-                            // setDraggableHandleRef={setDraggableHandleRef}
-                            // draggableHandleAttributes={draggableHandleAttributes}
-                            // draggableHandleListeners={draggableHandleListeners}
-                            // draggableHandleCustomAttributes={
-                            //   draggableHandleCustomAttributes
-                            // }
+                  <>
+                    <BoardHeader
+                      parentItem={parentItem}
+                      onEditStartParentItem={onEditStartParentItem}
+                      onEditFinishParentItem={onEditFinishParentItem}
+                      // setDraggableHandleRef={setDraggableHandleRef}
+                      draggableHandleAttributes={draggableHandleAttributes}
+                      draggableHandleListeners={draggableHandleListeners}
+                      draggableHandleCustomAttributes={
+                        draggableHandleCustomAttributes
+                      }
+                    />
+                    <BoardMain
+                      boardListId={boardListId}
+                      parentItem={parentItem}
+                    >
+                      {taskList[index].map((childItem, index) => {
+                        return (
+                          <Card
+                            key={childItem.id}
+                            item={childItem}
+                            index={index}
+                            // onUpdateChildItem={onUpdateChildItem}
                           />
-                          <BoardMain
-                            boardListId={boardListId}
-                            parentItem={parentItem}
-                          >
-                            {({
-                              droppablePlaceholder,
-                              droppableStateSnapshot,
-                            }) => {
-                              return [
-                                ...taskList[index].map((childItem, index) => {
-                                  return (
-                                    <Card
-                                      key={childItem.id}
-                                      childItem={childItem}
-                                      index={index}
-                                      // onUpdateChildItem={onUpdateChildItem}
-                                    />
-                                  );
-                                }),
-                                React.cloneElement(
-                                  droppablePlaceholder as React.ReactElement,
-                                  {
-                                    key: "placeholder",
-                                  },
-                                ),
-                              ];
-                            }}
-                          </BoardMain>
-                        </>
-                      );
-                    }}
-                  </Board>
+                        );
+                      })}
+                    </BoardMain>
+                  </>
                 );
-              })}
-              {droppablePlaceholder}
-            </>
+              }}
+            </Board>
           );
-        }}
+        })}
       </CategoryTaskBoardListInternalBase>
     );
   },

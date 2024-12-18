@@ -21,7 +21,6 @@ import {
   checkHasScrollbar,
   generateUniqueRandomId,
   memoizeCallback,
-  SmartOmit,
   StyledComponentProps,
 } from "@/utils";
 import { NestedIndexer } from "@/indexer";
@@ -37,23 +36,18 @@ import {
   ParentItem,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import {
-  DraggableProvidedDragHandleProps,
-  DraggableStateSnapshot,
-  Droppable,
-  DroppableStateSnapshot,
-} from "@hello-pangea/dnd";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
-  min-height: 0;
   height: 100%;
+  min-height: 0;
   gap: 10px;
   display: flex;
   flex-direction: column;
 `;
 
 const BoardMainContentContainer = styled.div`
+  overflow: hidden;
   min-height: 0;
   height: 100%;
   /* margin-top: 10px; */
@@ -70,12 +64,12 @@ const BoardMainContent = styled.div`
   /* margin-right: 10px; */
   /* padding-right: 10px; */
 
+  overflow-x: hidden;
   overflow-y: auto;
   height: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  // border: 1px solid white;
 
   &::-webkit-scrollbar {
     padding-right: 10px;
@@ -178,15 +172,9 @@ export type ForEachChildItem = ({
 
 export type BoardMainProps = {
   boardListId: string;
+  // forEachChildItem: ForEachChildItem;
   parentItem: ParentItem;
-  children?: ({
-    droppablePlaceholder,
-    droppableStateSnapshot,
-  }: {
-    droppablePlaceholder: React.ReactNode;
-    droppableStateSnapshot: DroppableStateSnapshot;
-  }) => React.ReactNode;
-} & SmartOmit<StyledComponentProps<"div">, "children">;
+} & StyledComponentProps<"div">;
 
 export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
   displayName: "BoardMain",
@@ -324,26 +312,83 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
     return (
       <BoardMainBase ref={ref}>
         <BoardMainContentContainer>
-          <Droppable
-            droppableId={parentItem.id}
-            direction="vertical"
-            type="child"
+          <BoardMainContent
+          // ref={refCardsContainer}
+          //  {...customDataAttributes}
           >
-            {(droppableProvided, droppableStateSnapshot) => {
-              return (
-                <BoardMainContent
-                  ref={droppableProvided.innerRef}
-                  {...droppableProvided.droppableProps}
-                  //  {...customDataAttributes}
-                >
-                  {children?.({
-                    droppablePlaceholder: droppableProvided.placeholder,
-                    droppableStateSnapshot,
-                  })}
-                </BoardMainContent>
-              );
-            }}
-          </Droppable>
+            {children}
+            {/* {!taskList || taskList.length === 0 ? (
+              <div>Empty!</div>
+            ) : (
+              taskList.map((task, idx) => {
+                const customDataAttributes: DataAttributesOfItem = {
+                  "data-board-list-id": boardListId,
+                  "data-item-type": "child",
+                  "data-item-id": task.id,
+                };
+                return React.Children.map(
+                  forEachChildItem({ idx, item: task, items: taskList }),
+                  (child) => {
+                    // const _child = React.isValidElement(child)
+                    //   ? React.cloneElement(child as React.ReactElement, {
+                    //       key: task.id,
+                    //       ...customDataAttributes,
+                    //     })
+                    //   : child;
+                    // console.log(_child);
+                    // return _child;
+
+                    try {
+                      // Ensure the child is a valid React element
+                      if (!React.isValidElement(child)) {
+                        console.warn("Invalid React element found:", child);
+                        return null; // Skip invalid children
+                      }
+
+                      // Guard against invalid DOM manipulations
+                      const _child = React.cloneElement(
+                        child as React.ReactElement,
+                        {
+                          key: task.id,
+                          ...customDataAttributes,
+                        },
+                      );
+
+                      return _child;
+                    } catch (error) {
+                      console.error("Error rendering child element:", error);
+                      return null; // Fail gracefully
+                    }
+                  },
+                );
+
+                // const children = forEachChildItem({
+                //   key: task.id,
+                //   idx,
+                //   item: task,
+                //   items: taskList,
+                // });
+
+                // return React.Children.map(children, (child) => {
+                //   return React.isValidElement(children)
+                //     ? React.cloneElement(children as React.ReactElement, {
+                //         // key: task.id,
+                //         ...customDataAttributes,
+                //       })
+                //     : children;
+                // });
+
+                // const _child = React.isValidElement(children)
+                //   ? React.cloneElement(children as React.ReactElement, {
+                //       // key: task.id,
+                //       ...customDataAttributes,
+                //     })
+                //   : children;
+                // console.log(_child);
+                // return _child;
+              })
+            )} */}
+          </BoardMainContent>
         </BoardMainContentContainer>
         <Toolbar>
           <ChildItemAdder

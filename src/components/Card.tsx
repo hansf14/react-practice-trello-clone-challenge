@@ -16,7 +16,8 @@ import {
 } from "@/components/BoardContext";
 import { StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { Draggable } from "@hello-pangea/dnd";
+import { CSS } from "@dnd-kit/utilities";
+import { useSortable } from "@dnd-kit/sortable";
 const { TextArea } = Input;
 
 // export const cardsAtom = atom<{
@@ -75,14 +76,14 @@ export type OnUpdateChildItem = <C extends ChildItem>({
 }) => void;
 
 export type CardProps = {
-  childItem: ChildItem;
+  item: ChildItem;
   index: number;
   onUpdateChildItem?: OnUpdateChildItem;
 } & StyledComponentProps<"div">;
 
 export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
   displayName: "Card",
-  Component: ({ childItem, index, onUpdateChildItem, ...otherProps }, ref) => {
+  Component: ({ item, index, onUpdateChildItem, ...otherProps }, ref) => {
     console.log("[CardBase]");
 
     // const setStateCards = useSetRecoilState(cardsAtom);
@@ -136,14 +137,14 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       (event) => {
         onUpdateChildItem?.({
           event,
-          oldChildItem: childItem,
+          oldChildItem: item,
           newChildItem: {
-            id: childItem.id,
+            id: item.id,
             content: event.target.value,
           },
         });
       },
-      [childItem, onUpdateChildItem],
+      [item, onUpdateChildItem],
     );
 
     const refBase = useRef<HTMLDivElement | null>(null);
@@ -151,63 +152,71 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       return refBase.current as HTMLDivElement;
     });
 
+    const {
+      setNodeRef,
+      attributes: draggableHandleAttributes,
+      listeners: draggableHandleListeners,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({
+      id: item.id,
+      data: {
+        type: "child",
+        item,
+      } satisfies DndDataInterface,
+    });
+
+    const style = {
+      transition,
+      // transition: "none",
+      transform: CSS.Transform.toString(transform),
+    };
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
-      "data-draggable-id": childItem.id,
+      "data-draggable-id": item.id,
     };
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
       {
-        "data-draggable-handle-id": childItem.id,
+        "data-draggable-handle-id": item.id,
       };
 
     return (
-      <Draggable
-        draggableId={childItem.id}
-        index={index}
-        {...{ type: "child" }}
-      >
-        {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
-          return (
-            <CardBase
-              ref={(el: HTMLDivElement | null) => {
-                if (el) {
-                  // Object.entries(draggableCustomAttributes).forEach(
-                  //   ([key, value]) => {
-                  //     el.setAttribute(key, value as string);
-                  //   },
-                  // );
-                  refBase.current = el;
-                  // setNodeRef(el);
-                  draggableProvided.innerRef(el);
-                }
-              }}
-              {...draggableProvided.draggableProps}
-              {...draggableCustomAttributes}
-              {...otherProps}
-            >
-              {/* {childItem.content} */}
-              <CardContentInput
-                value={childItem.content}
-                // autoFocus
-                autoSize
-                readOnly={!stateIsEditMode}
-                onClick={cardContentEditEnableHandler}
-                onBlur={cardContentEditDisableHandler}
-                onKeyDown={cardContentEditFinishHandler}
-                onChange={cardContentEditHandler}
-              />
-              <CardDragHandle
-                {...draggableProvided.dragHandleProps}
-                // ref={setDraggableHandleRef}
-                // {...draggableHandleAttributes}
-                // {...draggableHandleListeners}
-                {...draggableHandleCustomAttributes}
-              >
-                <GripVertical />
-              </CardDragHandle>
-            </CardBase>
-          );
+      <CardBase
+        ref={(el: HTMLDivElement | null) => {
+          if (el) {
+            // Object.entries(draggableCustomAttributes).forEach(
+            //   ([key, value]) => {
+            //     el.setAttribute(key, value as string);
+            //   },
+            // );
+            refBase.current = el;
+            setNodeRef(el);
+          }
         }}
-      </Draggable>
+        style={style}
+        {...draggableCustomAttributes}
+        {...otherProps}
+      >
+        {/* {childItem.content} */}
+        <CardContentInput
+          value={item.content}
+          // autoFocus
+          autoSize
+          readOnly={!stateIsEditMode}
+          onClick={cardContentEditEnableHandler}
+          onBlur={cardContentEditDisableHandler}
+          onKeyDown={cardContentEditFinishHandler}
+          onChange={cardContentEditHandler}
+        />
+        <CardDragHandle
+          // ref={setDraggableHandleRef}
+          {...draggableHandleAttributes}
+          {...draggableHandleListeners}
+          {...draggableHandleCustomAttributes}
+        >
+          <GripVertical />
+        </CardDragHandle>
+      </CardBase>
     );
   },
 });
