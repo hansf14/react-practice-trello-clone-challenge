@@ -1,6 +1,10 @@
 import React, {
+  createContext,
   useCallback,
+  useContext,
+  useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -14,27 +18,14 @@ import {
   DraggableCustomAttributesKvObj,
   DraggableHandleCustomAttributesKvObj,
 } from "@/components/BoardContext";
-import { StyledComponentProps } from "@/utils";
+import { emptyFunction, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
+import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 const { TextArea } = Input;
 
-// export const cardsAtom = atom<{
-//   [id: string]: HTMLDivElement | null;
-// }>({
-//   key: "cardsAtom",
-//   default: {},
-// });
-
-// export const cardDragHandlesAtom = atom<{
-//   [id: string]: HTMLDivElement | null;
-// }>({
-//   key: "taskDragHandlesAtom",
-//   default: {},
-// });
-
-const CardBase = styled.div`
+const CardInternalBase = styled.div`
   padding: 10px;
 
   background-color: rgba(255, 255, 255, 0.3);
@@ -59,11 +50,73 @@ const CardContentInput = styled(TextArea)`
   }
 `;
 
-const CardDragHandle = styled.div`
-  &.${cardClassNameKvMapping["card-sortable-handle"]} {
-    cursor: grab;
-  }
+const CardDragHandleBase = styled.div`
+  // &.${cardClassNameKvMapping["card-sortable-handle"]} {
+  //   cursor: grab;
+  // }
 `;
+
+export type CardContextValue = SyntheticListenerMap | undefined;
+//  {
+//   listeners: SyntheticListenerMap | undefined;
+//   // setListeners: React.Dispatch<
+//   //   React.SetStateAction<SyntheticListenerMap | undefined>
+//   // >;
+// }
+
+// const CardContext = createContext<CardContextValue>({
+//   listeners: undefined,
+//   // setListeners: emptyFunction,
+// });
+
+const CardContext = createContext<CardContextValue>(undefined);
+
+const CardProvider = ({
+  value,
+  children,
+}: {
+  value: CardContextValue;
+  children: React.ReactNode;
+}) => {
+  // const [state, setState] = React.useState<CardContextValue>(value);
+
+  // useEffect(() => {
+  //   console.log("CardProvider - New Value:", value);
+  //   setState(value);
+  // }, [value]);
+
+  return <CardContext.Provider value={value}>{children}</CardContext.Provider>;
+};
+
+export type CardDragHandleProps = {
+  childItemId: string;
+} & StyledComponentProps<"div">;
+
+export const CardDragHandle = withMemoAndRef<
+  "div",
+  HTMLDivElement,
+  CardDragHandleProps
+>({
+  displayName: "CardDragHandle",
+  Component: ({ childItemId, ...otherProps }, ref) => {
+    const listeners = useContext(CardContext);
+    const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
+      {
+        "data-draggable-handle-id": childItemId,
+      };
+
+    // console.log(listeners);
+
+    return (
+      <CardDragHandleBase
+        ref={ref}
+        {...listeners}
+        {...draggableHandleCustomAttributes}
+        {...otherProps}
+      />
+    );
+  },
+});
 
 export type OnUpdateChildItem = <C extends ChildItem>({
   event,
@@ -77,36 +130,22 @@ export type OnUpdateChildItem = <C extends ChildItem>({
 
 export type CardProps = {
   item: ChildItem;
-  index: number;
+  // draggableHandleListeners: any;
   onUpdateChildItem?: OnUpdateChildItem;
 } & StyledComponentProps<"div">;
 
 export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
   displayName: "Card",
-  Component: ({ item, index, onUpdateChildItem, ...otherProps }, ref) => {
+  Component: (
+    {
+      item,
+      //  draggableHandleListeners,
+      onUpdateChildItem,
+      ...otherProps
+    },
+    ref,
+  ) => {
     console.log("[CardBase]");
-
-    // const setStateCards = useSetRecoilState(cardsAtom);
-    // const refCard = useRef<HTMLDivElement | null>(null);
-    // useIsomorphicLayoutEffect(() => {
-    //   if (refCard.current) {
-    //     setStateCards((cur) => ({
-    //       ...cur,
-    //       [item.id]: refCard.current,
-    //     }));
-    //   }
-    // }, [item.id, setStateCards]);
-
-    // const setStateCardDragHandles = useSetRecoilState(cardDragHandlesAtom);
-    // const refDragHandle = useRef<HTMLDivElement | null>(null);
-    // useIsomorphicLayoutEffect(() => {
-    //   if (refDragHandle.current) {
-    //     setStateCardDragHandles((cur) => ({
-    //       ...cur,
-    //       [item.id]: refDragHandle.current,
-    //     }));
-    //   }
-    // }, [item.id, setStateCardDragHandles]);
 
     const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
 
@@ -152,48 +191,47 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       return refBase.current as HTMLDivElement;
     });
 
-    const {
-      setNodeRef,
-      attributes: draggableHandleAttributes,
-      listeners: draggableHandleListeners,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({
-      id: item.id,
-      data: {
-        type: "child",
-        item,
-      } satisfies DndDataInterface,
-    });
+    // const {
+    //   setNodeRef,
+    //   attributes: draggableAttributes,
+    //   listeners: draggableHandleListeners,
+    //   transform,
+    //   transition,
+    //   isDragging,
+    // } = useSortable({
+    //   id: item.id,
+    //   data: {
+    //     type: "child",
+    //     item,
+    //   } satisfies DndDataInterface<"child">,
+    // });
 
-    const style = {
-      transition,
-      // transition: "none",
-      transform: CSS.Transform.toString(transform),
-    };
+    // const style = {
+    //   transition,
+    //   // transition: "none",
+    //   // transition: {
+    //   //   duration: 150,
+    //   //   easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+    //   // },
+    //   transform: CSS.Transform.toString(transform),
+    //   // transform: transform && {
+    //   //   transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    //   // },
+    // };
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-draggable-id": item.id,
     };
-    const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
-      {
-        "data-draggable-handle-id": item.id,
-      };
 
     return (
-      <CardBase
+      <CardInternalBase
         ref={(el: HTMLDivElement | null) => {
           if (el) {
-            // Object.entries(draggableCustomAttributes).forEach(
-            //   ([key, value]) => {
-            //     el.setAttribute(key, value as string);
-            //   },
-            // );
             refBase.current = el;
-            setNodeRef(el);
+            // setNodeRef(el);
           }
         }}
-        style={style}
+        // style={style}
+        // {...draggableAttributes}
         {...draggableCustomAttributes}
         {...otherProps}
       >
@@ -208,15 +246,76 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
           onKeyDown={cardContentEditFinishHandler}
           onChange={cardContentEditHandler}
         />
-        <CardDragHandle
-          // ref={setDraggableHandleRef}
-          {...draggableHandleAttributes}
-          {...draggableHandleListeners}
-          {...draggableHandleCustomAttributes}
-        >
+        <CardDragHandle childItemId={item.id}>
           <GripVertical />
         </CardDragHandle>
-      </CardBase>
+      </CardInternalBase>
+    );
+  },
+});
+
+// When drag happens `SortableContext` value changes and triggers `useSortable` due to context change.
+// -> When `useSortable` gets triggered, `listeners` value (`onMouseDown`, `onTouchStart`) change.
+// -> Only because `listeners` prop changes, rendering the whole descendants is a waste.
+// -> So  I separated the prone-to-change value (`listeners`) into a React Context. So that not the whole card get re-rendered, only the drag handle gets re-rendered with the new `listeners` attached.
+// => That way, due to context change, it doesn't re-render unnecessary descendants re-rendering, since the props for this Internal Component (with React.memo) didn't change, only its handle gets re-rendered due to subscription to the React Context. It saves from unnecessary re-rendering of descendants.
+export const A = withMemoAndRef<"div", HTMLDivElement, { item: ChildItem }>({
+  displayName: "A",
+  Component: ({ item, ...otherProps }, ref) => {
+    const {
+      setNodeRef,
+      attributes: draggableAttributes,
+      listeners: draggableHandleListeners,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({
+      id: item.id,
+      data: {
+        type: "child",
+        item: item,
+      } satisfies DndDataInterface<"child">,
+    });
+
+    const style = useMemo(
+      () => ({
+        transition,
+        // transition: "none",
+        // transition: {
+        //   duration: 150,
+        //   easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+        // },
+        transform: CSS.Transform.toString(transform),
+        // transform: transform && {
+        //   transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        // },
+      }),
+      [transition, transform],
+    );
+    const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
+      "data-draggable-id": item.id,
+    };
+
+    const c = useCallback(
+      (el: HTMLDivElement | null) => {
+        // ref // TODO:
+        setNodeRef(el);
+      },
+      [setNodeRef],
+    );
+
+    return (
+      <CardProvider value={draggableHandleListeners}>
+        <Card
+          ref={c}
+          item={item}
+          // style={style}
+          // {...draggableHandleListeners}
+          {...draggableAttributes}
+          {...draggableCustomAttributes}
+          {...otherProps}
+        />
+      </CardProvider>
     );
   },
 });

@@ -3,8 +3,8 @@ import { ParentItem } from "@/components/BoardContext";
 export const defaultCategoryTaskItems: ParentItem[] = [
   {
     id: "ba605f3e-b99e-4450-aa0a-ddd0ec22ad71",
-    text: "To Do",
-    // text: "ba605f3e-b99e-4450-aa0a-ddd0ec22ad71",
+    // text: "To Do",
+    text: "ba605f3e-b99e-4450-aa0a-ddd0ec22ad71",
     items: [
       {
         id: "ffbde292-895d-47c8-bd6d-da6fe93dc946",
@@ -40,8 +40,8 @@ export const defaultCategoryTaskItems: ParentItem[] = [
   },
   {
     id: "3a378c16-536b-4bf0-ad85-b0528137fae9",
-    text: "Doing",
-    // text: "3a378c16-536b-4bf0-ad85-b0528137fae9",
+    // text: "Doing",
+    text: "3a378c16-536b-4bf0-ad85-b0528137fae9",
     items: [
       {
         id: "0ee29112-68ff-4b65-9f1b-00fdd0902e0d",

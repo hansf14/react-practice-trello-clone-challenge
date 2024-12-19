@@ -1,7 +1,12 @@
 import { css, styled } from "styled-components";
 import { getEmptyArray, SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import React, { useImperativeHandle, useRef } from "react";
+import React, {
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
 import {
   DraggableCustomAttributesKvObj,
   DraggableHandleCustomAttributesKvObj,
@@ -62,85 +67,166 @@ const BoardBase = styled.div.withConfig({
 
 export type BoardProps = {
   parentItem: ParentItem;
-  index: number;
   children?: ({
-    draggableHandleAttributes,
+    draggableAttributes,
     draggableHandleListeners,
-    // setDraggableHandleRef,
-    draggableHandleCustomAttributes,
+    // draggableHandleCustomAttributes,
   }: {
-    draggableHandleAttributes: DraggableAttributes;
+    draggableAttributes: DraggableAttributes;
     draggableHandleListeners: SyntheticListenerMap | undefined;
-    // setDraggableHandleRef: (el: HTMLElement | null) => void;
-    draggableHandleCustomAttributes: Record<string, string>;
+    // draggableHandleCustomAttributes: Record<string, string>;
   }) => React.ReactNode;
 } & SmartOmit<StyledComponentProps<"div">, "children">;
 
-export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
+export const Board = withMemoAndRef<
+  "div",
+  HTMLDivElement,
+  Omit<BoardProps, "children"> & { children: React.ReactNode }
+>({
   displayName: "Board",
-  Component: ({ parentItem: item, index, children, ...otherProps }, ref) => {
+  Component: (
+    {
+      // parentItem,
+      // children,
+      ...otherProps
+    },
+    ref,
+  ) => {
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
 
+    // const {
+    //   setNodeRef,
+    //   attributes: draggableHandleAttributes,
+    //   listeners: draggableHandleListeners,
+    //   transform,
+    //   transition,
+    //   isDragging,
+    // } = useSortable({
+    //   id: item.id,
+    //   data: {
+    //     type: "parent",
+    //     item,
+    //   } satisfies DndDataInterface<"parent">,
+    // });
+
+    // const style = {
+    //   // transition,
+    //   transition: "none",
+    //   transform: CSS.Transform.toString(transform),
+    // };
+
+    // const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
+    //   "data-draggable-id": item.id,
+    // };
+
+    // const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
+    //   {
+    //     "data-draggable-handle-id": item.id,
+    //   };
+
+    return (
+      // <SortableContext items={item.items ?? getEmptyArray()}>
+      <BoardBase
+        ref={(el: HTMLDivElement | null) => {
+          if (el) {
+            // Object.entries(draggableCustomAttributes).forEach(
+            //   ([key, value]) => {
+            //     el.setAttribute(key, value as string);
+            //   },
+            // );
+            refBase.current = el;
+            // setNodeRef(el);
+          }
+        }}
+        // style={style}
+        // isDragging={isDragging}
+        // isDragSource={isDragSource}
+        // {...draggableCustomAttributes}
+        {...otherProps}
+      >
+        {/* {children?.({
+            draggableHandleAttributes,
+            draggableHandleListeners,
+            draggableHandleCustomAttributes,
+          })} */}
+      </BoardBase>
+      // </SortableContext>
+    );
+  },
+});
+
+export const B = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
+  displayName: "B",
+  Component: ({ parentItem, children, ...otherProps }, ref) => {
+    const CC = useMemo(
+      () => ({
+        id: parentItem.id,
+        data: {
+          type: "parent",
+          item: parentItem,
+        } satisfies DndDataInterface<"parent">,
+      }),
+      [parentItem],
+    );
+
     const {
       setNodeRef,
-      attributes: draggableHandleAttributes,
+      attributes: draggableAttributes,
       listeners: draggableHandleListeners,
       transform,
       transition,
       isDragging,
-    } = useSortable({
-      id: item.id,
-      data: {
-        type: "parent",
-        item,
-      } satisfies DndDataInterface,
-    });
+    } = useSortable(CC);
 
-    const style = {
-      // transition,
-      transition: "none",
-      transform: CSS.Transform.toString(transform),
-    };
-
+    const style = useMemo(
+      () => ({
+        transition: "none",
+        transform: CSS.Transform.toString(transform),
+      }),
+      [transform],
+    );
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
-      "data-draggable-id": item.id,
+      "data-draggable-id": parentItem.id,
     };
+    // const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
+    //   "data-draggable-id": item.id,
+    // };
 
-    const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
-      {
-        "data-draggable-handle-id": item.id,
-      };
+    // const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
+    //   {
+    //     "data-draggable-handle-id": item.id,
+    //   };
+
+    const c = useCallback(
+      (el: HTMLDivElement | null) => {
+        // ref
+        setNodeRef(el);
+      },
+      [setNodeRef],
+    );
 
     return (
-      <SortableContext items={item.items ?? getEmptyArray()}>
-        <BoardBase
-          ref={(el: HTMLDivElement | null) => {
-            if (el) {
-              // Object.entries(draggableCustomAttributes).forEach(
-              //   ([key, value]) => {
-              //     el.setAttribute(key, value as string);
-              //   },
-              // );
-              refBase.current = el;
-              setNodeRef(el);
-            }
-          }}
-          style={style}
-          // isDragging={isDragging}
-          // isDragSource={isDragSource}
-          {...draggableCustomAttributes}
-          {...otherProps}
-        >
-          {children?.({
-            draggableHandleAttributes,
-            draggableHandleListeners,
-            draggableHandleCustomAttributes,
-          })}
-        </BoardBase>
-      </SortableContext>
+      <Board
+        ref={c}
+        style={style}
+        parentItem={parentItem}
+        // item={item}
+        // {...draggableHandleAttributes}
+        // draggableHandleListeners={draggableHandleListeners}
+        // children={children}
+        {...otherProps}
+      >
+        {children?.({
+          draggableAttributes,
+          draggableHandleListeners,
+          // draggableHandleAttributes,
+          // draggableHandleListeners,
+          // draggableHandleCustomAttributes,
+        })}
+      </Board>
     );
   },
 });

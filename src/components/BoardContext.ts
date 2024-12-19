@@ -7,13 +7,30 @@ import {
 } from "@/indexer";
 import { createKeyValueMapping, SmartMerge } from "@/utils";
 
-export type DndDataInterface = {
-  type: "parent" | "child";
-  item: ParentItem | ChildItem;
+export type DndDataInterfaceUnknown = {
+  type: unknown;
+  item: unknown;
 };
 
-export type DndActiveDataInterface = SmartMerge<
-  DndDataInterface & {
+export function isParentItemData(
+  value: DndDataInterfaceUnknown,
+): value is DndDataInterface<"parent"> {
+  return value.type === "parent";
+}
+
+export function isChildItemData(
+  value: DndDataInterfaceUnknown,
+): value is DndDataInterface<"child"> {
+  return value.type === "child";
+}
+
+export type DndDataInterface<T extends "parent" | "child"> = {
+  type: T;
+  item: T extends "parent" ? ParentItem : T extends "child" ? ChildItem : never;
+};
+
+export type DndActiveDataInterface<T extends "parent" | "child"> = SmartMerge<
+  DndDataInterface<T> & {
     sortable: {
       containerId: string;
       index: number;
@@ -21,7 +38,8 @@ export type DndActiveDataInterface = SmartMerge<
     };
   }
 >;
-export type DndOverDataInterface = DndActiveDataInterface;
+export type DndOverDataInterface<T extends "parent" | "child"> =
+  DndActiveDataInterface<T>;
 
 export const DroppableCustomAttributes = [
   "data-droppable-id",

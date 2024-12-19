@@ -54,8 +54,29 @@ export type StartDragScrollParams = SmartMerge<
   }
 >;
 
+export type EndDragScrollParams = SmartPick<
+  DragScrollParams,
+  "elementScrollContainer"
+>;
+
 export const useDragScroll = () => {
-  const refScrollIntervalId = useRef<number | NodeJS.Timeout>(0);
+  const refScrollIntervalIdMap = useRef<
+    Map<HTMLElement, number | NodeJS.Timeout>
+  >(new Map());
+
+  const endDragScroll = useCallback(
+    ({ elementScrollContainer }: EndDragScrollParams) => {
+      if (!elementScrollContainer) {
+        return;
+      }
+      const intervalId = refScrollIntervalIdMap.current.get(
+        elementScrollContainer,
+      );
+      typeof intervalId !== "undefined" && clearInterval(intervalId);
+      refScrollIntervalIdMap.current.set(elementScrollContainer, 0);
+    },
+    [],
+  );
 
   const startDragScroll = useCallback(
     ({
@@ -77,9 +98,11 @@ export const useDragScroll = () => {
 
       const { x: scrollDirectionX, y: scrollDirectionY } = scrollDirection;
 
-      if (elementScrollContainer && !refScrollIntervalId.current) {
-        refScrollIntervalId.current = setInterval(() => {
-          console.log("DOH");
+      if (
+        elementScrollContainer &&
+        !refScrollIntervalIdMap.current.get(elementScrollContainer)
+      ) {
+        const intervalId = setInterval(() => {
           const verticalSpeed =
             scrollDirectionX === -1 ? scrollSpeedTop : scrollSpeedBottom;
           const horizontalSpeed =
@@ -90,19 +113,15 @@ export const useDragScroll = () => {
             horizontalSpeed * scrollDirectionX;
         }, 1000 / desiredFps);
 
+        refScrollIntervalIdMap.current.set(elementScrollContainer, intervalId);
+
         return () => {
-          clearInterval(refScrollIntervalId.current);
-          refScrollIntervalId.current = 0;
+          endDragScroll({ elementScrollContainer });
         };
       }
     },
-    [],
+    [endDragScroll],
   );
-
-  const endDragScroll = useCallback(() => {
-    clearInterval(refScrollIntervalId.current);
-    refScrollIntervalId.current = 0;
-  }, []);
 
   const dragScroll = useCallback(
     ({
@@ -112,6 +131,8 @@ export const useDragScroll = () => {
       scrollBufferZone,
       scrollSpeed,
     }: DragScrollParams) => {
+      // console.log("[dragScroll]");
+
       if (
         !isDragging ||
         !elementScrollContainer ||
@@ -180,7 +201,7 @@ export const useDragScroll = () => {
             scrollSpeed,
             scrollDirection,
           })
-        : endDragScroll();
+        : endDragScroll({ elementScrollContainer });
     },
     [startDragScroll, endDragScroll],
   );

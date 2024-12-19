@@ -1,4 +1,5 @@
-import { MultiRefMap } from "@/multimap";
+import { Indexer } from "@/indexer";
+import { MultiMap, MultiRefMap } from "@/multimap";
 import React from "react";
 import { ExecutionProps } from "styled-components";
 import { v4 as uuidv4 } from "uuid";
@@ -188,14 +189,14 @@ export type MemoizeCallback<F> = F extends (...args: infer P) => infer R
   ? (...args: P) => R
   : never;
 
-export const memoizeCallback = <F extends Function, D extends unknown>({
+export const memoizeCallback = <F extends Function, D extends any[] = any[]>({
   fn,
   id,
   deps,
 }: {
   fn: F;
   id: string;
-  deps: D[];
+  deps: D;
 }) => {
   const keys = [id, fn.toString(), ...deps];
   if (memoizeCallbackCache.has(keys)) {
@@ -353,10 +354,23 @@ export function getEmptyArray<T>() {
   return emptyArray as T[];
 }
 
-const memoizedArrayMap = new MultiRefMap();
-export function getMemoizedArray<T>({ refs }: { refs: T[] }) {
-  if (!memoizedArrayMap.has(refs)) {
-    memoizedArrayMap.set(refs, [...refs]);
+const memoizedArrayMap = new MultiMap();
+export function getMemoizedArray<T, R extends string>({
+  arr,
+  keys,
+}: {
+  arr: T[];
+  keys: R[];
+}) {
+  if (!memoizedArrayMap.has({ keys })) {
+    memoizedArrayMap.set({
+      keys,
+      value: arr,
+    });
+  } else {
+    // console.log("[getMemoizedArray] Cache hit");
   }
-  return memoizedArrayMap.get(refs) as T[] | undefined;
+  return memoizedArrayMap.get({ keys }) as T[] | undefined;
 }
+
+export const emptyFunction = () => {};

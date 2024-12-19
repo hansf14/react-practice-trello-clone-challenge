@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -22,12 +23,16 @@ import {
   DraggableCustomAttributesKvMapping,
   DndActiveDataInterface,
   DndOverDataInterface,
+  isParentItemData,
+  DndDataInterfaceUnknown,
+  isChildItemData,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { defaultCategoryTaskItems } from "@/data";
 import {
   closestCenter,
   closestCorners,
+  defaultDropAnimationSideEffects,
   DndContext,
   DragEndEvent,
   DragMoveEvent,
@@ -174,9 +179,23 @@ export const BoardListInternal = withMemoAndRef<
       useState<ChildItem | null>(null);
     const refDragOverlayReactElement = useRef<React.ReactElement | null>(null);
 
+    const [stateNestedIndexer, setStateNestedIndexer] = useRecoilState(
+      nestedIndexerAtom({
+        parentKeyName,
+        childKeyName,
+        items: defaultCategoryTaskItems,
+      }),
+    );
+
+    const [isDragging, setIsDragging] = useState(false);
+    const { dragScroll, endDragScroll } = useDragScroll();
+
     const onDragStart = useCallback((event: DragStartEvent) => {
       console.log("[onDragStart]");
-      console.log(event);
+      // console.log(event);
+
+      setIsDragging(true);
+
       if (event.active.data.current) {
         const activator = event.activatorEvent.target as HTMLElement | null;
         if (!activator) {
@@ -218,31 +237,44 @@ export const BoardListInternal = withMemoAndRef<
             } satisfies React.CSSProperties,
           },
         );
-        const dndData = event.active.data.current as DndDataInterface;
-        if (dndData.type === "parent") {
-          setStateActiveParentItem(event.active.data.current.item);
-        } else if (dndData.type === "child") {
-          setStateActiveChildItem(event.active.data.current.item);
+
+        const activeDataUnknown = event.active.data
+          .current as DndDataInterfaceUnknown;
+        if (isParentItemData(activeDataUnknown)) {
+          const activeDataParent = activeDataUnknown;
+          setStateActiveParentItem(activeDataParent.item);
+        } else if (isChildItemData(activeDataUnknown)) {
+          const activeDataChild = activeDataUnknown;
+          setStateActiveChildItem(activeDataChild.item);
         } else {
           console.warn("[onDragStart] invalid dndData.type");
         }
       }
     }, []);
 
-    const [stateNestedIndexer, setStateNestedIndexer] = useRecoilState(
-      nestedIndexerAtom({
-        parentKeyName,
-        childKeyName,
-        items: defaultCategoryTaskItems,
-      }),
-    );
+    // Update scroll direction on drag move
+    const onDragMove = ({
+      active,
+      over,
+      activatorEvent,
+      delta,
+      collisions,
+    }: DragMoveEvent) => {
+      // console.log("[onDragMove]");
+
+      dragScroll({
+        isDragging,
+        elementScrollContainer: refBase.current,
+        active,
+      });
+    };
 
     const onDragOver = useCallback((event: DragOverEvent) => {
       console.log("[onDragOver]");
 
       const { active, over } = event;
-      // console.log("active:", active);
-      // console.log("over:", over);
+      console.log("active:", active);
+      console.log("over:", over);
       if (!over) {
         return;
       }
@@ -252,8 +284,8 @@ export const BoardListInternal = withMemoAndRef<
         console.warn("[onDragOver] id should only be string.");
         return;
       }
-      const activeData = active.data.current as DndActiveDataInterface;
-      const overData = over.data.current as DndOverDataInterface;
+      const activeData = active.data.current as DndDataInterfaceUnknown;
+      const overData = over.data.current as DndDataInterfaceUnknown;
       const activeType = activeData.type;
       const overType = overData.type;
       const activeIndex = activeData.sortable.index;
@@ -381,6 +413,9 @@ export const BoardListInternal = withMemoAndRef<
     const onDragEnd = useCallback(
       (event: DragEndEvent) => {
         console.log("[onDragEnd]");
+
+        setIsDragging(false);
+
         const { active, over } = event;
         // console.log(event);
         console.log("active:", active);
@@ -390,23 +425,34 @@ export const BoardListInternal = withMemoAndRef<
         }
         const activeId = active.id;
         const overId = over.id;
-        const activeData = active.data.current as DndActiveDataInterface;
-        const overData = over.data.current as DndOverDataInterface;
-        if (activeId === overId) {
+        const activeDataUnknown = active.data
+          .current as DndDataInterfaceUnknown;
+        const overDataUnknown = over.data.current as DndDataInterfaceUnknown;
+        if (!activeDataUnknown || !overDataUnknown || activeId === overId) {
           return;
         }
-        const idxFrom = activeData.sortable.index;
-        const idxTo = overData.sortable.index;
-        setStateNestedIndexer((curNestedIndexer) => {
-          const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
-            curNestedIndexer,
-          );
-          newNestedIndexer.moveParent({
-            idxFrom,
-            idxTo,
+
+        if (
+          isParentItemData(activeDataUnknown) &&
+          isParentItemData(overDataUnknown)
+        ) {
+          const activeData = activeDataUnknown;
+          const overData = overDataUnknown;
+
+          const idxFrom = activeData.sortable.index;
+          const idxTo = overData.sortable.index;
+          setStateNestedIndexer((curNestedIndexer) => {
+            const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
+              curNestedIndexer,
+            );
+            newNestedIndexer.moveParent({
+              idxFrom,
+              idxTo,
+            });
+            return newNestedIndexer;
           });
-          return newNestedIndexer;
-        });
+        }
+
         setStateActiveParentItem(null);
         setStateActiveChildItem(null);
       },
@@ -444,34 +490,6 @@ export const BoardListInternal = withMemoAndRef<
     //   // If there are no collisions with the pointer, return rectangle intersections
     //   return rectIntersection(args);
     // }
-
-    const [isDragging, setIsDragging] = useState(false);
-    const { dragScroll } = useDragScroll();
-
-    // Update scroll direction on drag move
-    const handleDragMove = ({
-      active,
-      over,
-      activatorEvent,
-      delta,
-      collisions,
-    }: DragMoveEvent) => {
-      // active.data.current.type
-      dragScroll({
-        isDragging,
-        elementScrollContainer: refBase.current,
-        active,
-      });
-    };
-
-    // Reset state on drag end
-    const handleDragEnd = () => {
-      setIsDragging(false);
-    };
-
-    const handleDragStart = () => {
-      setIsDragging(true);
-    };
 
     /////////////////////////////////////////
 
@@ -532,6 +550,14 @@ export const BoardListInternal = withMemoAndRef<
     //   }
     // }, [active, refBase.current])
 
+    const parentIdList = useMemo(() => {
+      return (
+        parentItems.map((parentItem) => ({
+          id: parentItem.id,
+        })) ?? getEmptyArray<ParentItem>()
+      );
+    }, [parentItems]);
+
     return (
       <DndContext
         sensors={sensors}
@@ -540,17 +566,17 @@ export const BoardListInternal = withMemoAndRef<
           closestCorners
           // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#when-should-i-use-the-closest-corners-algorithm-instead-of-closest-center
         }
-        onDragStart={handleDragStart}
-        onDragMove={handleDragMove}
+        onDragStart={onDragStart}
+        onDragMove={onDragMove}
         onDragOver={onDragOver}
-        onDragEnd={handleDragEnd}
+        onDragEnd={onDragEnd}
         // autoScroll={{ acceleration: 1 }}
         autoScroll={{ enabled: false }}
       >
         {/* <SortableContext items={parentItems}> */}
         <BoardListInternalBase ref={refBase} {...otherProps}>
           <BoardListDropArea>
-            <SortableContext items={parentItems}>{children}</SortableContext>
+            <SortableContext items={parentIdList}>{children}</SortableContext>
           </BoardListDropArea>
         </BoardListInternalBase>
         {/* </SortableContext> */}
@@ -559,24 +585,26 @@ export const BoardListInternal = withMemoAndRef<
             modifiers={
               stateActiveParentItem
                 ? getMemoizedArray({
-                    refs: [
+                    arr: [
                       restrictToHorizontalAxis,
                       restrictToFirstScrollableAncestor,
                     ],
+                    keys: ["stateActiveParentItem"],
                   })
                 : getEmptyArray<Modifier>()
             }
-            dropAnimation={null}
-            // dropAnimation={{
-            //   // ...defaultDropAnimation,
-            //   sideEffects: defaultDropAnimationSideEffects({
-            //     styles: {
-            //       active: {
-            //         opacity: "1",
-            //       },
-            //     },
-            //   }),
-            // }}
+            // dropAnimation={null}
+            // ㄴ No animation
+            dropAnimation={{
+              // ...defaultDropAnimation,
+              sideEffects: defaultDropAnimationSideEffects({
+                styles: {
+                  active: {
+                    opacity: "1",
+                  },
+                },
+              }),
+            }}
             // https://github.com/clauderic/dnd-kit/issues/317
             // ㄴ Removes flickering due to opacity animation
           >
@@ -640,9 +668,17 @@ export type BoardListProps = BoardListInternalProps;
 export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
   displayName: "BoardList",
   Component: (
-    { parentKeyName, childKeyName, parentItems, ...otherProps },
+    { parentKeyName, childKeyName, parentItems, children, ...otherProps },
     ref,
   ) => {
+    const parentIdList = useMemo(() => {
+      return (
+        (parentItems ?? getEmptyArray<ChildItem>()).map((parentItem) => ({
+          id: parentItem.id,
+        })) ?? getEmptyArray<ParentItem>()
+      );
+    }, [parentItems]);
+
     return (
       //TODO: Recoil Root
       <BoardListInternal
@@ -651,7 +687,9 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         childKeyName={childKeyName}
         parentItems={parentItems}
         {...otherProps}
-      />
+      >
+        <SortableContext items={parentIdList}>{children}</SortableContext>
+      </BoardListInternal>
     );
   },
 });

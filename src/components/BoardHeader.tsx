@@ -126,8 +126,7 @@ export type BoardHeaderProps = {
   parentItem: ParentItem;
   draggableHandleAttributes: DraggableAttributes;
   draggableHandleListeners: SyntheticListenerMap | undefined;
-  // setDraggableHandleRef: (el: HTMLElement | null) => void;
-  draggableHandleCustomAttributes: Record<string, string>;
+  // draggableHandleCustomAttributes: Record<string, string>;
   onEditStartParentItem?: OnEditStartParentItem;
   onEditCancelParentItem?: OnEditCancelParentItem;
   onEditingParentItem?: OnEditingParentItem;
@@ -145,8 +144,7 @@ export const BoardHeader = withMemoAndRef<
       parentItem,
       draggableHandleAttributes,
       draggableHandleListeners,
-      // setDraggableHandleRef,
-      draggableHandleCustomAttributes,
+      // draggableHandleCustomAttributes,
       onEditStartParentItem,
       onEditCancelParentItem,
       onEditingParentItem,
@@ -269,8 +267,7 @@ export const BoardHeader = withMemoAndRef<
           <BoardDragHandle
             {...draggableHandleAttributes}
             {...draggableHandleListeners}
-            // ref={setDraggableHandleRef}
-            {...draggableHandleCustomAttributes}
+            // {...draggableHandleCustomAttributes}
           >
             <GripVertical />
           </BoardDragHandle>
