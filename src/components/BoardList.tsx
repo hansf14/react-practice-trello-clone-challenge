@@ -11,7 +11,13 @@ import { useRecoilState } from "recoil";
 import parse from "html-react-parser";
 import { CssScrollbar } from "@/csses/scrollbar";
 import { NestedIndexer } from "@/indexer";
-import { getEmptyArray, getMemoizedArray, StyledComponentProps } from "@/utils";
+import {
+  checkHasScrollbar,
+  getEmptyArray,
+  getMemoizedArray,
+  ScrollbarCondition,
+  StyledComponentProps,
+} from "@/utils";
 import { cardsContainerAtom } from "@/components/BoardMain";
 import {
   nestedIndexerAtom,
@@ -26,11 +32,12 @@ import {
   isParentItemData,
   DndDataInterfaceUnknown,
   isChildItemData,
+  serializeDroppableAllowedTypes,
+  DroppableCustomAttributesKvMapping,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { defaultCategoryTaskItems } from "@/data";
 import {
-  closestCenter,
   closestCorners,
   defaultDropAnimationSideEffects,
   DndContext,
@@ -41,12 +48,7 @@ import {
   DragStartEvent,
   Modifier,
   MouseSensor,
-  pointerWithin,
-  rectIntersection,
   TouchSensor,
-  useDndContext,
-  useDndMonitor,
-  useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -57,6 +59,7 @@ import {
 import {
   restrictToFirstScrollableAncestor,
   restrictToHorizontalAxis,
+  restrictToWindowEdges,
 } from "@dnd-kit/modifiers";
 import { createPortal } from "react-dom";
 import { useDragScroll } from "@/hooks/useDragScroll";
@@ -81,7 +84,7 @@ type BoardListDropAreaProps = {
   isDropTarget?: boolean;
 };
 
-const BoardListDropAreaBase = styled.div.withConfig({
+const BoardListDropArea = styled.div.withConfig({
   shouldForwardProp: (prop) => !["isDropTarget"].includes(prop),
 })<BoardListDropAreaProps>`
   width: max-content;
@@ -106,57 +109,11 @@ const BoardListDropAreaBase = styled.div.withConfig({
     cursor: grab;
   } */
 
-// Sortable extra-plugins
-// Sortable.mount(new MultiDrag(), new Swap());
-
-// export type BoardListExtendProps = SmartOmit<
-//   BoardListProps,
-//   // "forEachParentItem"
-// >;
-
-const BoardListDropArea = withMemoAndRef({
-  Component: ({ boardListId, ...otherProps }: any, ref) => {
-    // const {
-    //   ref: setNodeRef,
-    //   isDropTarget,
-    //   // droppable,
-    // } = useDroppable({
-    //   id: boardListId,
-    //   accept: ["parent"] satisfies DndDataInterface["type"][],
-    //   type: "root",
-    //   collisionPriority: CollisionPriority.Highest,
-    // });
-
-    // const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
-    //   "data-droppable-id": boardListId,
-    //   "data-droppable-allowed-types": "parent",
-    // };
-
-    return (
-      <BoardListDropAreaBase
-        // ref={setNodeRef}
-        // isDropTarget={isDropTarget}
-        // {...droppableCustomAttributes}
-        {...otherProps}
-      />
-    );
-  },
-});
-
 export type BoardListInternalProps = {
   boardListId: string;
   parentKeyName: string;
   childKeyName: string;
   parentItems?: ParentItem[];
-  // children?: ({
-  //   droppableProvided,
-  //   droppableSnapshot,
-  //   // draggableHandleCustomAttributes,
-  // }: {
-  //   droppableProvided: DroppableProvided;
-  //   droppableSnapshot: DroppableStateSnapshot;
-  //   draggableHandleCustomAttributes: Record<string, string>;
-  // }) => React.ReactNode;
 } & StyledComponentProps<"div">;
 
 export const BoardListInternal = withMemoAndRef<
@@ -182,6 +139,13 @@ export const BoardListInternal = withMemoAndRef<
       useState<ChildItem | null>(null);
     const refDragOverlayReactElement = useRef<React.ReactElement | null>(null);
 
+    const refBase = useRef<HTMLDivElement | null>(null);
+    useImperativeHandle(ref, () => {
+      return refBase.current as HTMLDivElement;
+    });
+
+    const refDroppable = useRef<HTMLDivElement | null>(null);
+
     const [stateNestedIndexer, setStateNestedIndexer] = useRecoilState(
       nestedIndexerAtom({
         parentKeyName,
@@ -191,7 +155,7 @@ export const BoardListInternal = withMemoAndRef<
     );
 
     const [isDragging, setIsDragging] = useState(false);
-    const { dragScroll, endDragScroll } = useDragScroll();
+    const { dragScroll } = useDragScroll();
 
     const onDragStart = useCallback((event: DragStartEvent) => {
       console.log("[onDragStart]");
@@ -255,6 +219,33 @@ export const BoardListInternal = withMemoAndRef<
       }
     }, []);
 
+    // const getDraggable = useCallback(
+    //   ({
+    //     draggableHandle,
+    //     draggableHandleId,
+    //   }: {
+    //     draggableHandle: HTMLElement | null;
+    //     draggableHandleId: string;
+    //   }) => {
+    //     if (!draggableHandle) {
+    //       return null;
+    //     }
+
+    //     const customAttributeDraggableId =
+    //       DraggableCustomAttributesKvMapping["data-draggable-id"];
+    //     const draggable = document.querySelector(
+    //       `[${customAttributeDraggableId}=${activeId}]`,
+    //     );
+    //   },
+    //   [],
+    // );
+
+    // const isDroppable = useCallback(({ element }: { element: HTMLElement }) => {
+    //   return element.hasAttribute(
+    //     DroppableCustomAttributesKvMapping["data-droppable-id"],
+    //   );
+    // }, []);
+
     // Update scroll direction on drag move
     const onDragMove = ({
       active,
@@ -266,18 +257,17 @@ export const BoardListInternal = withMemoAndRef<
       // console.log("[onDragMove]");
 
       dragScroll({
-        isDragging,
-        elementScrollContainer: refBase.current,
-        active,
+        scrollContainer: refBase.current,
+        desiredFps: 60,
       });
     };
 
     const onDragOver = useCallback((event: DragOverEvent) => {
-      console.log("[onDragOver]");
+      // console.log("[onDragOver]");
 
       const { active, over } = event;
-      console.log("active:", active);
-      console.log("over:", over);
+      // console.log("active:", active);
+      // console.log("over:", over);
       if (!over) {
         return;
       }
@@ -469,16 +459,16 @@ export const BoardListInternal = withMemoAndRef<
         //   // ㄴ Need to move 3px to activate drag event.
         // },
       }),
-      useSensor(TouchSensor),
+      useSensor(TouchSensor, {
+        // activationConstraint: {
+        //   distance: 3,
+        //   // ㄴ Need to move 3px to activate drag event.
+        // },
+      }),
       // useSensor(KeyboardSensor, {
       //   coordinateGetter: sortableKeyboardCoordinates,
       // }),
     );
-
-    const refBase = useRef<HTMLDivElement | null>(null);
-    useImperativeHandle(ref, () => {
-      return refBase.current as HTMLDivElement;
-    });
 
     // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#composition-of-existing-algorithms
     // function customCollisionDetectionAlgorithm(args) {
@@ -499,6 +489,25 @@ export const BoardListInternal = withMemoAndRef<
       );
     }, [parentItems]);
 
+    const modifiers = stateActiveParentItem
+      ? getMemoizedArray({
+          arr: [restrictToHorizontalAxis, restrictToFirstScrollableAncestor],
+          keys: ["stateActiveParentItem"],
+        })
+      : stateActiveChildItem
+        ? getMemoizedArray({
+            arr: [restrictToWindowEdges],
+            keys: ["stateActiveChildItem"],
+          })
+        : getEmptyArray<Modifier>();
+
+    const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
+      "data-droppable-id": boardListId,
+      "data-droppable-allowed-types": serializeDroppableAllowedTypes({
+        allowedTypes: ["parent"],
+      }),
+    };
+
     return (
       <DndContext
         sensors={sensors}
@@ -514,9 +523,8 @@ export const BoardListInternal = withMemoAndRef<
         // autoScroll={{ acceleration: 1 }}
         autoScroll={{ enabled: false }}
       >
-        {/* <SortableContext items={parentItems}> */}
         <BoardListInternalBase ref={refBase} {...otherProps}>
-          <BoardListDropArea>
+          <BoardListDropArea ref={refDroppable} {...droppableCustomAttributes}>
             <SortableContext
               id={boardListId}
               items={parentIdList}
@@ -526,20 +534,9 @@ export const BoardListInternal = withMemoAndRef<
             </SortableContext>
           </BoardListDropArea>
         </BoardListInternalBase>
-        {/* </SortableContext> */}
         {createPortal(
           <DragOverlay
-            modifiers={
-              stateActiveParentItem
-                ? getMemoizedArray({
-                    arr: [
-                      restrictToHorizontalAxis,
-                      restrictToFirstScrollableAncestor,
-                    ],
-                    keys: ["stateActiveParentItem"],
-                  })
-                : getEmptyArray<Modifier>()
-            }
+            modifiers={modifiers}
             // dropAnimation={null}
             // ㄴ No animation
             dropAnimation={{
@@ -563,20 +560,6 @@ export const BoardListInternal = withMemoAndRef<
     );
   },
 });
-{
-  /* <DndContext
-  sensors={sensors}
-  collisionDetection={
-    // closestCenter
-    closestCorners
-    // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#when-should-i-use-the-closest-corners-algorithm-instead-of-closest-center
-  }
-  onDragStart={onDragStart}
-  onDragOver={onDragOver}
-  onDragEnd={onDragEnd}
-  autoScroll={{ acceleration: 1 }}
-> */
-}
 {
   /* {createPortal(
   <DragOverlay
@@ -635,9 +618,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         parentItems={parentItems}
         {...otherProps}
       >
-        {/* <SortableContext items={parentIdList}> */}
         {children}
-        {/* </SortableContext> */}
       </BoardListInternal>
     );
   },

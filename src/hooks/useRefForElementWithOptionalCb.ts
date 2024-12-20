@@ -1,49 +1,32 @@
-// TODO: finish implementation
-import { useForceRenderWithOptionalCb } from "./useForceRenderWithOptionalCb";
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 
-export type CallbackRef<T extends HTMLElement> = (node: T | null) => void;
-export type Cb<T extends HTMLElement> = ({ node }: { node: T | null }) => void;
+// T can be also Handle, so shouldn't write `T extends HTMLElement`.
+export type Cb<T> = ({ el }: { el: T | null }) => void;
 
-export type UseRefForElementWithOptionalCbParams<T extends HTMLElement> = {
-  cb?: Cb<T>;
-  callbackRefInternal?: Cb<T>;
-};
+export const useRefForElementWithOptionalCb = <T>() => {
+  const refElement = useRef<T | null>(null);
 
-export const useRefForElementWithOptionalCb = <T extends HTMLElement>(
-  params?: UseRefForElementWithOptionalCbParams<T>,
-) => {
-  const { cb, callbackRefInternal } = params ?? {};
-
-  const ref = useRef<T | null>(null) as React.MutableRefObject<T | null>;
-  const refCallbackRefInternal = useRef<Cb<T> | undefined>(callbackRefInternal);
-  const refCb = useRef<Cb<T> | undefined>(cb);
-
-  refCallbackRefInternal.current = callbackRefInternal;
-
-  const { forceRender } = useForceRenderWithOptionalCb();
-
-  const callbackRef = useCallback((node: T | null) => {
-    // console.log("Setting refs...");
-    if (node) {
-      ref.current = node;
-      refCallbackRefInternal.current?.({ node });
-    }
-  }, []);
-
-  const setNewCallbackRefInternal = useCallback(
-    ({ newCb }: { newCb: Cb<T> }) => {
-      refCallbackRefInternal.current = newCb;
-    },
+  const setElementRef = useCallback(
+    ({ cb }: { cb?: Cb<T> }) =>
+      (el: T | null) => {
+        if (el) {
+          refElement.current = el;
+          cb?.({ el });
+        }
+      },
     [],
   );
 
-  const setNewCb = useCallback(({ newDelayedCb }: { newDelayedCb: Cb<T> }) => {
-    refCb.current = newDelayedCb;
-  }, []);
+  const [refSet, setRefSet] = useState(false); // State to track if ref is set
+
+  useEffect(() => {
+    if (refElement.current) {
+      setRefSet(true); // Trigger a re-render when the ref is set
+    }
+  }, [refElement.current]); // Effect runs when the ref changes
 
   return {
-    ref,
-    callbackRef,
+    ref: refElement,
+    setElementRef,
   };
 };

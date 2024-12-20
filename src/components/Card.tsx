@@ -20,12 +20,19 @@ import {
   DraggableCustomAttributesKvObj,
   DraggableHandleCustomAttributesKvObj,
 } from "@/components/BoardContext";
-import { emptyFunction, SmartOmit, StyledComponentProps } from "@/utils";
+import { SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
-import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-const { TextArea } = Input;
+import {
+  OnEditCancel,
+  OnEditChange,
+  OnEditFinish,
+  OnEditStart,
+  TextArea,
+  TextAreaHandle,
+  useTextArea,
+} from "@/components/TextArea";
 
 const CardInternalBase = styled.div`
   padding: 10px;
@@ -34,21 +41,10 @@ const CardInternalBase = styled.div`
   backdrop-filter: blur(13.5px);
 `;
 
-const CardContentInput = styled(TextArea)`
+const CardContentTextArea = styled(TextArea)`
   && {
-    width: 100%;
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-
     font-weight: bold;
     font-size: 14px;
-
-    transition: none;
-
-    &:not([readonly]) {
-      outline: 2px solid yellow;
-    }
   }
 `;
 
@@ -118,12 +114,25 @@ export type OnUpdateChildItem = <C extends ChildItem>({
 
 export type CardProps = {
   childItem: ChildItem;
-  onUpdateChildItem?: OnUpdateChildItem;
+  onEditStartItem?: OnEditStart;
+  onEditCancelItem?: OnEditCancel;
+  onEditChangeItem?: OnEditChange;
+  onEditFinishItem?: OnEditFinish;
 } & SmartOmit<StyledComponentProps<"div">, "children">;
 
 export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
   displayName: "Card",
-  Component: ({ childItem, onUpdateChildItem, ...otherProps }, ref) => {
+  Component: (
+    {
+      childItem,
+      onEditStartItem,
+      onEditCancelItem,
+      onEditChangeItem,
+      onEditFinishItem,
+      ...otherProps
+    },
+    ref,
+  ) => {
     const sortableConfig = useMemo(
       () => ({
         id: childItem.id,
@@ -171,45 +180,6 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       ],
     );
 
-    const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
-
-    const cardContentEditEnableHandler = useCallback<
-      React.MouseEventHandler<HTMLTextAreaElement>
-    >(() => {
-      setStateIsEditMode(true);
-    }, []);
-
-    const cardContentEditDisableHandler = useCallback<
-      React.FocusEventHandler<HTMLTextAreaElement>
-    >(() => {
-      setStateIsEditMode(false);
-    }, []);
-
-    const cardContentEditFinishHandler = useCallback<
-      React.KeyboardEventHandler<HTMLTextAreaElement>
-    >((event) => {
-      if (event.key !== "Enter") {
-        return;
-      }
-      setStateIsEditMode(false);
-    }, []);
-
-    const cardContentEditHandler = useCallback<
-      React.ChangeEventHandler<HTMLTextAreaElement>
-    >(
-      (event) => {
-        onUpdateChildItem?.({
-          event,
-          oldChildItem: childItem,
-          newChildItem: {
-            id: childItem.id,
-            content: event.target.value,
-          },
-        });
-      },
-      [childItem, onUpdateChildItem],
-    );
-
     const style = useMemo(
       () => ({
         transition,
@@ -230,30 +200,44 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       "data-draggable-id": childItem.id,
     };
 
+    const {
+      stateIsEditMode,
+      setStateIsEditMode,
+      onEditModeEnabled,
+      onEditModeDisabled,
+      onEditStart,
+      onEditCancel,
+      onEditChange,
+      onEditFinish,
+    } = useTextArea({
+      onEditStartItem,
+      onEditCancelItem,
+      onEditChangeItem,
+      onEditFinishItem,
+    });
+    const refCardContentTextArea = useRef<TextAreaHandle | null>(null);
+
     const children = useMemo(
       () => (
         <>
-          <CardContentInput
+          <CardContentTextArea
+            ref={refCardContentTextArea}
             value={childItem.content}
-            // autoFocus
-            autoSize
-            readOnly={!stateIsEditMode}
-            onClick={cardContentEditEnableHandler}
-            onBlur={cardContentEditDisableHandler}
-            onKeyDown={cardContentEditFinishHandler}
-            onChange={cardContentEditHandler}
+            onEditStart={onEditStart}
+            onEditCancel={onEditCancel}
+            onEditChange={onEditChange}
+            onEditFinish={onEditFinish}
           />
           <CardDragHandle childItemId={childItem.id} />
         </>
       ),
       [
-        childItem.content,
         childItem.id,
-        stateIsEditMode,
-        cardContentEditDisableHandler,
-        cardContentEditEnableHandler,
-        cardContentEditFinishHandler,
-        cardContentEditHandler,
+        childItem.content,
+        onEditStart,
+        onEditCancel,
+        onEditChange,
+        onEditFinish,
       ],
     );
 
@@ -261,10 +245,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       <CardProvider value={cardContextValue}>
         <CardInternalBase
           ref={callbackRef}
-          item={childItem}
           style={style}
-          // {...draggableHandleListeners}
-          {...draggableHandleAttributes}
           {...draggableCustomAttributes}
           {...otherProps}
         >

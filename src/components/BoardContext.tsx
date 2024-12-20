@@ -69,12 +69,18 @@ export function isChildItemData(
   return value.type === "child";
 }
 
-export type DndDataInterface<T extends "parent" | "child"> = {
+export const DndDataItemTypes = ["parent", "child"] as const;
+export type DndDataItemType = (typeof DndDataItemTypes)[number];
+export const DndDataItemTypeKvMapping = createKeyValueMapping({
+  arr: DndDataItemTypes,
+});
+
+export type DndDataInterface<T extends DndDataItemType> = {
   type: T;
   item: T extends "parent" ? ParentItem : T extends "child" ? ChildItem : never;
 };
 
-export type DndActiveDataInterface<T extends "parent" | "child"> = SmartMerge<
+export type DndActiveDataInterface<T extends DndDataItemType> = SmartMerge<
   DndDataInterface<T> & {
     sortable: {
       containerId: string;
@@ -83,7 +89,7 @@ export type DndActiveDataInterface<T extends "parent" | "child"> = SmartMerge<
     };
   }
 >;
-export type DndOverDataInterface<T extends "parent" | "child"> =
+export type DndOverDataInterface<T extends DndDataItemType> =
   DndActiveDataInterface<T>;
 
 export const DroppableCustomAttributes = [
@@ -100,6 +106,24 @@ export type DroppableCustomAttributesKvObj = {
 } & {
   [P in (typeof DroppableCustomAttributesKvMapping)["data-droppable-allowed-types"]]: string;
 };
+
+export function serializeDroppableAllowedTypes({
+  allowedTypes,
+}: {
+  allowedTypes: DndDataItemType[];
+}) {
+  return JSON.stringify(allowedTypes).replaceAll(/\"/g, "'");
+}
+
+export function deserializeDroppableAllowedTypes({
+  serializedAllowedTypes,
+}: {
+  serializedAllowedTypes: string;
+}) {
+  return JSON.parse(
+    serializedAllowedTypes.replaceAll(/'/g, '"'),
+  ) as DndDataItemType[];
+}
 
 export const DraggableCustomAttributes = ["data-draggable-id"] as const;
 export type DraggableCustomAttributeType =

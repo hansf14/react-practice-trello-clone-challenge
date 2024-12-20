@@ -20,10 +20,16 @@ import { SubmitHandler, useForm } from "react-hook-form";
 import { getEmptyArray, StyledComponentProps } from "@/utils";
 import { Input } from "antd";
 import { CssScrollbar } from "@/csses/scrollbar";
-import { ChildItem, ParentItem } from "@/components/BoardContext";
+import {
+  ChildItem,
+  DroppableCustomAttributesKvObj,
+  ParentItem,
+  serializeDroppableAllowedTypes,
+} from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
   horizontalListSortingStrategy,
+  rectSortingStrategy,
   SortableContext,
 } from "@dnd-kit/sortable";
 const { TextArea } = Input;
@@ -306,14 +312,22 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
       );
     }, [parentItem.items]);
 
+    const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
+      "data-droppable-id": parentItem.id,
+      "data-droppable-allowed-types": serializeDroppableAllowedTypes({
+        allowedTypes: ["child"],
+      }),
+    };
+
     return (
       <BoardMainBase ref={ref}>
         <BoardMainContentContainer>
-          <BoardMainContent
-          // ref={refCardsContainer}
-          //  {...customDataAttributes}
-          >
-            <SortableContext id={parentItem.id} items={childIdList}>
+          <BoardMainContent {...droppableCustomAttributes}>
+            <SortableContext
+              id={parentItem.id}
+              items={childIdList}
+              strategy={rectSortingStrategy}
+            >
               {children}
             </SortableContext>
           </BoardMainContent>

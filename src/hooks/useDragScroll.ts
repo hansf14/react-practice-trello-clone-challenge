@@ -1,4 +1,10 @@
-import { SmartMerge, SmartPick } from "@/utils";
+import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
+import {
+  getCursorScrollOffsetOnElement,
+  memoizeCallback,
+  SmartMerge,
+  SmartPick,
+} from "@/utils";
 import {
   DragAbortEvent,
   DragCancelEvent,
@@ -8,7 +14,8 @@ import {
   DragPendingEvent,
   DragStartEvent,
 } from "@dnd-kit/core";
-import { useCallback, useRef } from "react";
+import { throttle } from "lodash-es";
+import { useCallback, useEffect, useRef } from "react";
 
 export type DragEvent =
   | DragPendingEvent
@@ -27,9 +34,7 @@ export type DragScrollRelatedEvent =
   | DragCancelEvent;
 
 export type DragScrollParams = {
-  isDragging: boolean;
-  elementScrollContainer: HTMLElement | null;
-  active: SmartPick<DragScrollRelatedEvent, "active">["active"];
+  scrollContainer: HTMLElement | null;
   scrollBufferZone?: {
     // Distance from the edge to trigger scrolling
     topBufferLength?: number;
@@ -45,46 +50,110 @@ export type DragScrollParams = {
     bottom?: number;
     right?: number;
   };
+  desiredFps?: number;
 };
 
 export type StartDragScrollParams = SmartMerge<
-  SmartPick<DragScrollParams, "elementScrollContainer" | "scrollSpeed"> & {
+  SmartPick<
+    DragScrollParams,
+    "scrollContainer" | "scrollSpeed" | "desiredFps"
+  > & {
     scrollDirection: { x: 1 | 0 | -1; y: 1 | 0 | -1 };
-    desiredFps?: number;
   }
 >;
 
 export type EndDragScrollParams = SmartPick<
   DragScrollParams,
-  "elementScrollContainer"
+  "scrollContainer"
 >;
+
+let isOnPointerDownAttached = false;
+let isOnPointerMoveAttached = false;
+let isOnPointerUpAttached = false;
+let curPointerEvent: PointerEvent | null = null;
+let isDragScrollAllowed: boolean = false;
 
 export const useDragScroll = () => {
   const refScrollIntervalIdMap = useRef<
     Map<HTMLElement, number | NodeJS.Timeout>
   >(new Map());
 
+  const onPointerDown = useCallback(() => {
+    isDragScrollAllowed = true;
+  }, []);
+  const onPointerMove = useCallback((event: PointerEvent) => {
+    curPointerEvent = event;
+  }, []);
+  const onPointerUp = useCallback(() => {
+    isDragScrollAllowed = false;
+  }, []);
+
+  useEffect(() => {
+    if (!isOnPointerDownAttached) {
+      document.body.addEventListener("pointerdown", onPointerDown);
+      isOnPointerDownAttached = true;
+    }
+    if (!isOnPointerMoveAttached) {
+      document.body.addEventListener("pointermove", onPointerMove);
+      isOnPointerMoveAttached = true;
+    }
+    if (!isOnPointerUpAttached) {
+      document.body.addEventListener("pointerup", onPointerUp);
+      isOnPointerUpAttached = true;
+    }
+    return () => {
+      if (isOnPointerDownAttached) {
+        document.body.removeEventListener("pointerdown", onPointerDown);
+        isOnPointerDownAttached = false;
+      }
+      if (isOnPointerMoveAttached) {
+        document.body.removeEventListener("pointermove", onPointerMove);
+        isOnPointerMoveAttached = false;
+      }
+      if (isOnPointerUpAttached) {
+        document.body.removeEventListener("pointerup", onPointerUp);
+        isOnPointerUpAttached = false;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isOnPointerDownAttached,
+    isOnPointerMoveAttached,
+    isOnPointerUpAttached,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+  ]);
+
   const endDragScroll = useCallback(
-    ({ elementScrollContainer }: EndDragScrollParams) => {
-      if (!elementScrollContainer) {
+    ({ scrollContainer }: EndDragScrollParams) => {
+      if (!scrollContainer) {
         return;
       }
-      const intervalId = refScrollIntervalIdMap.current.get(
-        elementScrollContainer,
-      );
+      const intervalId = refScrollIntervalIdMap.current.get(scrollContainer);
       typeof intervalId !== "undefined" && clearInterval(intervalId);
-      refScrollIntervalIdMap.current.set(elementScrollContainer, 0);
+      refScrollIntervalIdMap.current.set(scrollContainer, 0);
     },
     [],
   );
 
   const startDragScroll = useCallback(
     ({
-      elementScrollContainer,
+      scrollContainer,
       scrollSpeed,
       scrollDirection,
       desiredFps = 60,
     }: StartDragScrollParams) => {
+      if (!isDragScrollAllowed || !scrollContainer) {
+        endDragScroll({ scrollContainer });
+        return;
+      }
+      if (refScrollIntervalIdMap.current.get(scrollContainer)) {
+        // endDragScroll({ scrollContainer });
+        // ㄴ 여기에도 이거 놓으면 스크롤이 툭툭 끊긴다.
+        return;
+      }
+
       const DEFAULT_SCROLL_SPEED_TOP = 3;
       const DEFAULT_SCROLL_SPEED_LEFT = 3;
       const DEFAULT_SCROLL_SPEED_BOTTOM = 3;
@@ -98,112 +167,125 @@ export const useDragScroll = () => {
 
       const { x: scrollDirectionX, y: scrollDirectionY } = scrollDirection;
 
-      if (
-        elementScrollContainer &&
-        !refScrollIntervalIdMap.current.get(elementScrollContainer)
-      ) {
-        const intervalId = setInterval(() => {
+      const intervalId = setInterval(() => {
+        requestAnimationFrame(() => {
           const verticalSpeed =
             scrollDirectionX === -1 ? scrollSpeedTop : scrollSpeedBottom;
           const horizontalSpeed =
             scrollDirectionY === -1 ? scrollSpeedLeft : scrollSpeedRight;
 
-          elementScrollContainer.scrollTop += verticalSpeed * scrollDirectionY;
-          elementScrollContainer.scrollLeft +=
-            horizontalSpeed * scrollDirectionX;
-        }, 1000 / desiredFps);
+          scrollContainer.scrollTop += verticalSpeed * scrollDirectionY;
+          scrollContainer.scrollLeft += horizontalSpeed * scrollDirectionX;
+        });
+      }, 1000 / desiredFps);
 
-        refScrollIntervalIdMap.current.set(elementScrollContainer, intervalId);
-
-        return () => {
-          endDragScroll({ elementScrollContainer });
-        };
-      }
+      refScrollIntervalIdMap.current.set(scrollContainer, intervalId);
     },
     [endDragScroll],
   );
 
+  const idDragScroll = useMemoizeCallbackId();
   const dragScroll = useCallback(
     ({
-      isDragging,
-      elementScrollContainer,
-      active,
+      scrollContainer,
       scrollBufferZone,
       scrollSpeed,
-    }: DragScrollParams) => {
-      // console.log("[dragScroll]");
+      desiredFps = 60,
+    }: DragScrollParams) =>
+      memoizeCallback({
+        id: idDragScroll,
+        fn: throttle(() => {
+          requestAnimationFrame(() => {
+            if (!isDragScrollAllowed || !scrollContainer) {
+              endDragScroll({ scrollContainer });
+              return;
+            }
+            // console.log("[dragScroll]");
 
-      if (
-        !isDragging ||
-        !elementScrollContainer ||
-        !active.rect.current?.translated
-      ) {
-        return;
-      }
+            const {
+              offsetTop: top,
+              offsetLeft: left,
+              offsetHeight,
+              offsetWidth,
+            } = scrollContainer;
+            const bottom = top + offsetHeight;
+            const right = left + offsetWidth;
 
-      const {
-        offsetTop: top,
-        offsetLeft: left,
-        offsetHeight,
-        offsetWidth,
-      } = elementScrollContainer;
-      const bottom = top + offsetHeight;
-      const right = left + offsetWidth;
+            const DEFAULT_TOP_BUFFER_LENGTH = 50;
+            const DEFAULT_LEFT_BUFFER_LENGTH = 50;
+            const DEFAULT_BOTTOm_BUFFER_LENGTH = 50;
+            const DEFAULT_RIGHT_BUFFER_LENGTH = 50;
+            const {
+              topBufferLength = DEFAULT_TOP_BUFFER_LENGTH,
+              bottomBufferLength = DEFAULT_LEFT_BUFFER_LENGTH,
+              leftBufferLength = DEFAULT_BOTTOm_BUFFER_LENGTH,
+              rightBufferLength = DEFAULT_RIGHT_BUFFER_LENGTH,
+            } = scrollBufferZone ?? {};
 
-      const DEFAULT_TOP_BUFFER_LENGTH = 50;
-      const DEFAULT_LEFT_BUFFER_LENGTH = 50;
-      const DEFAULT_BOTTOm_BUFFER_LENGTH = 50;
-      const DEFAULT_RIGHT_BUFFER_LENGTH = 50;
-      const {
-        topBufferLength = DEFAULT_TOP_BUFFER_LENGTH,
-        bottomBufferLength = DEFAULT_LEFT_BUFFER_LENGTH,
-        leftBufferLength = DEFAULT_BOTTOm_BUFFER_LENGTH,
-        rightBufferLength = DEFAULT_RIGHT_BUFFER_LENGTH,
-      } = scrollBufferZone ?? {};
+            if (!curPointerEvent) {
+              return;
+            }
+            const offsetOnElementOfCursor = getCursorScrollOffsetOnElement({
+              element: scrollContainer,
+              event: curPointerEvent,
+              offsetType: "no-scroll",
+            });
+            if (!offsetOnElementOfCursor) {
+              return;
+            }
 
-      const scrollDirection: StartDragScrollParams["scrollDirection"] = {
-        x: 0,
-        y: 0,
-      };
-      let shouldTriggerScroll = false;
+            console.group();
+            console.log(offsetOnElementOfCursor);
+            console.log([top, left]);
+            console.log([bottom, right]);
+            console.groupEnd();
 
-      // Vertical scrolling
-      if (active.rect.current.translated.top < top + topBufferLength) {
-        // Scroll up
-        shouldTriggerScroll = true;
-        scrollDirection.y = -1;
-      } else if (
-        active.rect.current.translated.bottom >
-        bottom - bottomBufferLength
-      ) {
-        // Scroll down
-        shouldTriggerScroll = true;
-        scrollDirection.y = 1;
-      }
+            const { x, y } = offsetOnElementOfCursor;
+            let shouldTriggerScroll = false;
+            const scrollDirection: StartDragScrollParams["scrollDirection"] = {
+              x: 0,
+              y: 0,
+            };
 
-      // Horizontal scrolling
-      if (active.rect.current.translated.left < left + leftBufferLength) {
-        // Scroll left
-        shouldTriggerScroll = true;
-        scrollDirection.x = -1;
-      } else if (
-        active.rect.current.translated.right >
-        right - rightBufferLength
-      ) {
-        // Scroll right
-        shouldTriggerScroll = true;
-        scrollDirection.x = 1;
-      }
+            // Vertical scrolling
+            if (y < top + topBufferLength && y > top) {
+              // Scroll up
+              shouldTriggerScroll = true;
+              scrollDirection.y = -1;
+            } else if (y > bottom - bottomBufferLength && y < bottom) {
+              // Scroll down
+              shouldTriggerScroll = true;
+              scrollDirection.y = 1;
+            }
 
-      shouldTriggerScroll
-        ? startDragScroll({
-            elementScrollContainer,
-            scrollSpeed,
-            scrollDirection,
-          })
-        : endDragScroll({ elementScrollContainer });
-    },
-    [startDragScroll, endDragScroll],
+            // Horizontal scrolling
+            if (x < left + leftBufferLength && x > left) {
+              // Scroll left
+              shouldTriggerScroll = true;
+              scrollDirection.x = -1;
+            } else if (x > right - rightBufferLength && x < right) {
+              // Scroll right
+              shouldTriggerScroll = true;
+              scrollDirection.x = 1;
+            }
+
+            if (shouldTriggerScroll) {
+              startDragScroll({
+                scrollContainer,
+                scrollSpeed,
+                scrollDirection,
+                desiredFps,
+              });
+              return true;
+            } else {
+              endDragScroll({ scrollContainer });
+              return false;
+            }
+          });
+        }, 1000 / desiredFps),
+        deps: [startDragScroll, endDragScroll],
+      })(),
+    [idDragScroll, startDragScroll, endDragScroll],
   );
 
   return {

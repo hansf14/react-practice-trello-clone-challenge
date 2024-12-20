@@ -9,15 +9,12 @@ import React, {
 } from "react";
 import { RecoilRoot, useRecoilState } from "recoil";
 import { Board, BoardProps } from "@/components/Board";
-import {
-  BoardHeader,
-  OnEditFinishParentItem,
-  OnEditStartParentItem,
-} from "@/components/BoardHeader";
+import { BoardHeader } from "@/components/BoardHeader";
 import { BoardListInternal, BoardListProps } from "@/components/BoardList";
 import {
   getEmptyArray,
   getMemoizedArray,
+  memoizeCallback,
   SmartOmit,
   StyledComponentProps,
 } from "@/utils";
@@ -30,12 +27,12 @@ import { NestedIndexer, NestedIndexerItem } from "@/indexer";
 import { BoardMain, ForEachChildItem } from "@/components/BoardMain";
 import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
-import { StatViewer } from "@/components/StatViwer";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { defaultCategoryTaskItems } from "@/data";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import memoizee from "memoizee";
 import { MultiRefMap } from "@/multimap";
+import { OnEditFinish, OnEditStart } from "@/components/TextArea";
 
 const CategoryTaskBoardListInternalBase = styled(BoardListInternal)``;
 
@@ -97,40 +94,34 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       });
     }, [categoryList, stateCategoryTaskNestedIndexer]);
 
-    const onEditStartParentItem = useCallback<OnEditStartParentItem>(
-      ({ elementTextArea, handlers: { editCancelHandler } }) => {
-        alert("Press enter when the edit is finished.");
-
-        elementTextArea.focus({ cursor: "all" });
-
-        // Delay execution to prevent interference. For example, `focus` event.
-        // Introduce a small delay before execution using a setTimeout.
-        // cf> https://stackoverflow.com/a/53702815/11941803
-        setTimeout(() =>
-          elementTextArea.resizableTextArea?.textArea.addEventListener(
-            "blur",
-            editCancelHandler,
-            {
-              once: true,
-            },
-          ),
-        );
-      },
+    const onEditStartParentItem = useCallback<OnEditStart>(
+      ({ elementTextArea, handlers: { editCancelHandler } }) => {},
       [],
     );
 
-    const onEditFinishParentItem = useCallback<OnEditFinishParentItem>(
-      ({ oldParentItem, newParentItem }) => {
-        setStateCategoryTaskNestedIndexer((curNestedIndexer) => {
-          const newIndexer = new NestedIndexer(curNestedIndexer);
-          newIndexer.updateParent({
-            parentId: oldParentItem.id,
-            parent: newParentItem,
-          });
-          return newIndexer;
-        });
-      },
-      [setStateCategoryTaskNestedIndexer],
+    const idOnEditFinishParentItem = useMemoizeCallbackId();
+    const onEditFinishParentItem = useCallback<
+      ({ parentItem }: { parentItem: ParentItem }) => OnEditFinish
+    >(
+      ({ parentItem }) =>
+        memoizeCallback<OnEditFinish>({
+          id: idOnEditFinishParentItem,
+          fn: ({ oldValue, newValue }) => {
+            setStateCategoryTaskNestedIndexer((curNestedIndexer) => {
+              const newIndexer = new NestedIndexer(curNestedIndexer);
+              newIndexer.updateParent({
+                parentId: parentItem.id,
+                parent: {
+                  ...parentItem,
+                  title: newValue,
+                },
+              });
+              return newIndexer;
+            });
+          },
+          deps: [setStateCategoryTaskNestedIndexer],
+        }),
+      [idOnEditFinishParentItem, setStateCategoryTaskNestedIndexer],
     );
 
     return (
@@ -146,8 +137,8 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
             <Board key={parentItem.id} parentItem={parentItem}>
               <BoardHeader
                 parentItem={parentItem}
-                onEditStartParentItem={onEditStartParentItem}
-                onEditFinishParentItem={onEditFinishParentItem}
+                onEditStartItem={onEditStartParentItem}
+                onEditFinishItem={onEditFinishParentItem({ parentItem })}
               />
               <BoardMain boardListId={boardListId} parentItem={parentItem}>
                 {taskList[index].map((task) => {

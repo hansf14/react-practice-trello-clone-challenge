@@ -1,4 +1,4 @@
-import { MultiMap } from "@/multimap";
+import { MultiMap, MultiRefMap } from "@/multimap";
 import React from "react";
 import { ExecutionProps } from "styled-components";
 import { v4 as uuidv4 } from "uuid";
@@ -184,59 +184,30 @@ export type StyledComponentProps<E extends React.ElementType> =
 
 ///////////////////////////////////////////
 
-// export const memoizeCallbackCache = new MultiRefMap<unknown[], Function>();
+export type MemoizeCallback<F> = F extends (...args: infer P) => infer R
+  ? (...args: P) => R
+  : never;
 
-// export type MemoizeCallback<F> = F extends (...args: infer P) => infer R
-//   ? (...args: P) => R
-//   : never;
-
-// export const memoizeCallback = <F extends Function, D extends any[] = any[]>({
-//   fn,
-//   id,
-//   deps,
-// }: {
-//   fn: F;
-//   id: string;
-//   deps: D;
-// }) => {
-//   const keys = [id, fn.toString(), ...deps];
-//   if (memoizeCallbackCache.has(keys)) {
-//     console.log("[memoizeCallback] Cache hit!");
-//     return memoizeCallbackCache.get(keys)! as MemoizeCallback<F>;
-//   }
-//   memoizeCallbackCache.set(keys, fn);
-//   // console.log(memoizedCallbackCache);
-//   return fn as unknown as MemoizeCallback<F>;
-// };
-
-// export const memoizeCallbackCache = new MultiMap<string[], Function>();
-
-// export type MemoizeCallback<F> = F extends (...args: infer P) => infer R
-//   ? (...args: P) => R
-//   : never;
-
-// export const memoizeCallback = <F extends Function, D extends any[] = any[]>({
-//   fn,
-//   id,
-//   deps,
-// }: {
-//   fn: F;
-//   id: string;
-//   deps: D;
-// }) => {
-//   const keys = [id, fn.toString(), JSON.stringify(deps)];
-//   console.log(keys);
-//   if (!memoizeCallbackCache.has({ keys })) {
-//     memoizeCallbackCache.set({
-//       keys,
-//       value: [fn],
-//     });
-//   } else {
-//     console.log("[memoizeCallback] Cache hit");
-//   }
-//   const [cb] = memoizeCallbackCache.get({ keys })!;
-//   return cb as MemoizeCallback<F>;
-// };
+const memoizeCallbackCache = new MultiRefMap<any, Function>();
+export const memoizeCallback = <F extends Function, D extends any[] = any[]>({
+  id,
+  fn,
+  deps,
+}: {
+  id: string;
+  fn: F;
+  deps: D;
+}) => {
+  const keys = [id, ...deps];
+  // console.log(keys);
+  if (!memoizeCallbackCache.has(keys)) {
+    memoizeCallbackCache.set(keys, fn);
+  } else {
+    // console.log("[memoizeCallback] Cache hit");
+  }
+  const cb = memoizeCallbackCache.get(keys)!;
+  return cb as MemoizeCallback<F>;
+};
 
 // Not tested
 export function cloneCssPropertiesToCssStyleDeclaration(
@@ -281,12 +252,76 @@ export function getCursorRelativePosToElement({
   return { x, y };
 }
 
-export const checkHasScrollbar = ({
+export function getElementOffsetOnDocument({
   element,
-  condition,
 }: {
   element: HTMLElement;
-  condition: "horizontal" | "vertical" | "or" | "xor" | "and";
+}) {
+  let offsetX = element.offsetLeft;
+  let offsetY = element.offsetTop;
+  let offsetParent = element.offsetParent as HTMLElement | null;
+  while (offsetParent) {
+    offsetX += offsetParent.offsetLeft;
+    offsetY += offsetParent.offsetTop;
+    offsetParent = offsetParent.offsetParent as HTMLElement | null;
+  }
+  return {
+    x: offsetX,
+    y: offsetY,
+  };
+}
+
+export function getCursorScrollOffsetOnElement({
+  element,
+  event,
+  offsetType,
+}: {
+  element: HTMLElement;
+  event: PointerEvent | MouseEvent | TouchEvent;
+  offsetType: "scroll" | "no-scroll";
+}) {
+  let xOffsetOnDocumentOfCursor = 0;
+  let yOffsetOnDocumentOfCursor = 0;
+  if ((event as TouchEvent).touches) {
+    xOffsetOnDocumentOfCursor = (event as TouchEvent).touches[0].pageX;
+    yOffsetOnDocumentOfCursor = (event as TouchEvent).touches[0].pageY;
+  } else {
+    xOffsetOnDocumentOfCursor = (event as PointerEvent | MouseEvent).pageX;
+    yOffsetOnDocumentOfCursor = (event as PointerEvent | MouseEvent).pageY;
+  }
+  const { x: xOffsetOnDocumentOfElement, y: yOffsetOnDocumentOfElement } =
+    getElementOffsetOnDocument({ element });
+  const xOffsetOnElementOfCursor =
+    xOffsetOnDocumentOfCursor - xOffsetOnDocumentOfElement;
+  const yOffsetOnElementOfCursor =
+    yOffsetOnDocumentOfCursor - yOffsetOnDocumentOfElement;
+  if (offsetType === "no-scroll") {
+    return {
+      x: xOffsetOnElementOfCursor,
+      y: yOffsetOnElementOfCursor,
+    };
+  } else if (offsetType === "scroll") {
+    const { scrollLeft: xOffsetOfScroll, scrollTop: yOffsetOfScroll } = element;
+    return {
+      x: xOffsetOnElementOfCursor + xOffsetOfScroll,
+      y: yOffsetOnElementOfCursor + yOffsetOfScroll,
+    };
+  }
+  return null;
+}
+
+export type ScrollbarCondition =
+  | "horizontal"
+  | "vertical"
+  | "or"
+  | "xor"
+  | "and";
+export const checkHasScrollbar = ({
+  element,
+  condition = "or",
+}: {
+  element: HTMLElement;
+  condition?: ScrollbarCondition;
 }) => {
   const hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
   const hasVerticalScrollbar = element.scrollHeight > element.clientHeight;
@@ -319,6 +354,32 @@ export type ObserveUserAgentChangeCb = ({
   prevUserAgent: string;
   curUserAgent: string;
 }) => void;
+
+export function getClosestScrollableParent({
+  element,
+  scrollbarCondition = "or",
+  additionalCondition = () => true,
+}: {
+  element: HTMLElement;
+  scrollbarCondition?: ScrollbarCondition;
+  additionalCondition?: ({ subject }: { subject: HTMLElement }) => boolean;
+}) {
+  let parent: HTMLElement | null =
+    element.parentElement ?? document.documentElement;
+  while (parent) {
+    const doesHaveScrollbar = checkHasScrollbar({
+      element: parent,
+      condition: scrollbarCondition,
+    });
+    if (!doesHaveScrollbar || !additionalCondition({ subject: parent })) {
+      parent = element.parentElement;
+      continue;
+    } else {
+      break;
+    }
+  }
+  return parent;
+}
 
 let lastUserAgent = navigator.userAgent;
 export function observeUserAgentChange({
