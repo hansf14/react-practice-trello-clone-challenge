@@ -119,7 +119,11 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
               return newIndexer;
             });
           },
-          deps: [setStateCategoryTaskNestedIndexer],
+          deps: [
+            parentItem,
+            idOnEditFinishParentItem,
+            setStateCategoryTaskNestedIndexer,
+          ],
         }),
       [idOnEditFinishParentItem, setStateCategoryTaskNestedIndexer],
     );

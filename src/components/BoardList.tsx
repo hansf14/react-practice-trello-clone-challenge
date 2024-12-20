@@ -67,6 +67,7 @@ import {
 import { createPortal } from "react-dom";
 import {
   CheckIsDragScrollNeededCb,
+  DragScrollSpeed,
   useDragScroll,
 } from "@/hooks/useDragScroll";
 
@@ -237,13 +238,52 @@ export const BoardListInternal = withMemoAndRef<
       );
 
       scrollContainers.forEach(async (scrollContainer) => {
-        const isDragScrollNeededForThisScrollContainer = await dragScroll({
-          scrollContainer: scrollContainer,
-          desiredFps: 60,
-        });
-        console.log(scrollContainer, isDragScrollNeededForThisScrollContainer);
-        if (isDragScrollNeededForThisScrollContainer) {
-          return;
+        const scrollContainerId = scrollContainer.getAttribute(
+          ScrollContainerCustomAttributesKvMapping["data-scroll-container-id"],
+        );
+
+        let scrollSpeed: DragScrollSpeed = {
+          top: 6,
+          bottom: 6,
+          left: 6,
+          right: 6,
+        };
+        let isDragScrollNeededForThisScrollContainer = false;
+        if (!scrollContainerId) {
+        } else if (scrollContainerId === boardListId) {
+          isDragScrollNeededForThisScrollContainer = await dragScroll({
+            scrollContainer: scrollContainer,
+            scrollSpeed,
+            desiredFps: 60,
+          });
+
+          console.log(
+            scrollContainerId,
+            isDragScrollNeededForThisScrollContainer,
+          );
+          if (isDragScrollNeededForThisScrollContainer) {
+            return;
+          }
+        } else {
+          scrollSpeed = {
+            top: 3,
+            bottom: 3,
+            left: 3,
+            right: 3,
+          };
+          isDragScrollNeededForThisScrollContainer = await dragScroll({
+            scrollContainer: scrollContainer,
+            scrollSpeed,
+            desiredFps: 60,
+          });
+
+          console.log(
+            scrollContainerId,
+            isDragScrollNeededForThisScrollContainer,
+          );
+          if (isDragScrollNeededForThisScrollContainer) {
+            return;
+          }
         }
       });
     };
@@ -561,7 +601,7 @@ export const BoardListInternal = withMemoAndRef<
       >
         <BoardListInternalBase
           ref={refBase}
-          // {...scrollContainerCustomAttributes}
+          {...scrollContainerCustomAttributes}
           {...otherProps}
         >
           <BoardListDropArea ref={refDroppable} {...droppableCustomAttributes}>

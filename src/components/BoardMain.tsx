@@ -51,7 +51,7 @@ const BoardMainContentContainer = styled.div`
   padding: 10px;
 
   background-color: rgba(255, 255, 255, 0.3);
-  // backdrop-filter: blur(13.5px);
+  backdrop-filter: blur(13.5px);
 `;
 
 const BoardMainContent = styled.div`

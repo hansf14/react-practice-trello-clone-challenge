@@ -34,23 +34,27 @@ export type DragScrollRelatedEvent =
   | DragEndEvent
   | DragCancelEvent;
 
+export type DragScrollBufferZone = {
+  // Distance from the edge to trigger scrolling
+  topBufferLength?: number;
+  leftBufferLength?: number;
+  bottomBufferLength?: number;
+  rightBufferLength?: number;
+};
+
+export type DragScrollSpeed = {
+  // Adjust scroll speed
+  // 0 or positive number should be given.
+  top?: number;
+  left?: number;
+  bottom?: number;
+  right?: number;
+};
+
 export type DragScrollParams = {
   scrollContainer: HTMLElement | null;
-  scrollBufferZone?: {
-    // Distance from the edge to trigger scrolling
-    topBufferLength?: number;
-    leftBufferLength?: number;
-    bottomBufferLength?: number;
-    rightBufferLength?: number;
-  };
-  scrollSpeed?: {
-    // Adjust scroll speed
-    // 0 or positive number should be given.
-    top?: number;
-    left?: number;
-    bottom?: number;
-    right?: number;
-  };
+  scrollBufferZone?: DragScrollBufferZone;
+  scrollSpeed?: DragScrollSpeed;
   desiredFps?: number;
 };
 
@@ -317,7 +321,15 @@ export const useDragScroll = () => {
             });
           });
         }, 1000 / desiredFps),
-        deps: [startDragScroll, endDragScroll],
+        deps: [
+          scrollContainer,
+          scrollBufferZone,
+          scrollSpeed,
+          desiredFps,
+          idDragScroll,
+          startDragScroll,
+          endDragScroll,
+        ],
       })(),
     [idDragScroll, startDragScroll, endDragScroll],
   );
