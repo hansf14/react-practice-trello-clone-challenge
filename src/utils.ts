@@ -206,7 +206,7 @@ export const memoizeCallback = <F extends Function, D extends any[] = any[]>({
     // console.log("[memoizeCallback] Cache hit");
   }
   const cb = memoizeCallbackCache.get(keys)!;
-  return cb as MemoizeCallback<F>;
+  return cb as F;
 };
 
 // Not tested

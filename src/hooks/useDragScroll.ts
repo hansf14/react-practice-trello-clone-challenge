@@ -1,5 +1,6 @@
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import {
+  checkHasScrollbar,
   getCursorScrollOffsetOnElement,
   memoizeCallback,
   SmartMerge,
@@ -15,7 +16,7 @@ import {
   DragStartEvent,
 } from "@dnd-kit/core";
 import { throttle } from "lodash-es";
-import { useCallback, useEffect, useRef } from "react";
+import { createRef, useCallback, useEffect, useRef } from "react";
 
 export type DragEvent =
   | DragPendingEvent
@@ -70,19 +71,22 @@ export type EndDragScrollParams = SmartPick<
 let isOnPointerDownAttached = false;
 let isOnPointerMoveAttached = false;
 let isOnPointerUpAttached = false;
-let curPointerEvent: PointerEvent | null = null;
+let curPointerEvent: React.MutableRefObject<PointerEvent | null> = createRef();
+curPointerEvent.current = null;
 let isDragScrollAllowed: boolean = false;
 
 export const useDragScroll = () => {
   const refScrollIntervalIdMap = useRef<
     Map<HTMLElement, number | NodeJS.Timeout>
   >(new Map());
+  const refScrollRafIdMap = useRef<Map<HTMLElement, number>>(new Map());
 
   const onPointerDown = useCallback(() => {
     isDragScrollAllowed = true;
   }, []);
   const onPointerMove = useCallback((event: PointerEvent) => {
-    curPointerEvent = event;
+    curPointerEvent.current = event;
+    // console.log(isDragScrollAllowed);
   }, []);
   const onPointerUp = useCallback(() => {
     isDragScrollAllowed = false;
@@ -133,6 +137,10 @@ export const useDragScroll = () => {
       const intervalId = refScrollIntervalIdMap.current.get(scrollContainer);
       typeof intervalId !== "undefined" && clearInterval(intervalId);
       refScrollIntervalIdMap.current.set(scrollContainer, 0);
+
+      const rafId = refScrollRafIdMap.current.get(scrollContainer);
+      typeof rafId !== "undefined" && cancelAnimationFrame(rafId);
+      refScrollRafIdMap.current.set(scrollContainer, 0);
     },
     [],
   );
@@ -148,7 +156,10 @@ export const useDragScroll = () => {
         endDragScroll({ scrollContainer });
         return;
       }
-      if (refScrollIntervalIdMap.current.get(scrollContainer)) {
+      if (
+        refScrollIntervalIdMap.current.get(scrollContainer) ||
+        refScrollRafIdMap.current.get(scrollContainer)
+      ) {
         // endDragScroll({ scrollContainer });
         // ㄴ 여기에도 이거 놓으면 스크롤이 툭툭 끊긴다.
         return;
@@ -168,7 +179,7 @@ export const useDragScroll = () => {
       const { x: scrollDirectionX, y: scrollDirectionY } = scrollDirection;
 
       const intervalId = setInterval(() => {
-        requestAnimationFrame(() => {
+        const rafId = requestAnimationFrame(() => {
           const verticalSpeed =
             scrollDirectionX === -1 ? scrollSpeedTop : scrollSpeedBottom;
           const horizontalSpeed =
@@ -176,7 +187,12 @@ export const useDragScroll = () => {
 
           scrollContainer.scrollTop += verticalSpeed * scrollDirectionY;
           scrollContainer.scrollLeft += horizontalSpeed * scrollDirectionX;
+
+          if (!isDragScrollAllowed) {
+            endDragScroll({ scrollContainer });
+          }
         });
+        refScrollRafIdMap.current.set(scrollContainer, rafId);
       }, 1000 / desiredFps);
 
       refScrollIntervalIdMap.current.set(scrollContainer, intervalId);
@@ -195,92 +211,110 @@ export const useDragScroll = () => {
       memoizeCallback({
         id: idDragScroll,
         fn: throttle(() => {
-          requestAnimationFrame(() => {
-            if (!isDragScrollAllowed || !scrollContainer) {
-              endDragScroll({ scrollContainer });
-              return;
-            }
-            // console.log("[dragScroll]");
+          return new Promise<boolean>((resolve) => {
+            requestAnimationFrame(() => {
+              if (!isDragScrollAllowed || !scrollContainer) {
+                endDragScroll({ scrollContainer });
+                resolve(false);
+                return;
+              }
+              // console.log("[dragScroll]");
 
-            const {
-              offsetTop: top,
-              offsetLeft: left,
-              offsetHeight,
-              offsetWidth,
-            } = scrollContainer;
-            const bottom = top + offsetHeight;
-            const right = left + offsetWidth;
+              const top = 0;
+              const left = 0;
+              const { offsetHeight: bottom, offsetWidth: right } =
+                scrollContainer;
 
-            const DEFAULT_TOP_BUFFER_LENGTH = 50;
-            const DEFAULT_LEFT_BUFFER_LENGTH = 50;
-            const DEFAULT_BOTTOm_BUFFER_LENGTH = 50;
-            const DEFAULT_RIGHT_BUFFER_LENGTH = 50;
-            const {
-              topBufferLength = DEFAULT_TOP_BUFFER_LENGTH,
-              bottomBufferLength = DEFAULT_LEFT_BUFFER_LENGTH,
-              leftBufferLength = DEFAULT_BOTTOm_BUFFER_LENGTH,
-              rightBufferLength = DEFAULT_RIGHT_BUFFER_LENGTH,
-            } = scrollBufferZone ?? {};
+              const DEFAULT_TOP_BUFFER_LENGTH = 50;
+              const DEFAULT_LEFT_BUFFER_LENGTH = 50;
+              const DEFAULT_BOTTOm_BUFFER_LENGTH = 50;
+              const DEFAULT_RIGHT_BUFFER_LENGTH = 50;
+              const {
+                topBufferLength = DEFAULT_TOP_BUFFER_LENGTH,
+                bottomBufferLength = DEFAULT_LEFT_BUFFER_LENGTH,
+                leftBufferLength = DEFAULT_BOTTOm_BUFFER_LENGTH,
+                rightBufferLength = DEFAULT_RIGHT_BUFFER_LENGTH,
+              } = scrollBufferZone ?? {};
 
-            if (!curPointerEvent) {
-              return;
-            }
-            const offsetOnElementOfCursor = getCursorScrollOffsetOnElement({
-              element: scrollContainer,
-              event: curPointerEvent,
-              offsetType: "no-scroll",
-            });
-            if (!offsetOnElementOfCursor) {
-              return;
-            }
-
-            console.group();
-            console.log(offsetOnElementOfCursor);
-            console.log([top, left]);
-            console.log([bottom, right]);
-            console.groupEnd();
-
-            const { x, y } = offsetOnElementOfCursor;
-            let shouldTriggerScroll = false;
-            const scrollDirection: StartDragScrollParams["scrollDirection"] = {
-              x: 0,
-              y: 0,
-            };
-
-            // Vertical scrolling
-            if (y < top + topBufferLength && y > top) {
-              // Scroll up
-              shouldTriggerScroll = true;
-              scrollDirection.y = -1;
-            } else if (y > bottom - bottomBufferLength && y < bottom) {
-              // Scroll down
-              shouldTriggerScroll = true;
-              scrollDirection.y = 1;
-            }
-
-            // Horizontal scrolling
-            if (x < left + leftBufferLength && x > left) {
-              // Scroll left
-              shouldTriggerScroll = true;
-              scrollDirection.x = -1;
-            } else if (x > right - rightBufferLength && x < right) {
-              // Scroll right
-              shouldTriggerScroll = true;
-              scrollDirection.x = 1;
-            }
-
-            if (shouldTriggerScroll) {
-              startDragScroll({
-                scrollContainer,
-                scrollSpeed,
-                scrollDirection,
-                desiredFps,
+              if (!curPointerEvent.current) {
+                resolve(false);
+                return;
+              }
+              const offsetOnElementOfCursor = getCursorScrollOffsetOnElement({
+                element: scrollContainer,
+                event: curPointerEvent.current,
+                offsetType: "no-scroll",
               });
-              return true;
-            } else {
-              endDragScroll({ scrollContainer });
-              return false;
-            }
+              if (!offsetOnElementOfCursor) {
+                resolve(false);
+                return;
+              }
+
+              console.group();
+              console.log(offsetOnElementOfCursor);
+              console.log([left, top]);
+              console.log([right, bottom]);
+              console.groupEnd();
+
+              const { x, y } = offsetOnElementOfCursor;
+              let shouldTriggerScroll = false;
+              const scrollDirection: StartDragScrollParams["scrollDirection"] =
+                {
+                  x: 0,
+                  y: 0,
+                };
+
+              if (
+                checkHasScrollbar({
+                  element: scrollContainer,
+                  condition: "vertical",
+                })
+              ) {
+                // Vertical scrolling
+                if (y < top + topBufferLength && y > top) {
+                  // Scroll up
+                  shouldTriggerScroll = true;
+                  scrollDirection.y = -1;
+                } else if (y > bottom - bottomBufferLength && y < bottom) {
+                  // Scroll down
+                  shouldTriggerScroll = true;
+                  scrollDirection.y = 1;
+                }
+              }
+
+              if (
+                checkHasScrollbar({
+                  element: scrollContainer,
+                  condition: "horizontal",
+                })
+              ) {
+                // Horizontal scrolling
+                if (x < left + leftBufferLength && x > left) {
+                  // Scroll left
+                  shouldTriggerScroll = true;
+                  scrollDirection.x = -1;
+                } else if (x > right - rightBufferLength && x < right) {
+                  // Scroll right
+                  shouldTriggerScroll = true;
+                  scrollDirection.x = 1;
+                }
+              }
+
+              if (shouldTriggerScroll) {
+                startDragScroll({
+                  scrollContainer,
+                  scrollSpeed,
+                  scrollDirection,
+                  desiredFps,
+                });
+                resolve(true);
+                return;
+              } else {
+                endDragScroll({ scrollContainer });
+                resolve(false);
+                return;
+              }
+            });
           });
         }, 1000 / desiredFps),
         deps: [startDragScroll, endDragScroll],
@@ -288,9 +322,12 @@ export const useDragScroll = () => {
     [idDragScroll, startDragScroll, endDragScroll],
   );
 
+  const getCurPointerEvent = useCallback(() => curPointerEvent.current, []);
+
   return {
     startDragScroll,
     endDragScroll,
     dragScroll,
+    getCurPointerEvent,
   };
 };

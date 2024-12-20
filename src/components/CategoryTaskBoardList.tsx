@@ -76,7 +76,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         }),
       );
     const categoryList = useMemo(() => {
-      console.log("[categoryList]");
+      // console.log("[categoryList]");
       return (
         stateCategoryTaskNestedIndexer.getParentList__MutableParent() ??
         getEmptyArray<ParentItem>()
@@ -85,7 +85,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
 
     const taskList = useMemo(() => {
       return categoryList.map((category) => {
-        console.log("[taskList]");
+        // console.log("[taskList]");
         return (
           stateCategoryTaskNestedIndexer.getChildListFromParentId__MutableChild(
             { parentId: category.id },

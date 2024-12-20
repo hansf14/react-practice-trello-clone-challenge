@@ -32,8 +32,11 @@ import {
   isParentItemData,
   DndDataInterfaceUnknown,
   isChildItemData,
-  serializeDroppableAllowedTypes,
+  serializeAllowedTypes,
   DroppableCustomAttributesKvMapping,
+  ScrollContainerCustomAttributesKvObj,
+  ScrollContainerCustomAttributesKvMapping,
+  getDndContextInfo,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { defaultCategoryTaskItems } from "@/data";
@@ -62,7 +65,10 @@ import {
   restrictToWindowEdges,
 } from "@dnd-kit/modifiers";
 import { createPortal } from "react-dom";
-import { useDragScroll } from "@/hooks/useDragScroll";
+import {
+  CheckIsDragScrollNeededCb,
+  useDragScroll,
+} from "@/hooks/useDragScroll";
 
 const BoardListInternalBase = styled.div`
   ${CssScrollbar}
@@ -122,29 +128,22 @@ export const BoardListInternal = withMemoAndRef<
   BoardListInternalProps
 >({
   displayName: "BoardListInternal",
-  Component: (props, ref) => {
-    const {
+  Component: (
+    {
       boardListId,
       parentKeyName,
       childKeyName,
       parentItems = getEmptyArray<ParentItem>(),
-      // forEachParentItem,
       children,
       ...otherProps
-    } = props;
-
+    },
+    ref,
+  ) => {
     const [stateActiveParentItem, setStateActiveParentItem] =
       useState<ParentItem | null>(null);
     const [stateActiveChildItem, setStateActiveChildItem] =
       useState<ChildItem | null>(null);
     const refDragOverlayReactElement = useRef<React.ReactElement | null>(null);
-
-    const refBase = useRef<HTMLDivElement | null>(null);
-    useImperativeHandle(ref, () => {
-      return refBase.current as HTMLDivElement;
-    });
-
-    const refDroppable = useRef<HTMLDivElement | null>(null);
 
     const [stateNestedIndexer, setStateNestedIndexer] = useRecoilState(
       nestedIndexerAtom({
@@ -155,10 +154,17 @@ export const BoardListInternal = withMemoAndRef<
     );
 
     const [isDragging, setIsDragging] = useState(false);
-    const { dragScroll } = useDragScroll();
+    const { dragScroll, getCurPointerEvent } = useDragScroll();
+
+    const refBase = useRef<HTMLDivElement | null>(null);
+    useImperativeHandle(ref, () => {
+      return refBase.current as HTMLDivElement;
+    });
+
+    const refDroppable = useRef<HTMLDivElement | null>(null);
 
     const onDragStart = useCallback((event: DragStartEvent) => {
-      console.log("[onDragStart]");
+      // console.log("[onDragStart]");
       // console.log(event);
 
       setIsDragging(true);
@@ -168,28 +174,14 @@ export const BoardListInternal = withMemoAndRef<
         if (!activator) {
           return;
         }
-        const draggableHandle = activator.closest(
-          `[${DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"]}]`,
-        );
-        // console.log(draggableHandle);
-        if (!draggableHandle) {
-          return;
-        }
-        const draggableHandleId = draggableHandle.getAttribute(
-          DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"],
-        );
-        // console.log(draggableHandleId);
-        if (!draggableHandleId) {
-          return;
-        }
-        const draggableId = draggableHandleId;
-        const draggable = draggableHandle.closest(
-          `[${DraggableCustomAttributesKvMapping["data-draggable-id"]}="${draggableId}"]`,
-        ) as HTMLElement;
-        console.log(draggable);
+
+        const { draggableElement: draggable } = getDndContextInfo({
+          activator,
+        });
         if (!draggable) {
           return;
         }
+
         refDragOverlayReactElement.current = parse(
           draggable.outerHTML,
         ) as React.ReactElement;
@@ -219,6 +211,43 @@ export const BoardListInternal = withMemoAndRef<
       }
     }, []);
 
+    // Update scroll direction on drag move
+    const onDragMove = ({
+      active,
+      over,
+      activatorEvent,
+      delta,
+      collisions,
+    }: DragMoveEvent) => {
+      // console.log("[onDragMove]");
+
+      const pointerEvent = getCurPointerEvent();
+      if (!pointerEvent) {
+        return;
+      }
+      const { clientX, clientY } = pointerEvent;
+      const underlyingElements = document.elementsFromPoint(
+        clientX,
+        clientY,
+      ) as HTMLElement[];
+      const scrollContainerIdAttribute =
+        ScrollContainerCustomAttributesKvMapping["data-scroll-container-id"];
+      const scrollContainers = underlyingElements.filter((underlyingElement) =>
+        underlyingElement.hasAttribute(scrollContainerIdAttribute),
+      );
+
+      scrollContainers.forEach(async (scrollContainer) => {
+        const isDragScrollNeededForThisScrollContainer = await dragScroll({
+          scrollContainer: scrollContainer,
+          desiredFps: 60,
+        });
+        console.log(scrollContainer, isDragScrollNeededForThisScrollContainer);
+        if (isDragScrollNeededForThisScrollContainer) {
+          return;
+        }
+      });
+    };
+
     // const getDraggable = useCallback(
     //   ({
     //     draggableHandle,
@@ -246,22 +275,6 @@ export const BoardListInternal = withMemoAndRef<
     //   );
     // }, []);
 
-    // Update scroll direction on drag move
-    const onDragMove = ({
-      active,
-      over,
-      activatorEvent,
-      delta,
-      collisions,
-    }: DragMoveEvent) => {
-      // console.log("[onDragMove]");
-
-      dragScroll({
-        scrollContainer: refBase.current,
-        desiredFps: 60,
-      });
-    };
-
     const onDragOver = useCallback((event: DragOverEvent) => {
       // console.log("[onDragOver]");
 
@@ -277,70 +290,76 @@ export const BoardListInternal = withMemoAndRef<
         console.warn("[onDragOver] id should only be string.");
         return;
       }
-      const activeData = active.data.current as DndDataInterfaceUnknown;
-      const overData = over.data.current as DndDataInterfaceUnknown;
-      const activeType = activeData.type;
-      const overType = overData.type;
-      const activeIndex = activeData.sortable.index;
-      const overIndex = overData.sortable.index;
+      const activeDataUnknown = active.data.current as DndDataInterfaceUnknown;
+      const overDataUnknown = over.data.current as DndDataInterfaceUnknown;
+
+      // if (isChildItemData(activeDataUnknown)) {
+
+      // }
+
+      // const activeType = activeDataUnknown.type;
+      // const overType = overDataUnknown.type;
+      // const activeIndex = activeDataUnknown.sortable.index;
+      // const overIndex = overDataUnknown.sortable.index;
       // console.log("activeType:", activeType);
       // console.log("overType:", overType);
       // console.log("activeIndex:", activeIndex);
       // console.log("overIndex:", overIndex);
-      if (activeIndex === -1 || overIndex === -1) {
-        return;
-      }
-      if (activeType === "child" && overType === "child") {
-        // setStateNestedIndexer((curNestedIndexer) => {
-        //   const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
-        //     curNestedIndexer,
-        //   );
-        //   const [parentIdFrom] =
-        //     newNestedIndexer.getParentIdFromChildId({
-        //       childId: activeId,
-        //     }) ?? getEmptyArray<string>();
-        //   const [parentIdTo] =
-        //     newNestedIndexer.getParentIdFromChildId({
-        //       childId: overId,
-        //     }) ?? getEmptyArray<string>();
-        //   if (!parentIdFrom || !parentIdTo) {
-        //     console.warn("[onDragOver] !parentIdFrom || !parentIdTo");
-        //     return newNestedIndexer;
-        //   }
-        //   newNestedIndexer.moveChild({
-        //     parentIdFrom,
-        //     parentIdTo,
-        //     idxFrom: activeIndex,
-        //     idxTo: overIndex,
-        //   });
-        //   return newNestedIndexer;
-        // });
-      } else if (activeType === "child" && overType === "parent") {
-        // setStateNestedIndexer((curNestedIndexer) => {
-        //   const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
-        //     curNestedIndexer,
-        //   );
-        //   const [parentIdFrom] =
-        //     newNestedIndexer.getParentIdFromChildId({
-        //       childId: activeId,
-        //     }) ?? getEmptyArray<string>();
-        //   const [parentIdTo] =
-        //     newNestedIndexer.getParentIdFromChildId({
-        //       childId: overId,
-        //     }) ?? getEmptyArray<string>();
-        //   if (!parentIdFrom || !parentIdTo) {
-        //     console.warn("[onDragOver] !parentIdFrom || !parentIdTo");
-        //     return newNestedIndexer;
-        //   }
-        //   newNestedIndexer.moveChild({
-        //     parentIdFrom,
-        //     parentIdTo,
-        //     idxFrom: activeIndex,
-        //     idxTo: overIndex,
-        //   });
-        //   return newNestedIndexer;
-        // });
-      }
+
+      // if (activeIndex === -1 || overIndex === -1) {
+      //   return;
+      // }
+      // if (activeType === "child" && overType === "child") {
+      //   // setStateNestedIndexer((curNestedIndexer) => {
+      //   //   const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
+      //   //     curNestedIndexer,
+      //   //   );
+      //   //   const [parentIdFrom] =
+      //   //     newNestedIndexer.getParentIdFromChildId({
+      //   //       childId: activeId,
+      //   //     }) ?? getEmptyArray<string>();
+      //   //   const [parentIdTo] =
+      //   //     newNestedIndexer.getParentIdFromChildId({
+      //   //       childId: overId,
+      //   //     }) ?? getEmptyArray<string>();
+      //   //   if (!parentIdFrom || !parentIdTo) {
+      //   //     console.warn("[onDragOver] !parentIdFrom || !parentIdTo");
+      //   //     return newNestedIndexer;
+      //   //   }
+      //   //   newNestedIndexer.moveChild({
+      //   //     parentIdFrom,
+      //   //     parentIdTo,
+      //   //     idxFrom: activeIndex,
+      //   //     idxTo: overIndex,
+      //   //   });
+      //   //   return newNestedIndexer;
+      //   // });
+      // } else if (activeType === "child" && overType === "parent") {
+      //   // setStateNestedIndexer((curNestedIndexer) => {
+      //   //   const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
+      //   //     curNestedIndexer,
+      //   //   );
+      //   //   const [parentIdFrom] =
+      //   //     newNestedIndexer.getParentIdFromChildId({
+      //   //       childId: activeId,
+      //   //     }) ?? getEmptyArray<string>();
+      //   //   const [parentIdTo] =
+      //   //     newNestedIndexer.getParentIdFromChildId({
+      //   //       childId: overId,
+      //   //     }) ?? getEmptyArray<string>();
+      //   //   if (!parentIdFrom || !parentIdTo) {
+      //   //     console.warn("[onDragOver] !parentIdFrom || !parentIdTo");
+      //   //     return newNestedIndexer;
+      //   //   }
+      //   //   newNestedIndexer.moveChild({
+      //   //     parentIdFrom,
+      //   //     parentIdTo,
+      //   //     idxFrom: activeIndex,
+      //   //     idxTo: overIndex,
+      //   //   });
+      //   //   return newNestedIndexer;
+      //   // });
+      // }
     }, []);
 
     // function handleDragOver(event) {
@@ -409,15 +428,26 @@ export const BoardListInternal = withMemoAndRef<
 
         setIsDragging(false);
 
+        setStateActiveParentItem(null);
+        setStateActiveChildItem(null);
+        refDragOverlayReactElement.current = null;
+
         const { active, over } = event;
         // console.log(event);
-        console.log("active:", active);
-        console.log("over:", over);
+        // console.log("active:", active);
+        // console.log("over:", over);
+
         if (!over) {
           return;
         }
+
         const activeId = active.id;
         const overId = over.id;
+        if (typeof activeId !== "string" || typeof overId !== "string") {
+          console.warn("[onDragOver] id should only be string.");
+          return;
+        }
+
         const activeDataUnknown = active.data
           .current as DndDataInterfaceUnknown;
         const overDataUnknown = over.data.current as DndDataInterfaceUnknown;
@@ -445,9 +475,6 @@ export const BoardListInternal = withMemoAndRef<
             return newNestedIndexer;
           });
         }
-
-        setStateActiveParentItem(null);
-        setStateActiveChildItem(null);
       },
       [setStateNestedIndexer],
     );
@@ -491,7 +518,7 @@ export const BoardListInternal = withMemoAndRef<
 
     const modifiers = stateActiveParentItem
       ? getMemoizedArray({
-          arr: [restrictToHorizontalAxis, restrictToFirstScrollableAncestor],
+          arr: [restrictToHorizontalAxis],
           keys: ["stateActiveParentItem"],
         })
       : stateActiveChildItem
@@ -500,10 +527,19 @@ export const BoardListInternal = withMemoAndRef<
             keys: ["stateActiveChildItem"],
           })
         : getEmptyArray<Modifier>();
+    // console.log(modifiers);
+
+    const scrollContainerCustomAttributes: ScrollContainerCustomAttributesKvObj =
+      {
+        "data-scroll-container-id": boardListId,
+        "data-scroll-container-allowed-types": serializeAllowedTypes({
+          allowedTypes: ["parent"],
+        }),
+      };
 
     const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
       "data-droppable-id": boardListId,
-      "data-droppable-allowed-types": serializeDroppableAllowedTypes({
+      "data-droppable-allowed-types": serializeAllowedTypes({
         allowedTypes: ["parent"],
       }),
     };
@@ -523,7 +559,11 @@ export const BoardListInternal = withMemoAndRef<
         // autoScroll={{ acceleration: 1 }}
         autoScroll={{ enabled: false }}
       >
-        <BoardListInternalBase ref={refBase} {...otherProps}>
+        <BoardListInternalBase
+          ref={refBase}
+          // {...scrollContainerCustomAttributes}
+          {...otherProps}
+        >
           <BoardListDropArea ref={refDroppable} {...droppableCustomAttributes}>
             <SortableContext
               id={boardListId}
@@ -560,38 +600,6 @@ export const BoardListInternal = withMemoAndRef<
     );
   },
 });
-{
-  /* {createPortal(
-  <DragOverlay
-    modifiers={
-      stateActiveParentItem
-        ? getMemoizedArray({
-            refs: [
-              restrictToHorizontalAxis,
-              restrictToFirstScrollableAncestor,
-            ],
-          })
-        : getEmptyArray<Modifier>()
-    }
-    dropAnimation={null}
-    // dropAnimation={{
-    //   // ...defaultDropAnimation,
-    //   sideEffects: defaultDropAnimationSideEffects({
-    //     styles: {
-    //       active: {
-    //         opacity: "1",
-    //       },
-    //     },
-    //   }),
-    // }}
-    // https://github.com/clauderic/dnd-kit/issues/317
-    // ㄴ Removes flickering due to opacity animation
-  >
-    {refDragOverlayReactElement.current}
-  </DragOverlay>,
-  document.body,
-)} */
-}
 
 export type BoardListProps = BoardListInternalProps;
 
@@ -601,14 +609,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     { parentKeyName, childKeyName, parentItems, children, ...otherProps },
     ref,
   ) => {
-    const parentIdList = useMemo(() => {
-      return (
-        (parentItems ?? getEmptyArray<ChildItem>()).map((parentItem) => ({
-          id: parentItem.id,
-        })) ?? getEmptyArray<ParentItem>()
-      );
-    }, [parentItems]);
-
     return (
       //TODO: Recoil Root
       <BoardListInternal

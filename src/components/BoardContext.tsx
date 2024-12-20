@@ -6,6 +6,71 @@ import { DraggableAttributes } from "@dnd-kit/core";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { createContext } from "react";
 
+export function getDndContextInfo({ activator }: { activator: HTMLElement }): {
+  draggableHandleElement: HTMLElement | null;
+  draggableHandleId: string | null;
+  draggableElement: HTMLElement | null;
+  draggableId: string | null;
+} {
+  if (!activator) {
+    return {
+      draggableHandleElement: null,
+      draggableHandleId: null,
+      draggableElement: null,
+      draggableId: null,
+    };
+  }
+
+  const draggableHandle = activator.closest(
+    `[${DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"]}]`,
+  ) as HTMLElement | null;
+  // ㄴ Assumes that draggable handle is always self/closest ancestor of the activator.
+  // console.log(draggableHandle);
+  if (!draggableHandle) {
+    return {
+      draggableHandleElement: null,
+      draggableHandleId: null,
+      draggableElement: null,
+      draggableId: null,
+    };
+  }
+
+  const draggableHandleId = draggableHandle.getAttribute(
+    DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"],
+  );
+  // console.log(draggableHandleId);
+  if (!draggableHandleId) {
+    return {
+      draggableHandleElement: draggableHandle,
+      draggableHandleId: null,
+      draggableElement: null,
+      draggableId: null,
+    };
+  }
+
+  const draggableId = draggableHandleId;
+
+  const draggable = draggableHandle.closest(
+    `[${DraggableCustomAttributesKvMapping["data-draggable-id"]}="${draggableId}"]`,
+  ) as HTMLElement;
+  // ㄴ Assumes that draggable is always self/closest ancestor of the handle.
+  // console.log(draggable);
+  if (!draggable) {
+    return {
+      draggableHandleElement: draggableHandle,
+      draggableHandleId: draggableHandleId,
+      draggableElement: null,
+      draggableId: draggableId,
+    };
+  }
+  return {
+    draggableHandleElement: draggableHandle,
+    draggableHandleId: draggableHandleId,
+    draggableElement: draggable,
+    draggableId: draggableId,
+  };
+}
+
 export type BoardContextValue = {
   setActivatorNodeRef: ((el: HTMLElement | null) => void) | undefined;
   draggableHandleAttributes: DraggableAttributes | undefined;
@@ -92,6 +157,21 @@ export type DndActiveDataInterface<T extends DndDataItemType> = SmartMerge<
 export type DndOverDataInterface<T extends DndDataItemType> =
   DndActiveDataInterface<T>;
 
+export const ScrollContainerCustomAttributes = [
+  "data-scroll-container-id",
+  "data-scroll-container-allowed-types",
+] as const;
+export type ScrollContainerCustomAttributeType =
+  (typeof ScrollContainerCustomAttributes)[number];
+export const ScrollContainerCustomAttributesKvMapping = createKeyValueMapping({
+  arr: ScrollContainerCustomAttributes,
+});
+export type ScrollContainerCustomAttributesKvObj = {
+  [P in (typeof ScrollContainerCustomAttributesKvMapping)["data-scroll-container-id"]]: string;
+} & {
+  [P in (typeof ScrollContainerCustomAttributesKvMapping)["data-scroll-container-allowed-types"]]: string;
+};
+
 export const DroppableCustomAttributes = [
   "data-droppable-id",
   "data-droppable-allowed-types",
@@ -107,7 +187,7 @@ export type DroppableCustomAttributesKvObj = {
   [P in (typeof DroppableCustomAttributesKvMapping)["data-droppable-allowed-types"]]: string;
 };
 
-export function serializeDroppableAllowedTypes({
+export function serializeAllowedTypes({
   allowedTypes,
 }: {
   allowedTypes: DndDataItemType[];
@@ -115,7 +195,7 @@ export function serializeDroppableAllowedTypes({
   return JSON.stringify(allowedTypes).replaceAll(/\"/g, "'");
 }
 
-export function deserializeDroppableAllowedTypes({
+export function deserializeAllowedTypes({
   serializedAllowedTypes,
 }: {
   serializedAllowedTypes: string;
@@ -214,90 +294,3 @@ export const nestedIndexerAtom = atomFamily<
     },
   ],
 });
-
-// export const boardDragHandlesAtom = atom<{
-//   [id: string]: HTMLDivElement | null;
-// }>({
-//   key: "boardDragHandlesAtom",
-//   default: {},
-// });
-
-// export const dataAttributes = [
-//   "data-board-list-id",
-//   "data-item-list-type",
-//   "data-item-list-id",
-//   "data-item-type",
-//   "data-item-id",
-// ] as const;
-// export type dataAttributeType = (typeof dataAttributes)[number];
-// export const dataAttributeKvMapping = createKeyValueMapping({
-//   arr: dataAttributes,
-// });
-
-// ////////////////////////////////////
-
-// export const dataAttributeItemListTypeValues = ["parents", "children"] as const;
-// export type DataAttributeItemListTypeValueType =
-//   (typeof dataAttributeItemListTypeValues)[number];
-// export const dataAttributeItemListTypeKvMapping = createKeyValueMapping({
-//   arr: dataAttributeItemListTypeValues,
-// });
-
-// export type DataAttributesOfItemList = SmartMerge<
-//   {
-//     [K in (typeof dataAttributeKvMapping)["data-board-list-id"]]: string;
-//   } & {
-//     [K in (typeof dataAttributeKvMapping)["data-item-list-type"]]: DataAttributeItemListTypeValueType;
-//   } & {
-//     [K in (typeof dataAttributeKvMapping)["data-item-list-id"]]:
-//       | "root"
-//       | string;
-//   }
-// >;
-
-// ////////////////////////////////////
-
-// export const dataAttributeItemTypeValues = ["parent", "child"] as const;
-// export type DataAttributeItemTypeValueType =
-//   (typeof dataAttributeItemTypeValues)[number];
-// export const dataAttributeItemTypeKvMapping = createKeyValueMapping({
-//   arr: dataAttributeItemTypeValues,
-// });
-
-// export type DataAttributesOfItem = SmartMerge<
-//   {
-//     [K in (typeof dataAttributeKvMapping)["data-board-list-id"]]: string;
-//   } & {
-//     [K in (typeof dataAttributeKvMapping)["data-item-type"]]: DataAttributeItemTypeValueType;
-//   } & {
-//     [K in (typeof dataAttributeKvMapping)["data-item-id"]]: string;
-//   }
-// >;
-
-// ////////////////////////////////////
-
-// export const boardClassNames = [
-//   "board-sortable-handle",
-//   "board-sortable-drag",
-//   "board-sortable-ghost",
-// ] as const;
-// export type boardClassNameType = (typeof boardClassNames)[number];
-// export const boardClassNameKvMapping = createKeyValueMapping({
-//   arr: boardClassNames,
-// });
-
-// export const cardClassNames = [
-//   "card-sortable-handle",
-//   "card-sortable-drag",
-//   "card-sortable-ghost",
-// ] as const;
-// export type cardClassNameType = (typeof cardClassNames)[number];
-// export const cardClassNameKvMapping = createKeyValueMapping({
-//   arr: cardClassNames,
-// });
-
-// export const grabbingClassNames = ["sortable-grabbing"] as const;
-// export type grabbingClassNameType = (typeof grabbingClassNames)[number];
-// export const grabbingClassNameKvMapping = createKeyValueMapping({
-//   arr: grabbingClassNames,
-// });

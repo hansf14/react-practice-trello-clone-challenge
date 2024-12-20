@@ -24,7 +24,8 @@ import {
   ChildItem,
   DroppableCustomAttributesKvObj,
   ParentItem,
-  serializeDroppableAllowedTypes,
+  ScrollContainerCustomAttributesKvObj,
+  serializeAllowedTypes,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
@@ -50,7 +51,7 @@ const BoardMainContentContainer = styled.div`
   padding: 10px;
 
   background-color: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(13.5px);
+  // backdrop-filter: blur(13.5px);
 `;
 
 const BoardMainContent = styled.div`
@@ -174,7 +175,7 @@ export type BoardMainProps = {
 
 export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
   displayName: "BoardMain",
-  Component: ({ boardListId, parentItem, children }, ref) => {
+  Component: ({ boardListId, parentItem, children, ...otherProps }, ref) => {
     // const setStateCardsContainer = useSetRecoilState(cardsContainerAtom);
     // const refCardsContainer = useRef<HTMLDivElement | null>(null);
     // useIsomorphicLayoutEffect(() => {
@@ -306,23 +307,34 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
     // };
 
     const childIdList = useMemo(() => {
-      console.log("[childIdList]");
+      // console.log("[childIdList]");
       return (parentItem.items ?? getEmptyArray<ChildItem>()).map(
         (parentItem) => parentItem.id ?? getEmptyArray<ParentItem>(),
       );
     }, [parentItem.items]);
 
+    const scrollContainerCustomAttributes: ScrollContainerCustomAttributesKvObj =
+      {
+        "data-scroll-container-id": parentItem.id,
+        "data-scroll-container-allowed-types": serializeAllowedTypes({
+          allowedTypes: ["child"],
+        }),
+      };
+
     const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
       "data-droppable-id": parentItem.id,
-      "data-droppable-allowed-types": serializeDroppableAllowedTypes({
+      "data-droppable-allowed-types": serializeAllowedTypes({
         allowedTypes: ["child"],
       }),
     };
 
     return (
-      <BoardMainBase ref={ref}>
+      <BoardMainBase ref={ref} {...otherProps}>
         <BoardMainContentContainer>
-          <BoardMainContent {...droppableCustomAttributes}>
+          <BoardMainContent
+            {...scrollContainerCustomAttributes}
+            {...droppableCustomAttributes}
+          >
             <SortableContext
               id={parentItem.id}
               items={childIdList}
