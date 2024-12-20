@@ -50,7 +50,10 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SortableContext } from "@dnd-kit/sortable";
+import {
+  horizontalListSortingStrategy,
+  SortableContext,
+} from "@dnd-kit/sortable";
 import {
   restrictToFirstScrollableAncestor,
   restrictToHorizontalAxis,
@@ -481,80 +484,18 @@ export const BoardListInternal = withMemoAndRef<
     // function customCollisionDetectionAlgorithm(args) {
     //   // First, let's see if there are any collisions with the pointer
     //   const pointerCollisions = pointerWithin(args);
-
     //   // Collision detection algorithms return an array of collisions
     //   if (pointerCollisions.length > 0) {
     //     return pointerCollisions;
     //   }
-
     //   // If there are no collisions with the pointer, return rectangle intersections
     //   return rectIntersection(args);
     // }
 
-    /////////////////////////////////////////
-
-    // const handleDragEnd = () => {
-    //   setScrollSpeed({ x: 0, y: 0 });
-    // };
-
-    // const { active } = useDndContext()
-
-    // const [scrollDirection, setScrollDirection] = useState(null)
-
-    // // this scrolls the section based on the direction
-    // useEffect(() => {
-    //   if (!scrollDirection) return
-
-    //   const el = refBase.current
-    //   if (!el) return
-
-    //   const speed = 10
-
-    //   const intervalId = setInterval(() => {
-    //     el.scrollLeft += speed * scrollDirection
-    //   }, 5)
-
-    //   return () => {
-    //     clearInterval(intervalId)
-    //   }
-    // }, [scrollDirection, refBase.current])
-
-    // // if we are dragging, detect if we are near the edge of the section
-    // useEffect(() => {
-    //   const handleMouseMove = (event) => {
-    //     const el = refBase.current
-    //     if (!active || !el) return
-    //     const isOverflowing = el.scrollWidth > el.clientWidth
-    //     if (!isOverflowing) return
-
-    //     // get bounding box of the section
-    //     const { left, right } = el.getBoundingClientRect()
-    //     // xPos of the mouse
-    //     const xPos = event.clientX
-    //     const threshold = 200
-
-    //     const newScrollDirection = xPos < left + threshold ? -1 : xPos > right - threshold ? 1 : null
-    //     if (newScrollDirection !== scrollDirection) {
-    //       setScrollDirection(newScrollDirection)
-    //     }
-    //   }
-    //   if (active) {
-    //     window.addEventListener('mousemove', handleMouseMove)
-    //   } else {
-    //     window.removeEventListener('mousemove', handleMouseMove)
-    //     setScrollDirection(null)
-    //   }
-    //   return () => {
-    //     window.removeEventListener('mousemove', handleMouseMove)
-    //     setScrollDirection(null)
-    //   }
-    // }, [active, refBase.current])
-
     const parentIdList = useMemo(() => {
       return (
-        parentItems.map((parentItem) => ({
-          id: parentItem.id,
-        })) ?? getEmptyArray<ParentItem>()
+        parentItems.map((parentItem) => parentItem.id) ??
+        getEmptyArray<ParentItem>()
       );
     }, [parentItems]);
 
@@ -576,7 +517,13 @@ export const BoardListInternal = withMemoAndRef<
         {/* <SortableContext items={parentItems}> */}
         <BoardListInternalBase ref={refBase} {...otherProps}>
           <BoardListDropArea>
-            <SortableContext items={parentIdList}>{children}</SortableContext>
+            <SortableContext
+              id={boardListId}
+              items={parentIdList}
+              strategy={horizontalListSortingStrategy}
+            >
+              {children}
+            </SortableContext>
           </BoardListDropArea>
         </BoardListInternalBase>
         {/* </SortableContext> */}
@@ -688,7 +635,9 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         parentItems={parentItems}
         {...otherProps}
       >
-        <SortableContext items={parentIdList}>{children}</SortableContext>
+        {/* <SortableContext items={parentIdList}> */}
+        {children}
+        {/* </SortableContext> */}
       </BoardListInternal>
     );
   },

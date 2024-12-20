@@ -1,5 +1,4 @@
-import { Indexer } from "@/indexer";
-import { MultiMap, MultiRefMap } from "@/multimap";
+import { MultiMap } from "@/multimap";
 import React from "react";
 import { ExecutionProps } from "styled-components";
 import { v4 as uuidv4 } from "uuid";
@@ -183,30 +182,61 @@ export type KeyMapping<T> = {
 export type StyledComponentProps<E extends React.ElementType> =
   React.ComponentPropsWithoutRef<E> & ExecutionProps;
 
-export const memoizeCallbackCache = new MultiRefMap<unknown[], Function>();
+///////////////////////////////////////////
 
-export type MemoizeCallback<F> = F extends (...args: infer P) => infer R
-  ? (...args: P) => R
-  : never;
+// export const memoizeCallbackCache = new MultiRefMap<unknown[], Function>();
 
-export const memoizeCallback = <F extends Function, D extends any[] = any[]>({
-  fn,
-  id,
-  deps,
-}: {
-  fn: F;
-  id: string;
-  deps: D;
-}) => {
-  const keys = [id, fn.toString(), ...deps];
-  if (memoizeCallbackCache.has(keys)) {
-    return memoizeCallbackCache.get(keys)! as MemoizeCallback<F>;
-  }
+// export type MemoizeCallback<F> = F extends (...args: infer P) => infer R
+//   ? (...args: P) => R
+//   : never;
 
-  memoizeCallbackCache.set(keys, fn);
-  // console.log(memoizedCallbackCache);
-  return fn as unknown as MemoizeCallback<F>;
-};
+// export const memoizeCallback = <F extends Function, D extends any[] = any[]>({
+//   fn,
+//   id,
+//   deps,
+// }: {
+//   fn: F;
+//   id: string;
+//   deps: D;
+// }) => {
+//   const keys = [id, fn.toString(), ...deps];
+//   if (memoizeCallbackCache.has(keys)) {
+//     console.log("[memoizeCallback] Cache hit!");
+//     return memoizeCallbackCache.get(keys)! as MemoizeCallback<F>;
+//   }
+//   memoizeCallbackCache.set(keys, fn);
+//   // console.log(memoizedCallbackCache);
+//   return fn as unknown as MemoizeCallback<F>;
+// };
+
+// export const memoizeCallbackCache = new MultiMap<string[], Function>();
+
+// export type MemoizeCallback<F> = F extends (...args: infer P) => infer R
+//   ? (...args: P) => R
+//   : never;
+
+// export const memoizeCallback = <F extends Function, D extends any[] = any[]>({
+//   fn,
+//   id,
+//   deps,
+// }: {
+//   fn: F;
+//   id: string;
+//   deps: D;
+// }) => {
+//   const keys = [id, fn.toString(), JSON.stringify(deps)];
+//   console.log(keys);
+//   if (!memoizeCallbackCache.has({ keys })) {
+//     memoizeCallbackCache.set({
+//       keys,
+//       value: [fn],
+//     });
+//   } else {
+//     console.log("[memoizeCallback] Cache hit");
+//   }
+//   const [cb] = memoizeCallbackCache.get({ keys })!;
+//   return cb as MemoizeCallback<F>;
+// };
 
 // Not tested
 export function cloneCssPropertiesToCssStyleDeclaration(
@@ -354,7 +384,7 @@ export function getEmptyArray<T>() {
   return emptyArray as T[];
 }
 
-const memoizedArrayMap = new MultiMap();
+const memoizedArrayMap = new MultiMap<string[], unknown>();
 export function getMemoizedArray<T, R extends string>({
   arr,
   keys,

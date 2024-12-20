@@ -1,23 +1,16 @@
 import { css, styled } from "styled-components";
-import { getEmptyArray, SmartOmit, StyledComponentProps } from "@/utils";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import React, {
-  useCallback,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-} from "react";
+import { useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import {
+  BoardContextValue,
+  BoardProvider,
   DraggableCustomAttributesKvObj,
-  DraggableHandleCustomAttributesKvObj,
   ParentItem,
 } from "@/components/BoardContext";
 import { DndDataInterface } from "@/components/BoardContext";
-import { DraggableAttributes, useDndMonitor } from "@dnd-kit/core";
-import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { SortableContext, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-// import { SortableContext, useSortable } from "@dnd-kit/sortable";
 
 type BoardBaseProps = {
   isDragSource?: boolean;
@@ -67,101 +60,12 @@ const BoardBase = styled.div.withConfig({
 
 export type BoardProps = {
   parentItem: ParentItem;
-  children?: ({
-    draggableAttributes,
-    draggableHandleListeners,
-    // draggableHandleCustomAttributes,
-  }: {
-    draggableAttributes: DraggableAttributes;
-    draggableHandleListeners: SyntheticListenerMap | undefined;
-    // draggableHandleCustomAttributes: Record<string, string>;
-  }) => React.ReactNode;
-} & SmartOmit<StyledComponentProps<"div">, "children">;
+} & StyledComponentProps<"div">;
 
-export const Board = withMemoAndRef<
-  "div",
-  HTMLDivElement,
-  Omit<BoardProps, "children"> & { children: React.ReactNode }
->({
+export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
-  Component: (
-    {
-      // parentItem,
-      // children,
-      ...otherProps
-    },
-    ref,
-  ) => {
-    const refBase = useRef<HTMLDivElement | null>(null);
-    useImperativeHandle(ref, () => {
-      return refBase.current as HTMLDivElement;
-    });
-
-    // const {
-    //   setNodeRef,
-    //   attributes: draggableHandleAttributes,
-    //   listeners: draggableHandleListeners,
-    //   transform,
-    //   transition,
-    //   isDragging,
-    // } = useSortable({
-    //   id: item.id,
-    //   data: {
-    //     type: "parent",
-    //     item,
-    //   } satisfies DndDataInterface<"parent">,
-    // });
-
-    // const style = {
-    //   // transition,
-    //   transition: "none",
-    //   transform: CSS.Transform.toString(transform),
-    // };
-
-    // const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
-    //   "data-draggable-id": item.id,
-    // };
-
-    // const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
-    //   {
-    //     "data-draggable-handle-id": item.id,
-    //   };
-
-    return (
-      // <SortableContext items={item.items ?? getEmptyArray()}>
-      <BoardBase
-        ref={(el: HTMLDivElement | null) => {
-          if (el) {
-            // Object.entries(draggableCustomAttributes).forEach(
-            //   ([key, value]) => {
-            //     el.setAttribute(key, value as string);
-            //   },
-            // );
-            refBase.current = el;
-            // setNodeRef(el);
-          }
-        }}
-        // style={style}
-        // isDragging={isDragging}
-        // isDragSource={isDragSource}
-        // {...draggableCustomAttributes}
-        {...otherProps}
-      >
-        {/* {children?.({
-            draggableHandleAttributes,
-            draggableHandleListeners,
-            draggableHandleCustomAttributes,
-          })} */}
-      </BoardBase>
-      // </SortableContext>
-    );
-  },
-});
-
-export const B = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
-  displayName: "B",
   Component: ({ parentItem, children, ...otherProps }, ref) => {
-    const CC = useMemo(
+    const sortableConfig = useMemo(
       () => ({
         id: parentItem.id,
         data: {
@@ -173,13 +77,40 @@ export const B = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
     );
 
     const {
+      isDragging,
       setNodeRef,
-      attributes: draggableAttributes,
+      setActivatorNodeRef,
+      attributes: draggableHandleAttributes,
       listeners: draggableHandleListeners,
       transform,
       transition,
-      isDragging,
-    } = useSortable(CC);
+    } = useSortable(sortableConfig);
+
+    const refBase = useRef<HTMLDivElement | null>(null);
+    useImperativeHandle(ref, () => {
+      return refBase.current as HTMLDivElement;
+    });
+
+    const callbackRef = useCallback(
+      (el: HTMLDivElement | null) => {
+        refBase.current = el;
+        setNodeRef(el);
+      },
+      [setNodeRef],
+    );
+
+    const boardContextValue = useMemo<BoardContextValue>(
+      () => ({
+        setActivatorNodeRef,
+        draggableHandleAttributes,
+        draggableHandleListeners,
+      }),
+      [
+        draggableHandleAttributes,
+        draggableHandleListeners,
+        setActivatorNodeRef,
+      ],
+    );
 
     const style = useMemo(
       () => ({
@@ -191,42 +122,18 @@ export const B = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-draggable-id": parentItem.id,
     };
-    // const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
-    //   "data-draggable-id": item.id,
-    // };
-
-    // const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
-    //   {
-    //     "data-draggable-handle-id": item.id,
-    //   };
-
-    const c = useCallback(
-      (el: HTMLDivElement | null) => {
-        // ref
-        setNodeRef(el);
-      },
-      [setNodeRef],
-    );
 
     return (
-      <Board
-        ref={c}
-        style={style}
-        parentItem={parentItem}
-        // item={item}
-        // {...draggableHandleAttributes}
-        // draggableHandleListeners={draggableHandleListeners}
-        // children={children}
-        {...otherProps}
-      >
-        {children?.({
-          draggableAttributes,
-          draggableHandleListeners,
-          // draggableHandleAttributes,
-          // draggableHandleListeners,
-          // draggableHandleCustomAttributes,
-        })}
-      </Board>
+      <BoardProvider value={boardContextValue}>
+        <BoardBase
+          ref={callbackRef}
+          style={style}
+          {...draggableCustomAttributes}
+          {...otherProps}
+        >
+          {children}
+        </BoardBase>
+      </BoardProvider>
     );
   },
 });

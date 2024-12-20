@@ -17,27 +17,15 @@ import {
   XCircleFill,
 } from "react-bootstrap-icons";
 import { SubmitHandler, useForm } from "react-hook-form";
-import {
-  checkHasScrollbar,
-  generateUniqueRandomId,
-  getEmptyArray,
-  memoizeCallback,
-  StyledComponentProps,
-} from "@/utils";
-import { NestedIndexer } from "@/indexer";
+import { getEmptyArray, StyledComponentProps } from "@/utils";
 import { Input } from "antd";
-import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { CssScrollbar } from "@/csses/scrollbar";
-import { throttle } from "lodash-es";
-import {
-  ChildItem,
-  DataAttributesOfItem,
-  DataAttributesOfItemList,
-  nestedIndexerAtom,
-  ParentItem,
-} from "@/components/BoardContext";
+import { ChildItem, ParentItem } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { SortableContext } from "@dnd-kit/sortable";
+import {
+  horizontalListSortingStrategy,
+  SortableContext,
+} from "@dnd-kit/sortable";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
@@ -313,10 +301,8 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
 
     const childIdList = useMemo(() => {
       console.log("[childIdList]");
-      return (
-        (parentItem.items ?? getEmptyArray<ChildItem>()).map((parentItem) => ({
-          id: parentItem.id,
-        })) ?? getEmptyArray<ParentItem>()
+      return (parentItem.items ?? getEmptyArray<ChildItem>()).map(
+        (parentItem) => parentItem.id ?? getEmptyArray<ParentItem>(),
       );
     }, [parentItem.items]);
 
@@ -327,7 +313,9 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
           // ref={refCardsContainer}
           //  {...customDataAttributes}
           >
-            <SortableContext items={childIdList}>{children}</SortableContext>
+            <SortableContext id={parentItem.id} items={childIdList}>
+              {children}
+            </SortableContext>
           </BoardMainContent>
         </BoardMainContentContainer>
         <Toolbar>

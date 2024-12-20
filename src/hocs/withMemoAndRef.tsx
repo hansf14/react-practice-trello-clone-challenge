@@ -53,6 +53,7 @@ export const withMemoAndRef = <
   const memoizedComponentWithRef = React.memo(
     React.forwardRef<Ref, Props>(Component),
   );
-  memoizedComponentWithRef.displayName = displayName;
+  memoizedComponentWithRef.displayName =
+    displayName || Component.name || "Component";
   return memoizedComponentWithRef;
 };

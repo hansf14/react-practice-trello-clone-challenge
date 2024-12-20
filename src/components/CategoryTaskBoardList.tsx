@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { RecoilRoot, useRecoilState } from "recoil";
-import { B, Board, BoardProps } from "@/components/Board";
+import { Board, BoardProps } from "@/components/Board";
 import {
   BoardHeader,
   OnEditFinishParentItem,
@@ -18,8 +18,8 @@ import { BoardListInternal, BoardListProps } from "@/components/BoardList";
 import {
   getEmptyArray,
   getMemoizedArray,
-  memoizeCallback,
   SmartOmit,
+  StyledComponentProps,
 } from "@/utils";
 import {
   ChildItem,
@@ -28,17 +28,14 @@ import {
 } from "@/components/BoardContext";
 import { NestedIndexer, NestedIndexerItem } from "@/indexer";
 import { BoardMain, ForEachChildItem } from "@/components/BoardMain";
-import {
-  A,
-  // A,
-  Card,
-  OnUpdateChildItem,
-} from "@/components/Card";
+import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
 import { StatViewer } from "@/components/StatViwer";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { defaultCategoryTaskItems } from "@/data";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
+import memoizee from "memoizee";
+import { MultiRefMap } from "@/multimap";
 
 const CategoryTaskBoardListInternalBase = styled(BoardListInternal)``;
 
@@ -73,102 +70,6 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     //   [setStateNestedIndexer],
     // );
 
-    // const forEachChildItem = useCallback<ForEachChildItem>(
-    //   ({ idx, item, items }) => {
-    //     return (
-    //       <Card
-    //         // key={item.id}
-    //         childItem={item}
-    //         onUpdateChildItem={onUpdateChildItem}
-    //       />
-    //     );
-    //     // return items.map((item) => {
-    //     //   return (
-    //     //     <Card
-    //     //       // key={item.id}
-    //     //       childItem={item}
-    //     //       onUpdateChildItem={onUpdateChildItem}
-    //     //     />
-    //     //   );
-    //     // });
-    //   },
-    //   [onUpdateChildItem],
-    // );
-
-    // const forEachParentItem = useCallback<ForEachParentItem>(
-    //   ({ idx, item, items, droppableProvided, droppableStateSnapshot }) => {
-    //     return (
-    //       // <Droppable droppableId={item.id}>
-    //       //   {(droppableProvided, droppableStateSnapshot) => (
-    //       <Board
-    //         ref={droppableProvided.innerRef}
-    //         {...droppableProvided.droppableProps}
-    //         // key={item.id}
-    //       >
-    //         <BoardHeader
-    //           parentItem={item}
-    //           onEditStartParentItem={onEditStartParentItem}
-    //           onEditFinishParentItem={onEditFinishParentItem}
-    //         />
-    //         <BoardMain
-    //           boardListId={boardListId}
-    //           parentItem={item}
-    //           forEachChildItem={forEachChildItem}
-    //         />
-    //       </Board>
-    //       //   )}
-    //       // </Droppable>
-    //     );
-
-    //     // return items.map((item) => {
-    //     //   return (
-    //     //     <Board
-    //     //     // key={item.id}
-    //     //     >
-    //     //       <BoardHeader
-    //     //         parentItem={item}
-    //     //         onEditStartParentItem={onEditStartParentItem}
-    //     //         onEditFinishParentItem={onEditFinishParentItem}
-    //     //       />
-    //     //       <BoardMain
-    //     //         boardListId={boardListId}
-    //     //         parentItem={item}
-    //     //         forEachChildItem={forEachChildItem}
-    //     //       />
-    //     //     </Board>
-    //     //   );
-    //     // });
-    //   },
-    //   [
-    //     boardListId,
-    //     forEachChildItem,
-    //     onEditStartParentItem,
-    //     onEditFinishParentItem,
-    //   ],
-    // );
-
-    // const refDndRoot = useRef<UseDndRootHandle | null>(null);
-
-    // const refBase = useRef<HTMLDivElement | null>(null);
-    // useImperativeHandle(ref, () => {
-    //   return refBase.current as HTMLDivElement;
-    // });
-
-    // const {
-    //   DragOverlay,
-    //   onDragStart,
-    //   // setGroupsRef,
-    //   setDraggableRef,
-    //   setDraggableHandleRef,
-    // } = useDnd({
-    //   dndRootHandle: refDndRoot.current,
-    //   contextId: boardListId,
-    // });
-
-    // const [stateNestedIndexer, setStateNestedIndexer] = useRecoilState(nestedIndexerAtom);
-
-    // const categoryList = stateNestedIndexer.getCategoryList__MutableCategory();
-
     const [stateCategoryTaskNestedIndexer, setStateCategoryTaskNestedIndexer] =
       useRecoilState(
         nestedIndexerAtom({
@@ -195,10 +96,6 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         );
       });
     }, [categoryList, stateCategoryTaskNestedIndexer]);
-
-    // const taskIdList = useMemo(() => {
-    //   taskList.map(task)
-    // }), [taskList];
 
     const onEditStartParentItem = useCallback<OnEditStartParentItem>(
       ({ elementTextArea, handlers: { editCancelHandler } }) => {
@@ -236,152 +133,6 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       [setStateCategoryTaskNestedIndexer],
     );
 
-    // const idA = useMemoizeCallbackId();
-    // const a = useMemo(
-    //   () =>
-    //     memoizeCallback({
-    //       id: idA,
-    //       fn: (index: number) => {
-    //         return taskList[index].map((childItem, index) => {
-    //           return (
-    //             <Card
-    //               key={childItem.id}
-    //               item={childItem}
-    //               index={index}
-    //               // onUpdateChildItem={onUpdateChildItem}
-    //             />
-    //           );
-    //         });
-    //       },
-    //       deps: [idA, taskList],
-    //     }),
-    //   [idA, taskList],
-    // );
-
-    // const b = useMemo(
-    //   () => (index: number) => {
-    //     return taskList[index].map((childItem, index) => {
-    //       return (
-    //         <Card
-    //           key={childItem.id}
-    //           item={childItem}
-    //           index={index}
-    //           // onUpdateChildItem={onUpdateChildItem}
-    //         />
-    //       );
-    //     });
-    //   },
-    //   [taskList],
-    // );
-
-    const a = useCallback(
-      (index: number) => {
-        return getMemoizedArray({
-          arr: taskList[index].map((task, index) => {
-            return (
-              <A
-                key={task.id}
-                item={task}
-                // onUpdateChildItem={onUpdateChildItem}
-              />
-            );
-          }),
-          keys: taskList[index].map((task) => task.id),
-        });
-      },
-      [taskList],
-    );
-
-    const idDDD = useMemoizeCallbackId();
-    const ddd = useCallback<
-      ({
-        parentItem,
-        index,
-      }: {
-        parentItem: ParentItem;
-        index: number;
-      }) => NonNullable<BoardProps["children"]>
-    >(
-      ({ parentItem, index }) => {
-        return memoizeCallback<NonNullable<BoardProps["children"]>>({
-          id: idDDD,
-          fn: ({
-            draggableAttributes,
-            draggableHandleListeners,
-            // setDraggableHandleRef,
-            // draggableHandleCustomAttributes,
-          }) => {
-            return (
-              <>
-                <BoardHeader
-                  parentItem={parentItem}
-                  onEditStartParentItem={onEditStartParentItem}
-                  onEditFinishParentItem={onEditFinishParentItem}
-                  // setDraggableHandleRef={setDraggableHandleRef}
-                  draggableHandleAttributes={draggableAttributes}
-                  draggableHandleListeners={draggableHandleListeners}
-                  // draggableHandleCustomAttributes={
-                  //   draggableHandleCustomAttributes
-                  // }
-                />
-                <BoardMain boardListId={boardListId} parentItem={parentItem}>
-                  {a(index)}
-                  {/* {taskList[index].map((childItem, index) => {
-                return (
-                  <A
-                    key={childItem.id}
-                    item={childItem}
-                    // onUpdateChildItem={onUpdateChildItem}
-                  />
-                );
-              })} */}
-                </BoardMain>
-              </>
-            );
-          },
-          deps: [
-            parentItem,
-            index,
-            idDDD,
-            boardListId,
-            a,
-            onEditFinishParentItem,
-            onEditStartParentItem,
-          ],
-        });
-      },
-      [idDDD, boardListId, a, onEditFinishParentItem, onEditStartParentItem],
-    );
-
-    const ccc = useMemo(() => {
-      return getMemoizedArray({
-        arr: categoryList.map((parentItem, index) => {
-          return (
-            <B key={parentItem.id} parentItem={parentItem}>
-              {ddd({
-                parentItem,
-                index,
-              })}
-            </B>
-          );
-        }),
-        keys: categoryList.map((category) => category.id),
-      });
-    }, [categoryList, ddd]);
-
-    // const ccc = useMemo(() => {
-    //   return categoryList.map((parentItem, index) => {
-    //     return (
-    //       <B key={parentItem.id} parentItem={parentItem}>
-    //         {ddd({
-    //           parentItem,
-    //           index,
-    //         })}
-    //       </B>
-    //     );
-    //   });
-    // }, [categoryList, ddd]);
-
     return (
       <CategoryTaskBoardListInternalBase
         ref={ref}
@@ -390,55 +141,32 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         childKeyName={childKeyName}
         parentItems={categoryList}
       >
-        {ccc}
+        {categoryList.map((parentItem, index) => {
+          return (
+            <Board key={parentItem.id} parentItem={parentItem}>
+              <BoardHeader
+                parentItem={parentItem}
+                onEditStartParentItem={onEditStartParentItem}
+                onEditFinishParentItem={onEditFinishParentItem}
+              />
+              <BoardMain boardListId={boardListId} parentItem={parentItem}>
+                {taskList[index].map((task) => {
+                  return (
+                    <Card
+                      key={task.id}
+                      childItem={task}
+                      // onUpdateChildItem={onUpdateChildItem}
+                    />
+                  );
+                })}
+              </BoardMain>
+            </Board>
+          );
+        })}
       </CategoryTaskBoardListInternalBase>
     );
   },
 });
-
-// {categoryList.map((parentItem, index) => {
-//   return (
-//     <B key={parentItem.id} parentItem={parentItem}>
-//       {({
-//         draggableAttributes: draggableHandleAttributes,
-//         draggableHandleListeners,
-//         // setDraggableHandleRef,
-//         // draggableHandleCustomAttributes,
-//       }) => {
-//         return (
-//           <>
-//             <BoardHeader
-//               parentItem={parentItem}
-//               onEditStartParentItem={onEditStartParentItem}
-//               onEditFinishParentItem={onEditFinishParentItem}
-//               // setDraggableHandleRef={setDraggableHandleRef}
-//               draggableHandleAttributes={draggableHandleAttributes}
-//               draggableHandleListeners={draggableHandleListeners}
-//               // draggableHandleCustomAttributes={
-//               //   draggableHandleCustomAttributes
-//               // }
-//             />
-//             <BoardMain
-//               boardListId={boardListId}
-//               parentItem={parentItem}
-//             >
-//               {/* {a(index)} */}
-//               {taskList[index].map((childItem, index) => {
-//                 return (
-//                   <A
-//                     key={childItem.id}
-//                     item={childItem}
-//                     // onUpdateChildItem={onUpdateChildItem}
-//                   />
-//                 );
-//               })}
-//             </BoardMain>
-//           </>
-//         );
-//       }}
-//     </B>
-//   );
-// })}
 
 export type CategoryBoardListProps = CategoryBoardListInternalProps;
 

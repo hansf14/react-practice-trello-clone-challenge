@@ -12,13 +12,15 @@ import { styled } from "styled-components";
 import { GripVertical } from "react-bootstrap-icons";
 import { Input } from "antd";
 import {
-  cardClassNameKvMapping,
+  CardContext,
+  CardContextValue,
+  CardProvider,
   ChildItem,
   DndDataInterface,
   DraggableCustomAttributesKvObj,
   DraggableHandleCustomAttributesKvObj,
 } from "@/components/BoardContext";
-import { emptyFunction, StyledComponentProps } from "@/utils";
+import { emptyFunction, SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
@@ -50,47 +52,14 @@ const CardContentInput = styled(TextArea)`
   }
 `;
 
-const CardDragHandleBase = styled.div`
-  // &.${cardClassNameKvMapping["card-sortable-handle"]} {
-  //   cursor: grab;
-  // }
-`;
-
-export type CardContextValue = SyntheticListenerMap | undefined;
-//  {
-//   listeners: SyntheticListenerMap | undefined;
-//   // setListeners: React.Dispatch<
-//   //   React.SetStateAction<SyntheticListenerMap | undefined>
-//   // >;
+const CardDragHandleBase = styled.div``;
+// &.${cardClassNameKvMapping["card-sortable-handle"]} {
+//   cursor: grab;
 // }
-
-// const CardContext = createContext<CardContextValue>({
-//   listeners: undefined,
-//   // setListeners: emptyFunction,
-// });
-
-const CardContext = createContext<CardContextValue>(undefined);
-
-const CardProvider = ({
-  value,
-  children,
-}: {
-  value: CardContextValue;
-  children: React.ReactNode;
-}) => {
-  // const [state, setState] = React.useState<CardContextValue>(value);
-
-  // useEffect(() => {
-  //   console.log("CardProvider - New Value:", value);
-  //   setState(value);
-  // }, [value]);
-
-  return <CardContext.Provider value={value}>{children}</CardContext.Provider>;
-};
 
 export type CardDragHandleProps = {
   childItemId: string;
-} & StyledComponentProps<"div">;
+} & SmartOmit<StyledComponentProps<"div">, "children">;
 
 export const CardDragHandle = withMemoAndRef<
   "div",
@@ -99,21 +68,40 @@ export const CardDragHandle = withMemoAndRef<
 >({
   displayName: "CardDragHandle",
   Component: ({ childItemId, ...otherProps }, ref) => {
-    const listeners = useContext(CardContext);
+    const {
+      setActivatorNodeRef,
+      draggableHandleAttributes,
+      draggableHandleListeners,
+    } = useContext(CardContext);
+
+    const refBase = useRef<HTMLDivElement | null>(null);
+    useImperativeHandle(ref, () => {
+      return refBase.current as HTMLDivElement;
+    });
+
+    const callbackRef = useCallback(
+      (el: HTMLDivElement | null) => {
+        refBase.current = el;
+        setActivatorNodeRef?.(el);
+      },
+      [setActivatorNodeRef],
+    );
+
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
       {
         "data-draggable-handle-id": childItemId,
       };
 
-    // console.log(listeners);
-
     return (
       <CardDragHandleBase
-        ref={ref}
-        {...listeners}
+        ref={callbackRef}
+        {...draggableHandleAttributes}
+        {...draggableHandleListeners}
         {...draggableHandleCustomAttributes}
         {...otherProps}
-      />
+      >
+        <GripVertical />
+      </CardDragHandleBase>
     );
   },
 });
@@ -129,23 +117,59 @@ export type OnUpdateChildItem = <C extends ChildItem>({
 }) => void;
 
 export type CardProps = {
-  item: ChildItem;
-  // draggableHandleListeners: any;
+  childItem: ChildItem;
   onUpdateChildItem?: OnUpdateChildItem;
-} & StyledComponentProps<"div">;
+} & SmartOmit<StyledComponentProps<"div">, "children">;
 
 export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
   displayName: "Card",
-  Component: (
-    {
-      item,
-      //  draggableHandleListeners,
-      onUpdateChildItem,
-      ...otherProps
-    },
-    ref,
-  ) => {
-    console.log("[CardBase]");
+  Component: ({ childItem, onUpdateChildItem, ...otherProps }, ref) => {
+    const sortableConfig = useMemo(
+      () => ({
+        id: childItem.id,
+        data: {
+          type: "child",
+          item: childItem,
+        } satisfies DndDataInterface<"child">,
+      }),
+      [childItem],
+    );
+
+    const {
+      isDragging,
+      setNodeRef,
+      setActivatorNodeRef,
+      attributes: draggableHandleAttributes,
+      listeners: draggableHandleListeners,
+      transform,
+      transition,
+    } = useSortable(sortableConfig);
+
+    const refBase = useRef<HTMLDivElement | null>(null);
+    useImperativeHandle(ref, () => {
+      return refBase.current as HTMLDivElement;
+    });
+
+    const callbackRef = useCallback(
+      (el: HTMLDivElement | null) => {
+        refBase.current = el;
+        setNodeRef(el);
+      },
+      [setNodeRef],
+    );
+
+    const cardContextValue = useMemo<CardContextValue>(
+      () => ({
+        setActivatorNodeRef,
+        draggableHandleAttributes,
+        draggableHandleListeners,
+      }),
+      [
+        draggableHandleAttributes,
+        draggableHandleListeners,
+        setActivatorNodeRef,
+      ],
+    );
 
     const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
 
@@ -176,106 +200,15 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       (event) => {
         onUpdateChildItem?.({
           event,
-          oldChildItem: item,
+          oldChildItem: childItem,
           newChildItem: {
-            id: item.id,
+            id: childItem.id,
             content: event.target.value,
           },
         });
       },
-      [item, onUpdateChildItem],
+      [childItem, onUpdateChildItem],
     );
-
-    const refBase = useRef<HTMLDivElement | null>(null);
-    useImperativeHandle(ref, () => {
-      return refBase.current as HTMLDivElement;
-    });
-
-    // const {
-    //   setNodeRef,
-    //   attributes: draggableAttributes,
-    //   listeners: draggableHandleListeners,
-    //   transform,
-    //   transition,
-    //   isDragging,
-    // } = useSortable({
-    //   id: item.id,
-    //   data: {
-    //     type: "child",
-    //     item,
-    //   } satisfies DndDataInterface<"child">,
-    // });
-
-    // const style = {
-    //   transition,
-    //   // transition: "none",
-    //   // transition: {
-    //   //   duration: 150,
-    //   //   easing: "cubic-bezier(0.25, 1, 0.5, 1)",
-    //   // },
-    //   transform: CSS.Transform.toString(transform),
-    //   // transform: transform && {
-    //   //   transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    //   // },
-    // };
-    const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
-      "data-draggable-id": item.id,
-    };
-
-    return (
-      <CardInternalBase
-        ref={(el: HTMLDivElement | null) => {
-          if (el) {
-            refBase.current = el;
-            // setNodeRef(el);
-          }
-        }}
-        // style={style}
-        // {...draggableAttributes}
-        {...draggableCustomAttributes}
-        {...otherProps}
-      >
-        {/* {childItem.content} */}
-        <CardContentInput
-          value={item.content}
-          // autoFocus
-          autoSize
-          readOnly={!stateIsEditMode}
-          onClick={cardContentEditEnableHandler}
-          onBlur={cardContentEditDisableHandler}
-          onKeyDown={cardContentEditFinishHandler}
-          onChange={cardContentEditHandler}
-        />
-        <CardDragHandle childItemId={item.id}>
-          <GripVertical />
-        </CardDragHandle>
-      </CardInternalBase>
-    );
-  },
-});
-
-// When drag happens `SortableContext` value changes and triggers `useSortable` due to context change.
-// -> When `useSortable` gets triggered, `listeners` value (`onMouseDown`, `onTouchStart`) change.
-// -> Only because `listeners` prop changes, rendering the whole descendants is a waste.
-// -> So  I separated the prone-to-change value (`listeners`) into a React Context. So that not the whole card get re-rendered, only the drag handle gets re-rendered with the new `listeners` attached.
-// => That way, due to context change, it doesn't re-render unnecessary descendants re-rendering, since the props for this Internal Component (with React.memo) didn't change, only its handle gets re-rendered due to subscription to the React Context. It saves from unnecessary re-rendering of descendants.
-export const A = withMemoAndRef<"div", HTMLDivElement, { item: ChildItem }>({
-  displayName: "A",
-  Component: ({ item, ...otherProps }, ref) => {
-    const {
-      setNodeRef,
-      attributes: draggableAttributes,
-      listeners: draggableHandleListeners,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({
-      id: item.id,
-      data: {
-        type: "child",
-        item: item,
-      } satisfies DndDataInterface<"child">,
-    });
 
     const style = useMemo(
       () => ({
@@ -292,29 +225,51 @@ export const A = withMemoAndRef<"div", HTMLDivElement, { item: ChildItem }>({
       }),
       [transition, transform],
     );
+
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
-      "data-draggable-id": item.id,
+      "data-draggable-id": childItem.id,
     };
 
-    const c = useCallback(
-      (el: HTMLDivElement | null) => {
-        // ref // TODO:
-        setNodeRef(el);
-      },
-      [setNodeRef],
+    const children = useMemo(
+      () => (
+        <>
+          <CardContentInput
+            value={childItem.content}
+            // autoFocus
+            autoSize
+            readOnly={!stateIsEditMode}
+            onClick={cardContentEditEnableHandler}
+            onBlur={cardContentEditDisableHandler}
+            onKeyDown={cardContentEditFinishHandler}
+            onChange={cardContentEditHandler}
+          />
+          <CardDragHandle childItemId={childItem.id} />
+        </>
+      ),
+      [
+        childItem.content,
+        childItem.id,
+        stateIsEditMode,
+        cardContentEditDisableHandler,
+        cardContentEditEnableHandler,
+        cardContentEditFinishHandler,
+        cardContentEditHandler,
+      ],
     );
 
     return (
-      <CardProvider value={draggableHandleListeners}>
-        <Card
-          ref={c}
-          item={item}
-          // style={style}
+      <CardProvider value={cardContextValue}>
+        <CardInternalBase
+          ref={callbackRef}
+          item={childItem}
+          style={style}
           // {...draggableHandleListeners}
-          {...draggableAttributes}
+          {...draggableHandleAttributes}
           {...draggableCustomAttributes}
           {...otherProps}
-        />
+        >
+          {children}
+        </CardInternalBase>
       </CardProvider>
     );
   },

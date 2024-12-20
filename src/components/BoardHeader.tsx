@@ -1,20 +1,22 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { styled } from "styled-components";
-import { useRecoilState } from "recoil";
-import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import { GripVertical, XCircleFill } from "react-bootstrap-icons";
 import { Input } from "antd";
-import { StyledComponentProps } from "@/utils";
+import { SmartOmit, StyledComponentProps } from "@/utils";
 import {
-  boardClassNameKvMapping,
-  boardDragHandlesAtom,
+  BoardContext,
+  DraggableHandleCustomAttributesKvObj,
   ParentItem,
 } from "@/components/BoardContext";
 import { useStateWithCb } from "@/hooks/useStateWithCb";
 import { TextAreaRef } from "antd/es/input/TextArea";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { DraggableAttributes } from "@dnd-kit/core";
-import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 const { TextArea } = Input;
 
 const BoardHeaderBase = styled.div``;
@@ -77,7 +79,7 @@ const BoardHeaderTitleTextArea = styled(TextArea)`
   }
 `;
 
-const BoardDragHandle = styled.div`
+const BoardHeaderDragHandleBase = styled.div`
   transform: translateZ(10px);
   grid-column: 1;
   grid-row: 1;
@@ -91,6 +93,55 @@ const BoardDragHandle = styled.div`
 
   cursor: grab;
 `;
+
+export type BoardHeaderDragHandleProps = {
+  parentItemId: string;
+} & SmartOmit<StyledComponentProps<"div">, "children">;
+
+export const BoardHeaderDragHandle = withMemoAndRef<
+  "div",
+  HTMLDivElement,
+  BoardHeaderDragHandleProps
+>({
+  displayName: "BoardHeaderDragHandle",
+  Component: ({ parentItemId, ...otherProps }, ref) => {
+    const {
+      setActivatorNodeRef,
+      draggableHandleAttributes,
+      draggableHandleListeners,
+    } = useContext(BoardContext);
+
+    const refBase = useRef<HTMLDivElement | null>(null);
+    useImperativeHandle(ref, () => {
+      return refBase.current as HTMLDivElement;
+    });
+
+    const callbackRef = useCallback(
+      (el: HTMLDivElement | null) => {
+        refBase.current = el;
+        setActivatorNodeRef?.(el);
+      },
+      [setActivatorNodeRef],
+    );
+
+    const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
+      {
+        "data-draggable-handle-id": parentItemId,
+      };
+
+    return (
+      <BoardHeaderDragHandleBase
+        ref={callbackRef}
+        {...draggableHandleAttributes}
+        {...draggableHandleListeners}
+        {...draggableHandleCustomAttributes}
+        {...otherProps}
+      >
+        <GripVertical />
+      </BoardHeaderDragHandleBase>
+    );
+  },
+});
 
 export type OnEditStartParentItem = ({
   elementTextArea,
@@ -124,9 +175,6 @@ export type OnEditFinishParentItem = <P extends ParentItem>({
 
 export type BoardHeaderProps = {
   parentItem: ParentItem;
-  draggableHandleAttributes: DraggableAttributes;
-  draggableHandleListeners: SyntheticListenerMap | undefined;
-  // draggableHandleCustomAttributes: Record<string, string>;
   onEditStartParentItem?: OnEditStartParentItem;
   onEditCancelParentItem?: OnEditCancelParentItem;
   onEditingParentItem?: OnEditingParentItem;
@@ -142,9 +190,6 @@ export const BoardHeader = withMemoAndRef<
   Component: (
     {
       parentItem,
-      draggableHandleAttributes,
-      draggableHandleListeners,
-      // draggableHandleCustomAttributes,
       onEditStartParentItem,
       onEditCancelParentItem,
       onEditingParentItem,
@@ -166,6 +211,7 @@ export const BoardHeader = withMemoAndRef<
     const boardHeaderTitleEditCancelHandler = useCallback<
       React.MouseEventHandler<SVGElement>
     >(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (event) => {
         setStateIsEditMode({ newStateOrSetStateAction: false });
         setStateParentItemTitle(refParentItemTitleBackup.current);
@@ -178,6 +224,7 @@ export const BoardHeader = withMemoAndRef<
     const boardHeaderTitleEditEnableHandler = useCallback<
       React.MouseEventHandler<TextAreaRef>
     >(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (event) => {
         setStateIsEditMode({
           newStateOrSetStateAction: true,
@@ -264,13 +311,7 @@ export const BoardHeader = withMemoAndRef<
             onKeyDown={boardHeaderTitleEditFinishHandler}
             onChange={boardHeaderTitleEditHandler}
           />
-          <BoardDragHandle
-            {...draggableHandleAttributes}
-            {...draggableHandleListeners}
-            // {...draggableHandleCustomAttributes}
-          >
-            <GripVertical />
-          </BoardDragHandle>
+          <BoardHeaderDragHandle parentItemId={parentItem.id} />
         </BoardHeaderTitle>
       </BoardHeaderBase>
     );
