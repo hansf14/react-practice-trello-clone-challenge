@@ -122,15 +122,15 @@ export const generateUniqueRandomIds = function* ({
 
 export function arrayMoveElement({
   arr,
-  idxFrom,
-  idxTo,
+  indexFrom,
+  indexTo,
 }: {
   arr: any[];
-  idxFrom: number;
-  idxTo: number;
+  indexFrom: number;
+  indexTo: number;
 }) {
-  const [target] = arr.splice(idxFrom, 1);
-  arr.splice(idxTo, 0, target);
+  const [target] = arr.splice(indexFrom, 1);
+  arr.splice(indexTo, 0, target);
 }
 
 export type KeyMapping<T> = {

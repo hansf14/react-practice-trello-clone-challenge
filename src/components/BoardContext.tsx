@@ -2,11 +2,132 @@ import { atomFamily } from "recoil";
 import { recoilPersist } from "recoil-persist";
 import { NestedIndexer, NestedIndexerBaseItem } from "@/indexer";
 import { createKeyValueMapping, SmartMerge } from "@/utils";
-import { DraggableAttributes } from "@dnd-kit/core";
+import {
+  CollisionDetection,
+  DraggableAttributes,
+  pointerWithin,
+  rectIntersection,
+} from "@dnd-kit/core";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { createContext } from "react";
 
-export function getDndContextInfo({ activator }: { activator: HTMLElement }): {
+// https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#composition-of-existing-algorithms
+export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
+  // // First, let's see if there are any collisions with the pointer
+  // const pointerCollisions = pointerWithin(args);
+  // // Collision detection algorithms return an array of collisions
+  // if (pointerCollisions.length > 0) {
+  //   return pointerCollisions;
+  // }
+  // If there are no collisions with the pointer, return rectangle intersections
+  return rectIntersection(args);
+};
+
+export function getDroppable({
+  boardListId,
+  droppableId,
+}: {
+  boardListId: string;
+  droppableId: string;
+}) {
+  const droppable = document.querySelector(
+    `[${DroppableCustomAttributesKvMapping["data-board-list-id"]}=${boardListId}][${DroppableCustomAttributesKvMapping["data-droppable-id"]}="${droppableId}"]`,
+  ) as HTMLElement | null;
+  return { droppable };
+}
+
+export function getDraggable({
+  boardListId,
+  draggableId,
+}: {
+  boardListId: string;
+  draggableId: string;
+}) {
+  const draggable = document.querySelector(
+    `[${DraggableCustomAttributesKvMapping["data-board-list-id"]}=${boardListId}][${DraggableCustomAttributesKvMapping["data-draggable-id"]}="${draggableId}"]`,
+  ) as HTMLElement | null;
+  return { draggable };
+}
+
+export function getDndContextInfoFromData({
+  boardListContext,
+  data,
+}: {
+  boardListContext: BoardListContext;
+  data: DndDataInterfaceCustom;
+}): {
+  draggableId: string | null;
+  droppableId: string | null;
+  indexOfDraggable: number;
+  parentAsDroppableOfChild: {
+    droppableId: string | null;
+    droppableLength: number;
+  } | null;
+} {
+  const boardListId = data.customData.boardListId;
+  const draggableId = data.customData.item.id;
+  if (boardListId !== boardListContext.boardListId) {
+    return {
+      draggableId: null,
+      droppableId: null,
+      indexOfDraggable: -1,
+      parentAsDroppableOfChild: null,
+    };
+  }
+
+  if (isParentItemData(data)) {
+    const parentIdList = boardListContext.indexer.getParentIdList() ?? null;
+    const indexOfDraggable = !parentIdList
+      ? -1
+      : parentIdList?.findIndex((parentId) => parentId === draggableId);
+    const childIdList =
+      boardListContext.indexer.getChildIdListOfParentId({
+        parentId: draggableId,
+      }) ?? null;
+    return {
+      draggableId,
+      droppableId: boardListId,
+      indexOfDraggable,
+      parentAsDroppableOfChild: {
+        droppableId: draggableId,
+        droppableLength: !childIdList ? -1 : childIdList.length,
+      },
+    };
+  } else if (isChildItemData(data)) {
+    const [droppableId] = boardListContext.indexer.getParentIdListOfChildId({
+      childId: draggableId,
+    }) ?? [null];
+    const childIdList = !droppableId
+      ? null
+      : boardListContext.indexer.getChildIdListOfParentId({
+          parentId: droppableId,
+        });
+    const indexOfDraggable = !childIdList
+      ? -1
+      : childIdList.findIndex((childId) => childId === draggableId);
+    return {
+      draggableId,
+      droppableId,
+      indexOfDraggable,
+      parentAsDroppableOfChild: null,
+    };
+  } else {
+    return {
+      draggableId: null,
+      droppableId: null,
+      indexOfDraggable: -1,
+      parentAsDroppableOfChild: null,
+    };
+  }
+}
+
+export function getDndContextInfoFromActivator({
+  boardListId,
+  activator,
+}: {
+  boardListId: string;
+  activator: HTMLElement;
+}): {
   draggableHandleElement: HTMLElement | null;
   draggableHandleId: string | null;
   draggableElement: HTMLElement | null;
@@ -22,7 +143,7 @@ export function getDndContextInfo({ activator }: { activator: HTMLElement }): {
   }
 
   const draggableHandle = activator.closest(
-    `[${DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"]}]`,
+    `[${DraggableHandleCustomAttributesKvMapping["data-board-list-id"]}=${boardListId}][${DraggableHandleCustomAttributesKvMapping["data-draggable-handle-id"]}]`,
   ) as HTMLElement | null;
   // ㄴ Assumes that draggable handle is always self/closest ancestor of the activator.
   // console.log(draggableHandle);
@@ -51,8 +172,8 @@ export function getDndContextInfo({ activator }: { activator: HTMLElement }): {
   const draggableId = draggableHandleId;
 
   const draggable = draggableHandle.closest(
-    `[${DraggableCustomAttributesKvMapping["data-draggable-id"]}="${draggableId}"]`,
-  ) as HTMLElement;
+    `[${DraggableCustomAttributesKvMapping["data-board-list-id"]}=${boardListId}][${DraggableCustomAttributesKvMapping["data-draggable-id"]}="${draggableId}"]`,
+  ) as HTMLElement | null;
   // ㄴ Assumes that draggable is always self/closest ancestor of the handle.
   // console.log(draggable);
   if (!draggable) {
@@ -70,6 +191,8 @@ export function getDndContextInfo({ activator }: { activator: HTMLElement }): {
     draggableId: draggableId,
   };
 }
+
+///////////////////////////////////////
 
 export type BoardContextValue = {
   setActivatorNodeRef: ((el: HTMLElement | null) => void) | undefined;
@@ -95,6 +218,8 @@ export const BoardProvider = ({
   );
 };
 
+///////////////////////////////////////
+
 export type CardContextValue = {
   setActivatorNodeRef: ((el: HTMLElement | null) => void) | undefined;
   draggableHandleAttributes: DraggableAttributes | undefined;
@@ -117,21 +242,32 @@ export const CardProvider = ({
   return <CardContext.Provider value={value}>{children}</CardContext.Provider>;
 };
 
-export type DndDataInterfaceUnknown = {
-  type: unknown;
-  item: unknown;
+///////////////////////////////////////
+
+export type DndDataInterfaceCustom = {
+  customData: {
+    boardListId: string;
+    type: string;
+    item: NestedIndexerBaseItem;
+  };
 };
 
+export function isCustomItemData(
+  value: unknown,
+): value is DndDataInterfaceCustom {
+  return Boolean(value && typeof value === "object" && "customData" in value);
+}
+
 export function isParentItemData(
-  value: DndDataInterfaceUnknown,
-): value is DndDataInterface<"parent"> {
-  return value.type === "parent";
+  value: unknown,
+): value is DndDataInterfaceCustomGeneric<"parent"> {
+  return isCustomItemData(value) && value.customData.type === "parent";
 }
 
 export function isChildItemData(
-  value: DndDataInterfaceUnknown,
-): value is DndDataInterface<"child"> {
-  return value.type === "child";
+  value: unknown,
+): value is DndDataInterfaceCustomGeneric<"child"> {
+  return isCustomItemData(value) && value.customData.type === "child";
 }
 
 export const DndDataItemTypes = ["parent", "child"] as const;
@@ -140,24 +276,52 @@ export const DndDataItemTypeKvMapping = createKeyValueMapping({
   arr: DndDataItemTypes,
 });
 
-export type DndDataInterface<T extends DndDataItemType> = {
-  type: T;
-  item: T extends "parent" ? ParentItem : T extends "child" ? ChildItem : never;
+export type DndDataInterfaceCustomGeneric<T extends DndDataItemType> = {
+  customData: {
+    boardListId: string;
+    type: string;
+    item: T extends "parent"
+      ? ParentItem
+      : T extends "child"
+        ? ChildItem
+        : null;
+  };
 };
 
 export type DndActiveDataInterface<T extends DndDataItemType> = SmartMerge<
-  DndDataInterface<T> & {
-    sortable: {
-      containerId: string;
-      index: number;
-      items: string[];
-    };
-  }
+  DndDataInterfaceCustomGeneric<T>
+  //  & {
+  //   sortable: {
+  //     containerId: string;
+  //     index: number;
+  //     items: string[];
+  //   };
+  // }
 >;
 export type DndOverDataInterface<T extends DndDataItemType> =
   DndActiveDataInterface<T>;
 
+///////////////////////////////////////
+
+export const DragOverlayCustomAttributes = [
+  "data-board-list-id",
+  "data-drag-overlay",
+] as const;
+export type DragOverlayCustomAttributeType =
+  (typeof DragOverlayCustomAttributes)[number];
+export const DragOverlayCustomAttributesKvMapping = createKeyValueMapping({
+  arr: DragOverlayCustomAttributes,
+});
+export type DragOverlayCustomAttributesKvObj = SmartMerge<
+  {
+    [P in (typeof DragOverlayCustomAttributesKvMapping)["data-board-list-id"]]: string;
+  } & {
+    [P in (typeof DragOverlayCustomAttributesKvMapping)["data-drag-overlay"]]: "true";
+  }
+>;
+
 export const ScrollContainerCustomAttributes = [
+  "data-board-list-id",
   "data-scroll-container-id",
   "data-scroll-container-allowed-types",
 ] as const;
@@ -166,13 +330,18 @@ export type ScrollContainerCustomAttributeType =
 export const ScrollContainerCustomAttributesKvMapping = createKeyValueMapping({
   arr: ScrollContainerCustomAttributes,
 });
-export type ScrollContainerCustomAttributesKvObj = {
-  [P in (typeof ScrollContainerCustomAttributesKvMapping)["data-scroll-container-id"]]: string;
-} & {
-  [P in (typeof ScrollContainerCustomAttributesKvMapping)["data-scroll-container-allowed-types"]]: string;
-};
+export type ScrollContainerCustomAttributesKvObj = SmartMerge<
+  {
+    [P in (typeof ScrollContainerCustomAttributesKvMapping)["data-board-list-id"]]: string;
+  } & {
+    [P in (typeof ScrollContainerCustomAttributesKvMapping)["data-scroll-container-id"]]: string;
+  } & {
+    [P in (typeof ScrollContainerCustomAttributesKvMapping)["data-scroll-container-allowed-types"]]: string;
+  }
+>;
 
 export const DroppableCustomAttributes = [
+  "data-board-list-id",
   "data-droppable-id",
   "data-droppable-allowed-types",
 ] as const;
@@ -181,11 +350,15 @@ export type DroppableCustomAttributeType =
 export const DroppableCustomAttributesKvMapping = createKeyValueMapping({
   arr: DroppableCustomAttributes,
 });
-export type DroppableCustomAttributesKvObj = {
-  [P in (typeof DroppableCustomAttributesKvMapping)["data-droppable-id"]]: string;
-} & {
-  [P in (typeof DroppableCustomAttributesKvMapping)["data-droppable-allowed-types"]]: string;
-};
+export type DroppableCustomAttributesKvObj = SmartMerge<
+  {
+    [P in (typeof DroppableCustomAttributesKvMapping)["data-board-list-id"]]: string;
+  } & {
+    [P in (typeof DroppableCustomAttributesKvMapping)["data-droppable-id"]]: string;
+  } & {
+    [P in (typeof DroppableCustomAttributesKvMapping)["data-droppable-allowed-types"]]: string;
+  }
+>;
 
 export function serializeAllowedTypes({
   allowedTypes,
@@ -205,18 +378,25 @@ export function deserializeAllowedTypes({
   ) as DndDataItemType[];
 }
 
-export const DraggableCustomAttributes = ["data-draggable-id"] as const;
+export const DraggableCustomAttributes = [
+  "data-board-list-id",
+  "data-draggable-id",
+] as const;
 export type DraggableCustomAttributeType =
   (typeof DraggableCustomAttributes)[number];
 export const DraggableCustomAttributesKvMapping = createKeyValueMapping({
   arr: DraggableCustomAttributes,
 });
-export type DraggableCustomAttributesKvObj = Record<
-  DraggableCustomAttributeType,
-  string
+export type DraggableCustomAttributesKvObj = SmartMerge<
+  {
+    [P in (typeof DraggableCustomAttributesKvMapping)["data-board-list-id"]]: string;
+  } & {
+    [P in (typeof DraggableCustomAttributesKvMapping)["data-draggable-id"]]: string;
+  }
 >;
 
 export const DraggableHandleCustomAttributes = [
+  "data-board-list-id",
   "data-draggable-handle-id",
 ] as const;
 export type DraggableHandleCustomAttributeType =
@@ -224,10 +404,15 @@ export type DraggableHandleCustomAttributeType =
 export const DraggableHandleCustomAttributesKvMapping = createKeyValueMapping({
   arr: DraggableHandleCustomAttributes,
 });
-export type DraggableHandleCustomAttributesKvObj = Record<
-  DraggableHandleCustomAttributeType,
-  string
+export type DraggableHandleCustomAttributesKvObj = SmartMerge<
+  {
+    [P in (typeof DraggableHandleCustomAttributesKvMapping)["data-board-list-id"]]: string;
+  } & {
+    [P in (typeof DraggableHandleCustomAttributesKvMapping)["data-draggable-handle-id"]]: string;
+  }
 >;
+
+///////////////////////////////////////
 
 const { persistAtom } = recoilPersist({
   key: "recoilPersist", // this key is using to store data in local storage
@@ -239,30 +424,46 @@ const recoilKeys = createKeyValueMapping({
   arr: ["nestedIndexerAtom"],
 });
 
-export type ParentItem = NestedIndexerBaseItem & {
-  title: string;
-  items?: ChildItem[];
-} & Record<any, any>;
-export type ChildItem = NestedIndexerBaseItem & {
-  content: string;
-} & Record<any, any>;
-export type NestedIndexerAtomParams = {
+export type ParentItem = SmartMerge<
+  NestedIndexerBaseItem & {
+    title: string;
+    items?: ChildItem[];
+  }
+> &
+  Record<any, any>;
+export type ChildItem = SmartMerge<
+  NestedIndexerBaseItem & {
+    content: string;
+  }
+> &
+  Record<any, any>;
+
+export type BoardListContextParams = {
+  boardListId: string;
   parentKeyName: string;
   childKeyName: string;
   items: ParentItem[];
 };
+export type BoardListContext = {
+  boardListId: string;
+  indexer: NestedIndexer<ParentItem, ChildItem>;
+};
 
-export const nestedIndexerAtom = atomFamily<
-  NestedIndexer<ParentItem, ChildItem>,
-  NestedIndexerAtomParams
+export const boardListContextAtom = atomFamily<
+  BoardListContext,
+  BoardListContextParams
 >({
   key: recoilKeys["nestedIndexerAtom"],
-  default: ({ parentKeyName, childKeyName, items }) =>
-    new NestedIndexer({
-      parentKeyName,
-      childKeyName,
-      items,
-    }),
+  default: ({ boardListId, parentKeyName, childKeyName, items }) => {
+    return {
+      boardListId,
+      indexer: new NestedIndexer({
+        parentKeyName,
+        childKeyName,
+        items,
+      }),
+    };
+  },
   effects_UNSTABLE: [persistAtom],
   effects: [
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

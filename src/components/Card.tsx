@@ -16,14 +16,14 @@ import {
   CardContextValue,
   CardProvider,
   ChildItem,
-  DndDataInterface,
+  DndDataInterfaceCustomGeneric,
   DraggableCustomAttributesKvObj,
   DraggableHandleCustomAttributesKvObj,
 } from "@/components/BoardContext";
 import { SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { CSS } from "@dnd-kit/utilities";
-import { useSortable } from "@dnd-kit/sortable";
+import { CSS, Transform } from "@dnd-kit/utilities";
+import { useSortable, UseSortableArguments } from "@dnd-kit/sortable";
 import {
   OnEditCancel,
   OnEditChange,
@@ -36,9 +36,7 @@ import {
 
 const CardInternalBase = styled.div`
   padding: 10px;
-
-  background-color: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(13.5px);
+  background-color: rgba(255, 255, 255, 0.45);
 `;
 
 const CardContentTextArea = styled(TextArea)`
@@ -54,6 +52,7 @@ const CardDragHandleBase = styled.div``;
 // }
 
 export type CardDragHandleProps = {
+  boardListId: string;
   childItemId: string;
 } & SmartOmit<StyledComponentProps<"div">, "children">;
 
@@ -63,7 +62,7 @@ export const CardDragHandle = withMemoAndRef<
   CardDragHandleProps
 >({
   displayName: "CardDragHandle",
-  Component: ({ childItemId, ...otherProps }, ref) => {
+  Component: ({ boardListId, childItemId, ...otherProps }, ref) => {
     const {
       setActivatorNodeRef,
       draggableHandleAttributes,
@@ -85,6 +84,7 @@ export const CardDragHandle = withMemoAndRef<
 
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
       {
+        "data-board-list-id": boardListId,
         "data-draggable-handle-id": childItemId,
       };
 
@@ -113,6 +113,7 @@ export type OnUpdateChildItem = <C extends ChildItem>({
 }) => void;
 
 export type CardProps = {
+  boardListId: string;
   childItem: ChildItem;
   onEditStartItem?: OnEditStart;
   onEditCancelItem?: OnEditCancel;
@@ -124,6 +125,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
   displayName: "Card",
   Component: (
     {
+      boardListId,
       childItem,
       onEditStartItem,
       onEditCancelItem,
@@ -133,15 +135,19 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     },
     ref,
   ) => {
-    const sortableConfig = useMemo(
+    const sortableConfig = useMemo<UseSortableArguments>(
       () => ({
         id: childItem.id,
+        // disabled // TODO: isEditMode
         data: {
-          type: "child",
-          item: childItem,
-        } satisfies DndDataInterface<"child">,
+          customData: {
+            boardListId,
+            type: "child",
+            item: childItem,
+          },
+        } satisfies DndDataInterfaceCustomGeneric<"child">,
       }),
-      [childItem],
+      [boardListId, childItem],
     );
 
     const {
@@ -150,7 +156,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       setActivatorNodeRef,
       attributes: draggableHandleAttributes,
       listeners: draggableHandleListeners,
-      transform,
+      transform: _transform,
       transition,
     } = useSortable(sortableConfig);
 
@@ -180,6 +186,15 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       ],
     );
 
+    const transform: Transform = useMemo(
+      () => ({
+        ...((_transform ?? {}) as Transform),
+        scaleX: 1,
+        scaleY: 1,
+      }),
+      [_transform],
+    );
+
     const style = useMemo(
       () => ({
         transition,
@@ -197,6 +212,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     );
 
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
+      "data-board-list-id": boardListId,
       "data-draggable-id": childItem.id,
     };
 
@@ -228,10 +244,14 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
             onEditChange={onEditChange}
             onEditFinish={onEditFinish}
           />
-          <CardDragHandle childItemId={childItem.id} />
+          <CardDragHandle
+            boardListId={boardListId}
+            childItemId={childItem.id}
+          />
         </>
       ),
       [
+        boardListId,
         childItem.id,
         childItem.content,
         onEditStart,

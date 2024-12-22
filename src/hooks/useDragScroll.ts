@@ -254,11 +254,11 @@ export const useDragScroll = () => {
                 return;
               }
 
-              console.group();
-              console.log(offsetOnElementOfCursor);
-              console.log([left, top]);
-              console.log([right, bottom]);
-              console.groupEnd();
+              // console.group();
+              // console.log(offsetOnElementOfCursor);
+              // console.log([left, top]);
+              // console.log([right, bottom]);
+              // console.groupEnd();
 
               const { x, y } = offsetOnElementOfCursor;
               let shouldTriggerScroll = false;

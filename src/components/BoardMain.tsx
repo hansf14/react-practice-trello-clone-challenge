@@ -1,15 +1,11 @@
 import React, {
   useCallback,
-  useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
-  useState,
 } from "react";
-import { ExecutionProps, styled } from "styled-components";
-import { atom, useRecoilState, useSetRecoilState } from "recoil";
-import { Category, Task } from "@/atoms";
-import { Card } from "@/components/Card";
-import { useIsomorphicLayoutEffect } from "usehooks-ts";
+import { styled } from "styled-components";
+import { atom } from "recoil";
 import {
   ArrowDownCircleFill,
   ArrowUpCircleFill,
@@ -17,11 +13,13 @@ import {
   XCircleFill,
 } from "react-bootstrap-icons";
 import { SubmitHandler, useForm } from "react-hook-form";
-import { getEmptyArray, StyledComponentProps } from "@/utils";
+import { getEmptyArray, SmartOmit, StyledComponentProps } from "@/utils";
 import { Input } from "antd";
 import { CssScrollbar } from "@/csses/scrollbar";
 import {
   ChildItem,
+  DndDataInterfaceCustomGeneric,
+  DraggableCustomAttributesKvObj,
   DroppableCustomAttributesKvObj,
   ParentItem,
   ScrollContainerCustomAttributesKvObj,
@@ -29,10 +27,11 @@ import {
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
-  horizontalListSortingStrategy,
-  rectSortingStrategy,
   SortableContext,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { CSS, Transform } from "@dnd-kit/utilities";
+import { DraggableAttributes } from "@dnd-kit/core";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
@@ -51,7 +50,9 @@ const BoardMainContentContainer = styled.div`
   padding: 10px;
 
   background-color: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(13.5px);
+  // backdrop-filter: blur(13.5px);
+  // ㄴ Causes bug in dnd-kit
+  // https://github.com/clauderic/dnd-kit/issues/1256
 `;
 
 const BoardMainContent = styled.div`
@@ -70,6 +71,22 @@ const BoardMainContent = styled.div`
 
   &::-webkit-scrollbar {
     padding-right: 10px;
+  }
+`;
+
+const BoardMainContentPlaceholderBase = styled.div`
+  flex-grow: 1;
+  height: 200px;
+
+  min-height: 0px;
+  // ㄴ 필수: 없으면 다른 Draggable Card 드래그시 DragGhost가 날라다닌다.
+
+  pointer-events: none;
+  touch-action: none;
+  -webkit-touch-callout: none;
+
+  &:not(:first-child) {
+    margin-top: -10px;
   }
 `;
 
@@ -148,53 +165,14 @@ export interface FormData {
   childItem: string;
 }
 
-export const cardsContainerAtom = atom<{
-  [id: string]: HTMLDivElement | null;
-}>({
-  key: "cardsContainerAtom",
-  default: {},
-});
-
-export type ForEachChildItem = ({
-  // key,
-  idx,
-  item,
-  items,
-}: {
-  // key: React.Key;
-  idx: number;
-  item: ChildItem;
-  items: ChildItem[];
-}) => React.ReactNode; //React.ReactElement<typeof Card>;
-
 export type BoardMainProps = {
   boardListId: string;
-  // forEachChildItem: ForEachChildItem;
   parentItem: ParentItem;
 } & StyledComponentProps<"div">;
 
 export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
   displayName: "BoardMain",
   Component: ({ boardListId, parentItem, children, ...otherProps }, ref) => {
-    // const setStateCardsContainer = useSetRecoilState(cardsContainerAtom);
-    // const refCardsContainer = useRef<HTMLDivElement | null>(null);
-    // useIsomorphicLayoutEffect(() => {
-    //   if (refCardsContainer.current) {
-    //     setStateCardsContainer((cur) => ({
-    //       ...cur,
-    //       [parentItem.id]: refCardsContainer.current,
-    //     }));
-    //   }
-    // }, [parentItem.id, setStateCardsContainer]);
-
-    // const taskList = useMemo<ChildItem[]>(
-    //   () =>
-    //     stateNestedIndexer.getChildListFromParentId__MutableChild({
-    //       parentId: parentItem.id,
-    //     }) ?? [],
-    //   [parentItem.id, stateNestedIndexer],
-    // );
-
     // const [stateNestedIndexer, setNestedStateIndexer] =
     //   useRecoilState(nestedIndexerAtom);
 
@@ -300,14 +278,8 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
     //   [],
     // );
 
-    // const customDataAttributes: DataAttributesOfItemList = {
-    //   "data-board-list-id": boardListId,
-    //   "data-item-list-type": "children",
-    //   "data-item-list-id": parentItem.id,
-    // };
-
     const childIdList = useMemo(() => {
-      // console.log("[childIdList]");
+      console.log("[childIdList]");
       return (parentItem.items ?? getEmptyArray<ChildItem>()).map(
         (parentItem) => parentItem.id ?? getEmptyArray<ParentItem>(),
       );
@@ -315,6 +287,7 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
 
     const scrollContainerCustomAttributes: ScrollContainerCustomAttributesKvObj =
       {
+        "data-board-list-id": boardListId,
         "data-scroll-container-id": parentItem.id,
         "data-scroll-container-allowed-types": serializeAllowedTypes({
           allowedTypes: ["child"],
@@ -322,6 +295,7 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
       };
 
     const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
+      "data-board-list-id": boardListId,
       "data-droppable-id": parentItem.id,
       "data-droppable-allowed-types": serializeAllowedTypes({
         allowedTypes: ["child"],
@@ -338,9 +312,14 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
             <SortableContext
               id={parentItem.id}
               items={childIdList}
-              strategy={rectSortingStrategy}
+              strategy={
+                // rectSortingStrategy
+                verticalListSortingStrategy
+              }
             >
               {children}
+              {/* <BoardMainContentPlaceholderBase /> */}
+              {/* <BoardMainContentPlaceholder parentItemId={parentItem.id} /> */}
             </SortableContext>
           </BoardMainContent>
         </BoardMainContentContainer>

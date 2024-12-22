@@ -1,5 +1,5 @@
 import { css, styled } from "styled-components";
-import { useSortable } from "@dnd-kit/sortable";
+import { useSortable, UseSortableArguments } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
@@ -10,7 +10,7 @@ import {
   DraggableCustomAttributesKvObj,
   ParentItem,
 } from "@/components/BoardContext";
-import { DndDataInterface } from "@/components/BoardContext";
+import { DndDataInterfaceCustomGeneric } from "@/components/BoardContext";
 
 type BoardBaseProps = {
   isDragSource?: boolean;
@@ -53,27 +53,34 @@ const BoardBase = styled.div.withConfig({
     `;
   }}
 
-  &[data-dnd-placeholder] {
-    opacity: 0.7 !important;
+  &[data-drag-overlay] {
+    opacity; 1;
+    background-color: cornflowerblue;
+    //#526C97;
   }
 `;
 
 export type BoardProps = {
+  boardListId: string;
   parentItem: ParentItem;
 } & StyledComponentProps<"div">;
 
 export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
-  Component: ({ parentItem, children, ...otherProps }, ref) => {
-    const sortableConfig = useMemo(
+  Component: ({ boardListId, parentItem, children, ...otherProps }, ref) => {
+    const sortableConfig = useMemo<UseSortableArguments>(
       () => ({
         id: parentItem.id,
+        // disabled // TODO: isEditMode
         data: {
-          type: "parent",
-          item: parentItem,
-        } satisfies DndDataInterface<"parent">,
+          customData: {
+            boardListId,
+            type: "parent",
+            item: parentItem,
+          },
+        } satisfies DndDataInterfaceCustomGeneric<"parent">,
       }),
-      [parentItem],
+      [boardListId, parentItem],
     );
 
     const {
@@ -120,6 +127,7 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       [transform],
     );
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
+      "data-board-list-id": boardListId,
       "data-draggable-id": parentItem.id,
     };
 

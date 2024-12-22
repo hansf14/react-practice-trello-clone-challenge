@@ -1,9 +1,9 @@
-import { styled } from "styled-components";
-import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { Input } from "antd";
-import { SmartOmit, StyledComponentProps } from "@/utils";
 import { useCallback, useImperativeHandle, useRef, useState } from "react";
+import { styled } from "styled-components";
+import { Input } from "antd";
 import { TextAreaRef } from "antd/es/input/TextArea";
+import { withMemoAndRef } from "@/hocs/withMemoAndRef";
+import { SmartOmit, StyledComponentProps } from "@/utils";
 import { useStateWithCb } from "@/hooks/useStateWithCb";
 const { TextArea: AntdTextArea } = Input;
 
@@ -20,6 +20,7 @@ const TextAreaBase = styled(AntdTextArea)`
     &:focus,
     &:focus-within {
       box-shadow: none;
+      outline: 2px solid black;
     }
 
     &:not([readonly]) {

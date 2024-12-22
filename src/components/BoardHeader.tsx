@@ -1,6 +1,6 @@
 import { useCallback, useContext, useImperativeHandle, useRef } from "react";
 import { styled } from "styled-components";
-import { GripVertical, XCircleFill } from "react-bootstrap-icons";
+import { GripVertical, ArrowClockwise } from "react-bootstrap-icons";
 import { SmartOmit, StyledComponentProps } from "@/utils";
 import {
   BoardContext,
@@ -31,7 +31,7 @@ const BoardHeaderTitle = styled.h2`
   font-size: 25px;
 `;
 
-const BoardHeaderTitleEditCancelButton = styled(XCircleFill)`
+const BoardHeaderTitleEditCancelButton = styled(ArrowClockwise)`
   transform: translateZ(10px);
   grid-column: 1;
   grid-row: 1;
@@ -79,6 +79,7 @@ const BoardHeaderDragHandleBase = styled.div`
 `;
 
 export type BoardHeaderDragHandleProps = {
+  boardListId: string;
   parentItemId: string;
 } & SmartOmit<StyledComponentProps<"div">, "children">;
 
@@ -88,7 +89,7 @@ export const BoardHeaderDragHandle = withMemoAndRef<
   BoardHeaderDragHandleProps
 >({
   displayName: "BoardHeaderDragHandle",
-  Component: ({ parentItemId, ...otherProps }, ref) => {
+  Component: ({ boardListId, parentItemId, ...otherProps }, ref) => {
     const {
       setActivatorNodeRef,
       draggableHandleAttributes,
@@ -110,6 +111,7 @@ export const BoardHeaderDragHandle = withMemoAndRef<
 
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
       {
+        "data-board-list-id": boardListId,
         "data-draggable-handle-id": parentItemId,
       };
 
@@ -128,6 +130,7 @@ export const BoardHeaderDragHandle = withMemoAndRef<
 });
 
 export type BoardHeaderProps = {
+  boardListId: string;
   parentItem: ParentItem;
   onEditStartItem?: OnEditStart;
   onEditCancelItem?: OnEditCancel;
@@ -143,6 +146,7 @@ export const BoardHeader = withMemoAndRef<
   displayName: "BoardHeader",
   Component: (
     {
+      boardListId,
       parentItem,
       onEditStartItem,
       onEditCancelItem,
@@ -188,7 +192,10 @@ export const BoardHeader = withMemoAndRef<
             onEditChange={onEditChange}
             onEditFinish={onEditFinish}
           />
-          <BoardHeaderDragHandle parentItemId={parentItem.id} />
+          <BoardHeaderDragHandle
+            boardListId={boardListId}
+            parentItemId={parentItem.id}
+          />
         </BoardHeaderTitle>
       </BoardHeaderBase>
     );

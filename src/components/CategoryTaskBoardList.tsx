@@ -20,11 +20,11 @@ import {
 } from "@/utils";
 import {
   ChildItem,
-  nestedIndexerAtom,
+  boardListContextAtom,
   ParentItem,
 } from "@/components/BoardContext";
 import { NestedIndexer, NestedIndexerItem } from "@/indexer";
-import { BoardMain, ForEachChildItem } from "@/components/BoardMain";
+import { BoardMain } from "@/components/BoardMain";
 import { Card, OnUpdateChildItem } from "@/components/Card";
 import { styled } from "styled-components";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
@@ -67,32 +67,33 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     //   [setStateNestedIndexer],
     // );
 
-    const [stateCategoryTaskNestedIndexer, setStateCategoryTaskNestedIndexer] =
-      useRecoilState(
-        nestedIndexerAtom({
-          parentKeyName,
-          childKeyName,
-          items: defaultCategoryTaskItems,
-        }),
-      );
+    const [stateBoardListContext, setStateBoardListContext] = useRecoilState(
+      boardListContextAtom({
+        boardListId,
+        parentKeyName,
+        childKeyName,
+        items: defaultCategoryTaskItems,
+      }),
+    );
+
     const categoryList = useMemo(() => {
       // console.log("[categoryList]");
       return (
-        stateCategoryTaskNestedIndexer.getParentList__MutableParent() ??
+        stateBoardListContext.indexer.getParentList__MutableParent() ??
         getEmptyArray<ParentItem>()
       );
-    }, [stateCategoryTaskNestedIndexer]);
+    }, [stateBoardListContext]);
 
     const taskList = useMemo(() => {
       return categoryList.map((category) => {
         // console.log("[taskList]");
         return (
-          stateCategoryTaskNestedIndexer.getChildListFromParentId__MutableChild(
-            { parentId: category.id },
-          ) ?? getEmptyArray<ChildItem>()
+          stateBoardListContext.indexer.getChildListOfParentId__MutableChild({
+            parentId: category.id,
+          }) ?? getEmptyArray<ChildItem>()
         );
       });
-    }, [categoryList, stateCategoryTaskNestedIndexer]);
+    }, [categoryList, stateBoardListContext]);
 
     const onEditStartParentItem = useCallback<OnEditStart>(
       ({ elementTextArea, handlers: { editCancelHandler } }) => {},
@@ -107,25 +108,26 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         memoizeCallback<OnEditFinish>({
           id: idOnEditFinishParentItem,
           fn: ({ oldValue, newValue }) => {
-            setStateCategoryTaskNestedIndexer((curNestedIndexer) => {
-              const newIndexer = new NestedIndexer(curNestedIndexer);
-              newIndexer.updateParent({
-                parentId: parentItem.id,
-                parent: {
+            setStateBoardListContext((curBoardListContext) => {
+              curBoardListContext.indexer.updateParent({
+                oldParentId: parentItem.id,
+                newParent: {
                   ...parentItem,
                   title: newValue,
                 },
               });
-              return newIndexer;
+              return {
+                ...curBoardListContext,
+              };
             });
           },
           deps: [
             parentItem,
             idOnEditFinishParentItem,
-            setStateCategoryTaskNestedIndexer,
+            setStateBoardListContext,
           ],
         }),
-      [idOnEditFinishParentItem, setStateCategoryTaskNestedIndexer],
+      [idOnEditFinishParentItem, setStateBoardListContext],
     );
 
     return (
@@ -138,8 +140,13 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       >
         {categoryList.map((parentItem, index) => {
           return (
-            <Board key={parentItem.id} parentItem={parentItem}>
+            <Board
+              key={parentItem.id}
+              boardListId={boardListId}
+              parentItem={parentItem}
+            >
               <BoardHeader
+                boardListId={boardListId}
                 parentItem={parentItem}
                 onEditStartItem={onEditStartParentItem}
                 onEditFinishItem={onEditFinishParentItem({ parentItem })}
@@ -149,6 +156,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                   return (
                     <Card
                       key={task.id}
+                      boardListId={boardListId}
                       childItem={task}
                       // onUpdateChildItem={onUpdateChildItem}
                     />

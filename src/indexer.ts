@@ -9,217 +9,218 @@ export type IndexerBaseItem = {
   id: string;
 }; // & Record<any, any>;
 
-export type IndexerEntry<T extends IndexerBaseItem> = [
-  NestedIndexerKey,
-  string[] | T[],
-];
+// TODO: implement and test `Indexer` when needed
+// export type IndexerEntry<T extends IndexerBaseItem> = [
+//   NestedIndexerKey,
+//   string[] | T[],
+// ];
 
-export class Indexer<T extends IndexerBaseItem> extends MultiMap<
-  IndexerKey,
-  string | T
-> {
-  @Expose()
-  itemKeyName: string;
+// export class Indexer<T extends IndexerBaseItem> extends MultiMap<
+//   IndexerKey,
+//   string | T
+// > {
+//   @Expose()
+//   itemKeyName: string;
 
-  constructor({
-    itemKeyName,
-    entries,
-  }: {
-    itemKeyName: string;
-    entries?: IndexerEntry<T>[];
-  });
-  constructor(original: Indexer<T>);
+//   constructor({
+//     itemKeyName,
+//     entries,
+//   }: {
+//     itemKeyName: string;
+//     entries?: IndexerEntry<T>[];
+//   });
+//   constructor(original: Indexer<T>);
 
-  constructor(
-    params:
-      | {
-          itemKeyName: string;
-          entries?: IndexerEntry<T>[];
-        }
-      | Indexer<T>,
-  ) {
-    if (params instanceof Indexer) {
-      super(params);
-    } else {
-      super({ entries: params.entries ?? [] });
-    }
-    this.itemKeyName = params.itemKeyName;
-  }
+//   constructor(
+//     params:
+//       | {
+//           itemKeyName: string;
+//           entries?: IndexerEntry<T>[];
+//         }
+//       | Indexer<T>,
+//   ) {
+//     if (params instanceof Indexer) {
+//       super(params);
+//     } else {
+//       super({ entries: params.entries ?? [] });
+//     }
+//     this.itemKeyName = params.itemKeyName;
+//   }
 
-  // Convert to a plain object
-  override toPlain(): object {
-    return instanceToPlain(this, { strategy: "excludeAll" });
-  }
+//   // Convert to a plain object
+//   override toPlain(): object {
+//     return instanceToPlain(this, { strategy: "excludeAll" });
+//   }
 
-  // Convert to a JSON string
-  override toString(): string {
-    return JSON.stringify(this.toPlain());
-  }
+//   // Convert to a JSON string
+//   override toString(): string {
+//     return JSON.stringify(this.toPlain());
+//   }
 
-  getItemIdList() {
-    return this.get({
-      keys: [`${this.itemKeyName}IdList`],
-    }) as string[] | undefined;
-  }
+//   getItemIdList() {
+//     return this.get({
+//       keys: [`${this.itemKeyName}IdList`],
+//     }) as string[] | undefined;
+//   }
 
-  getItemList__MutableItem() {
-    const itemIdList = this.getItemIdList();
-    if (!itemIdList) {
-      console.warn("[getItemList__MutableItem] !parentIdList");
-      return itemIdList;
-    }
+//   getItemList__MutableItem() {
+//     const itemIdList = this.getItemIdList();
+//     if (!itemIdList) {
+//       console.warn("[getItemList__MutableItem] !parentIdList");
+//       return itemIdList;
+//     }
 
-    const itemList: T[] = [];
-    itemIdList.forEach((itemId) => {
-      const item = this.getItem({ itemId });
-      if (item) {
-        itemList.push(item);
-      } else {
-        console.warn("[getItemList__MutableItem] !item");
-      }
-    });
-    return itemList;
-  }
+//     const itemList: T[] = [];
+//     itemIdList.forEach((itemId) => {
+//       const item = this.getItem({ itemId });
+//       if (item) {
+//         itemList.push(item);
+//       } else {
+//         console.warn("[getItemList__MutableItem] !item");
+//       }
+//     });
+//     return itemList;
+//   }
 
-  getItem({ itemId }: { itemId: string }) {
-    const item = (
-      this.get({
-        keys: [`${this.itemKeyName}Id`, itemId],
-      }) as T[] | undefined
-    )?.[0];
-    return item;
-  }
+//   getItem({ itemId }: { itemId: string }) {
+//     const item = (
+//       this.get({
+//         keys: [`${this.itemKeyName}Id`, itemId],
+//       }) as T[] | undefined
+//     )?.[0];
+//     return item;
+//   }
 
-  createItem({ item, shouldAppend }: { item: T; shouldAppend?: boolean }) {
-    if (
-      this.has({
-        keys: [`${this.itemKeyName}Id`, item.id],
-      })
-    ) {
-      console.warn(
-        `[createItem] Key "${this.serializeMultiKey({
-          keys: [`${this.itemKeyName}Id`, item.id],
-        })}" already exists.`,
-      );
-      return;
-    }
-    this.set({
-      keys: [`${this.itemKeyName}Id`, item.id],
-      value: [item],
-    });
+//   createItem({ item, shouldAppend }: { item: T; shouldAppend?: boolean }) {
+//     if (
+//       this.has({
+//         keys: [`${this.itemKeyName}Id`, item.id],
+//       })
+//     ) {
+//       console.warn(
+//         `[createItem] Key "${this.serializeMultiKey({
+//           keys: [`${this.itemKeyName}Id`, item.id],
+//         })}" already exists.`,
+//       );
+//       return;
+//     }
+//     this.set({
+//       keys: [`${this.itemKeyName}Id`, item.id],
+//       value: [item],
+//     });
 
-    const itemIdList = this.getItemIdList();
-    if (!itemIdList) {
-      console.warn("[createItem] !itemIdList");
-      return;
-    }
-    !(shouldAppend ?? false)
-      ? itemIdList.unshift(item.id)
-      : itemIdList.push(item.id);
-  }
+//     const itemIdList = this.getItemIdList();
+//     if (!itemIdList) {
+//       console.warn("[createItem] !itemIdList");
+//       return;
+//     }
+//     !(shouldAppend ?? false)
+//       ? itemIdList.unshift(item.id)
+//       : itemIdList.push(item.id);
+//   }
 
-  // itemId (prev) and item.id (new) can be different.
-  updateItem({ itemId, item }: { itemId: string; item: T }) {
-    const itemWrappedByArr = this.get({
-      keys: [`${this.itemKeyName}Id`, itemId],
-    });
-    if (!itemWrappedByArr) {
-      console.warn("[updateItem] !itemWrappedByArr");
-      return;
-    }
+//   // itemId (prev) and item.id (new) can be different.
+//   updateItem({ itemId, item }: { itemId: string; item: T }) {
+//     const itemWrappedByArr = this.get({
+//       keys: [`${this.itemKeyName}Id`, itemId],
+//     });
+//     if (!itemWrappedByArr) {
+//       console.warn("[updateItem] !itemWrappedByArr");
+//       return;
+//     }
 
-    if (itemId === item.id) {
-      itemWrappedByArr[0] = item;
-    } else {
-      const itemIdList = this.getItemIdList();
-      if (!itemIdList) {
-        console.warn("[updateItem] !itemIdList");
-        return;
-      }
-      const targetIdx = itemIdList.findIndex((_itemId) => _itemId === itemId);
-      if (targetIdx === -1) {
-        console.warn("[updateItem] targetIdx === -1");
-        return;
-      }
-      itemIdList[targetIdx] = item.id;
+//     if (itemId === item.id) {
+//       itemWrappedByArr[0] = item;
+//     } else {
+//       const itemIdList = this.getItemIdList();
+//       if (!itemIdList) {
+//         console.warn("[updateItem] !itemIdList");
+//         return;
+//       }
+//       const targetIdx = itemIdList.findIndex((_itemId) => _itemId === itemId);
+//       if (targetIdx === -1) {
+//         console.warn("[updateItem] targetIdx === -1");
+//         return;
+//       }
+//       itemIdList[targetIdx] = item.id;
 
-      if (
-        !this.has({
-          keys: [`${this.itemKeyName}Id`, itemId],
-        })
-      ) {
-        console.warn(
-          `[updateItem] Key "${this.serializeMultiKey({
-            keys: [`${this.itemKeyName}Id`, itemId],
-          })}" doesn't exist.`,
-        );
-        return;
-      }
-      this.delete({
-        keys: [`${this.itemKeyName}Id`, itemId],
-      });
-      if (
-        this.has({
-          keys: [`${this.itemKeyName}Id`, item.id],
-        })
-      ) {
-        console.warn(
-          `[updateItem] Key "${this.serializeMultiKey({
-            keys: [`${this.itemKeyName}Id`, item.id],
-          })}" already exists.`,
-        );
-        return;
-      }
-      this.set({
-        keys: [`${this.itemKeyName}Id`, item.id],
-        value: [item],
-      });
-    }
-  }
+//       if (
+//         !this.has({
+//           keys: [`${this.itemKeyName}Id`, itemId],
+//         })
+//       ) {
+//         console.warn(
+//           `[updateItem] Key "${this.serializeMultiKey({
+//             keys: [`${this.itemKeyName}Id`, itemId],
+//           })}" doesn't exist.`,
+//         );
+//         return;
+//       }
+//       this.delete({
+//         keys: [`${this.itemKeyName}Id`, itemId],
+//       });
+//       if (
+//         this.has({
+//           keys: [`${this.itemKeyName}Id`, item.id],
+//         })
+//       ) {
+//         console.warn(
+//           `[updateItem] Key "${this.serializeMultiKey({
+//             keys: [`${this.itemKeyName}Id`, item.id],
+//           })}" already exists.`,
+//         );
+//         return;
+//       }
+//       this.set({
+//         keys: [`${this.itemKeyName}Id`, item.id],
+//         value: [item],
+//       });
+//     }
+//   }
 
-  removeItem({ itemId }: { itemId: string }) {
-    const itemIdList = this.getItemIdList();
-    if (!itemIdList) {
-      console.warn(`[removeItem] !itemIdList`);
-      return;
-    }
-    const targetIdx = itemIdList.findIndex((_itemId) => _itemId === itemId);
-    if (targetIdx === -1) {
-      console.warn("[removeItem] targetIdx === -1");
-      return;
-    }
-    itemIdList.splice(targetIdx, 1);
+//   removeItem({ itemId }: { itemId: string }) {
+//     const itemIdList = this.getItemIdList();
+//     if (!itemIdList) {
+//       console.warn(`[removeItem] !itemIdList`);
+//       return;
+//     }
+//     const targetIdx = itemIdList.findIndex((_itemId) => _itemId === itemId);
+//     if (targetIdx === -1) {
+//       console.warn("[removeItem] targetIdx === -1");
+//       return;
+//     }
+//     itemIdList.splice(targetIdx, 1);
 
-    if (
-      !this.has({
-        keys: [`${this.itemKeyName}Id`, itemId],
-      })
-    ) {
-      console.warn(
-        `[removeItem] Key "${this.serializeMultiKey({
-          keys: [`${this.itemKeyName}Id`, itemId],
-        })}" doesn't exist.`,
-      );
-      return;
-    }
-    this.delete({
-      keys: [`${this.itemKeyName}Id`, itemId],
-    });
-  }
+//     if (
+//       !this.has({
+//         keys: [`${this.itemKeyName}Id`, itemId],
+//       })
+//     ) {
+//       console.warn(
+//         `[removeItem] Key "${this.serializeMultiKey({
+//           keys: [`${this.itemKeyName}Id`, itemId],
+//         })}" doesn't exist.`,
+//       );
+//       return;
+//     }
+//     this.delete({
+//       keys: [`${this.itemKeyName}Id`, itemId],
+//     });
+//   }
 
-  moveItem({ idxFrom, idxTo }: { idxFrom: number; idxTo: number }) {
-    const itemIdList = this.getItemIdList();
-    if (!itemIdList) {
-      console.warn("[moveItem] !itemIdList");
-      return;
-    }
-    arrayMoveElement({
-      arr: itemIdList,
-      idxFrom,
-      idxTo,
-    });
-  }
-}
+//   moveItem({ idxFrom, idxTo }: { idxFrom: number; idxTo: number }) {
+//     const itemIdList = this.getItemIdList();
+//     if (!itemIdList) {
+//       console.warn("[moveItem] !itemIdList");
+//       return;
+//     }
+//     arrayMoveElement({
+//       arr: itemIdList,
+//       idxFrom,
+//       idxTo,
+//     });
+//   }
+// }
 
 // export const initialEntries: [
 //   NestedIndexerKey,
@@ -390,6 +391,46 @@ export class NestedIndexer<
     }) as string[] | undefined;
   }
 
+  _setParentIdList({
+    parentIdList,
+    shouldMutate = true,
+  }: {
+    parentIdList: string[];
+    shouldMutate?: boolean;
+  }) {
+    const _parentIdList =
+      (this.getParentIdList() as string[] | undefined) ?? [];
+
+    this.set({
+      keys: [`${this.parentKeyName}IdList`],
+      value: shouldMutate
+        ? _parentIdList.splice(0, _parentIdList.length, ...parentIdList)
+        : parentIdList,
+    });
+  }
+
+  _removeParentFromParentIdList({
+    parentId,
+    shouldMutate = true,
+  }: {
+    parentId: string;
+    shouldMutate?: boolean;
+  }) {
+    const parentIdList = this.getParentIdList() ?? [];
+    const parentIndex = parentIdList.findIndex(
+      (_parentId) => _parentId === parentId,
+    );
+    if (parentIndex === -1) {
+      console.warn("[removeParent] parentIndex === -1");
+      return;
+    }
+    parentIdList.splice(parentIndex, 1);
+    this._setParentIdList({
+      parentIdList,
+      shouldMutate,
+    });
+  }
+
   getParentList__MutableParent() {
     const parentIdList = this.getParentIdList();
     if (!parentIdList) {
@@ -397,17 +438,7 @@ export class NestedIndexer<
       return parentIdList;
     }
 
-    // return parentIdList.map((parentId) => this.getParent({ parentId }));
-    const parentList: Parent[] = [];
-    parentIdList.forEach((parentId) => {
-      const parent = this.getParent({ parentId });
-      if (parent) {
-        parentList.push(parent);
-      } else {
-        console.warn("[getParentList__MutableParent] !parent");
-      }
-    });
-    return parentList;
+    return parentIdList.map((parentId) => this.getParent({ parentId }));
   }
 
   getParent({ parentId }: { parentId: string }) {
@@ -416,36 +447,69 @@ export class NestedIndexer<
         keys: [`${this.parentKeyName}Id`, parentId],
       }) as Parent[] | undefined
     )?.[0];
-    // if (!parent) {
-    //   console.warn(`[getParent] Parent "${parentId}" is undefined.`);
-    // }
     return parent;
   }
 
-  getChildIdListFromParentId({ parentId }: { parentId: string }) {
+  _setParent({ parent }: { parent: Parent }) {
+    this.set({
+      keys: [`${this.parentKeyName}Id`, parent.id],
+      value: [parent],
+    });
+  }
+
+  _removeParent({ parentId }: { parentId: string }) {
+    this.delete({
+      keys: [`${this.parentKeyName}Id`, parentId],
+    });
+  }
+
+  getChildIdListOfParentId({ parentId }: { parentId: string }) {
     return this.get({
       keys: [`${this.parentKeyName}Id`, parentId, `${this.childKeyName}IdList`],
     }) as string[] | undefined;
   }
 
-  getChildListFromParentId__MutableChild({ parentId }: { parentId: string }) {
-    const childIdList = this.getChildIdListFromParentId({ parentId });
-    if (!childIdList) {
-      console.warn("[getChildListFromParentId__MutableChild] !childIdList");
-      return childIdList;
+  _setChildIdListOfParentId({
+    parentId,
+    childIdListOfParentId,
+    shouldMutate = true,
+  }: {
+    parentId: string;
+    childIdListOfParentId: string[];
+    shouldMutate?: boolean;
+  }) {
+    const oldChildIdListOfParentId =
+      (this.getChildIdListOfParentId({ parentId }) as string[] | undefined) ??
+      [];
+
+    return this.set({
+      keys: [`${this.parentKeyName}Id`, parentId, `${this.childKeyName}IdList`],
+      value: shouldMutate
+        ? oldChildIdListOfParentId.splice(
+            0,
+            oldChildIdListOfParentId.length,
+            ...childIdListOfParentId,
+          )
+        : childIdListOfParentId,
+    });
+  }
+
+  _removeChildIdListOfParentId({ parentId }: { parentId: string }) {
+    this.delete({
+      keys: [`${this.parentKeyName}Id`, parentId, `${this.childKeyName}IdList`],
+    });
+  }
+
+  getChildListOfParentId__MutableChild({ parentId }: { parentId: string }) {
+    const childIdListOfParentId = this.getChildIdListOfParentId({ parentId });
+    if (!childIdListOfParentId) {
+      console.warn(
+        "[getChildListOfParentId__MutableChild] !childIdListOfParentId",
+      );
+      return childIdListOfParentId;
     }
 
-    // return childIdList.map((childId) => this.getChild({ childId }));
-    const childList: Child[] = [];
-    childIdList.forEach((childId) => {
-      const child = this.getChild({ childId });
-      if (child) {
-        childList.push(child);
-      } else {
-        console.warn("[getChildListFromParentId__MutableChild] !child");
-      }
-    });
-    return childList;
+    return childIdListOfParentId.map((childId) => this.getChild({ childId }));
   }
 
   getChild({ childId }: { childId: string }) {
@@ -454,245 +518,73 @@ export class NestedIndexer<
         keys: [`${this.childKeyName}Id`, childId],
       }) as Child[] | undefined
     )?.[0];
-    // if (!child) {
-    //   console.warn(
-    //     `[getChild] Key "${this.serializeMultiKey({
-    //       keys: [`${this.childKeyName}Id`, childId],
-    //     })}" is undefined.`,
-    //   );
-    // }
     return child;
   }
 
-  getParentIdFromChildId({ childId }: { childId: string }) {
+  _setChild({ child }: { child: Child }) {
+    this.set({
+      keys: [`${this.childKeyName}Id`, child.id],
+      value: [child],
+    });
+  }
+
+  _removeChild({ childId }: { childId: string }) {
+    this.delete({
+      keys: [`${this.childKeyName}Id`, childId],
+    });
+  }
+
+  getParentIdListOfChildId({ childId }: { childId: string }) {
     return this.get({
       keys: [`${this.childKeyName}Id`, childId, `${this.parentKeyName}Id`],
     }) as string[] | undefined;
   }
 
-  createChild({
-    parentId,
-    child,
-    shouldAppend,
+  _setParentIdListOfChildId({
+    childId,
+    parentIdListOfChildId,
+    shouldMutate = true,
   }: {
-    parentId: string;
-    child: Child;
-    shouldAppend?: boolean;
+    childId: string;
+    parentIdListOfChildId: string[];
+    shouldMutate?: boolean;
   }) {
-    if (
-      this.has({
-        keys: [`${this.childKeyName}Id`, child.id],
-      })
-    ) {
-      console.warn(
-        `[createChild] Key "${this.serializeMultiKey({
-          keys: [`${this.childKeyName}Id`, child.id],
-        })}" already exists.`,
-      );
-      return;
-    }
+    const _parentIdListOfChild =
+      (this.getParentIdListOfChildId({ childId }) as string[] | undefined) ??
+      [];
     this.set({
-      keys: [`${this.childKeyName}Id`, child.id],
-      value: [child],
-    });
-
-    const childIdList = this.getChildIdListFromParentId({ parentId });
-    if (!childIdList) {
-      console.warn("[createChild] !childIdList");
-      return;
-    }
-    // this.set({
-    //   keys: [`${this.parentKeyName}Id`, parentId, `${this.childKeyName}IdList`],
-    //   value: !(shouldAppend ?? false)
-    //     ? [child.id, ...childIdList]
-    //     : [...childIdList, child.id],
-    // });
-    !(shouldAppend ?? false)
-      ? childIdList.unshift(child.id)
-      : childIdList.push(child.id);
-
-    if (
-      this.has({
-        keys: [`${this.childKeyName}Id`, child.id, `${this.parentKeyName}Id`],
-      })
-    ) {
-      console.warn(
-        `[createChild] Key "${this.serializeMultiKey({
-          keys: [`${this.childKeyName}Id`, child.id, `${this.parentKeyName}Id`],
-        })}" already exists.`,
-      );
-      return;
-    }
-    this.set({
-      keys: [`${this.childKeyName}Id`, child.id, `${this.parentKeyName}Id`],
-      value: [parentId],
+      keys: [`${this.childKeyName}Id`, childId, `${this.parentKeyName}Id`],
+      value: shouldMutate
+        ? _parentIdListOfChild.splice(
+            0,
+            _parentIdListOfChild.length,
+            ...parentIdListOfChildId,
+          )
+        : parentIdListOfChildId,
     });
   }
 
-  // childId (prev) and child.id (new) can be different.
-  updateChild({ childId, child }: { childId: string; child: Child }) {
-    const childWrappedByArr = this.get({
-      keys: [`${this.childKeyName}Id`, childId],
-    });
-    if (!childWrappedByArr) {
-      console.warn("[updateChild] !childWrappedByArr");
-      return;
-    }
-
-    if (childId === child.id) {
-      childWrappedByArr[0] = child;
-      // this.set({
-      //   keys: [`${this.childKeyName}Id`, child.id],
-      //   value: [child],
-      // });
-    } else {
-      const parentIdWrappedByArr = this.getParentIdFromChildId({ childId });
-      if (!parentIdWrappedByArr) {
-        console.warn("[updateChild] !parentIdWrappedByArr");
-        return;
-      }
-      const parentId = parentIdWrappedByArr[0];
-      this.delete({
-        keys: [`${this.childKeyName}Id`, childId, `${this.parentKeyName}Id`],
-      });
-      if (this.getParentIdFromChildId({ childId: child.id })) {
-        console.warn("[updateChild] this.getParentIdFromChildId");
-        return;
-      }
-      this.set({
-        keys: [`${this.childKeyName}Id`, child.id, `${this.parentKeyName}Id`],
-        value: [parentId],
-      });
-
-      const childIdList = this.getChildIdListFromParentId({
-        parentId,
-      });
-      if (!childIdList) {
-        console.warn("[updateChild] !childIdList");
-        return;
-      }
-      // const childIdListClone = [...childIdList];
-      // const targetIdx = childIdListClone.findIndex(
-      //   (_childId) => _childId === childId,
-      // );
-      // childIdListClone[targetIdx] = child.id;
-      // this.set({
-      //   keys: [`${this.parentKeyName}Id`, parentId, `${this.childKeyName}IdList`],
-      //   value: childIdListClone,
-      // });
-      const targetIdx = childIdList.findIndex(
-        (_childId) => _childId === childId,
-      );
-      if (targetIdx === -1) {
-        console.warn("[updateChild] targetIdx === -1");
-        return;
-      }
-      childIdList[targetIdx] = child.id;
-
-      if (
-        !this.has({
-          keys: [`${this.childKeyName}Id`, childId],
-        })
-      ) {
-        console.warn(
-          `[updateChild] Key "${this.serializeMultiKey({
-            keys: [`${this.childKeyName}Id`, childId],
-          })}" doesn't exist.`,
-        );
-        return;
-      }
-      this.delete({
-        keys: [`${this.childKeyName}Id`, childId],
-      });
-      if (
-        this.has({
-          keys: [`${this.childKeyName}Id`, child.id],
-        })
-      ) {
-        console.warn(
-          `[updateChild] Key "${this.serializeMultiKey({
-            keys: [`${this.childKeyName}Id`, child.id],
-          })}" already exists.`,
-        );
-        return;
-      }
-      this.set({
-        keys: [`${this.childKeyName}Id`, child.id],
-        value: [child],
-      });
-    }
-  }
-
-  removeChild({ childId }: { childId: string }) {
-    const parentIdWrappedByArr = this.getParentIdFromChildId({
-      childId,
-    });
-    if (!parentIdWrappedByArr) {
-      console.warn("[removeChild] !parentIdWrappedByArr");
-      return;
-    }
-    const parentId = parentIdWrappedByArr[0];
+  _removeParentIdListOfChildId({ childId }: { childId: string }) {
     this.delete({
       keys: [`${this.childKeyName}Id`, childId, `${this.parentKeyName}Id`],
-    });
-
-    const childIdList = this.getChildIdListFromParentId({
-      parentId,
-    });
-    if (!childIdList) {
-      console.warn("[removeChild] !childIdList");
-      return;
-    }
-    // this.set({
-    //   keys: [`${this.parentKeyName}Id`, parentId, `${this.childKeyName}IdList`],
-    //   value: childIdList.filter((_childId) => _childId !== childId),
-    // });
-    const targetIdx = childIdList.findIndex((_childId) => _childId === childId);
-    if (targetIdx === -1) {
-      console.warn("[removeChild] targetIdx === -1");
-      return;
-    }
-    childIdList.splice(targetIdx, 1);
-
-    if (
-      !this.has({
-        keys: [`${this.childKeyName}Id`, childId],
-      })
-    ) {
-      console.warn(
-        `[removeChild] Key "${this.serializeMultiKey({
-          keys: [`${this.childKeyName}Id`, childId],
-        })}" doesn't exist.`,
-      );
-      return;
-    }
-    this.delete({
-      keys: [`${this.childKeyName}Id`, childId],
     });
   }
 
   createParent({
     parent,
-    shouldAppend,
+    shouldAppend = false,
+    shouldMutate = true,
   }: {
     parent: Parent;
     shouldAppend?: boolean;
+    shouldMutate?: boolean;
   }) {
-    if (
-      this.has({
-        keys: [`${this.parentKeyName}Id`, parent.id],
-      })
-    ) {
-      console.warn(
-        `[createParent] Key "${this.serializeMultiKey({
-          keys: [`${this.parentKeyName}Id`, parent.id],
-        })}" already exists.`,
-      );
-      return;
-    }
-    this.set({
-      keys: [`${this.parentKeyName}Id`, parent.id],
-      value: [parent],
+    this._setParent({ parent });
+
+    this._setChildIdListOfParentId({
+      parentId: parent.id,
+      childIdListOfParentId: [],
+      shouldMutate,
     });
 
     const parentIdList = this.getParentIdList();
@@ -700,210 +592,250 @@ export class NestedIndexer<
       console.warn("[createParent] !parentIdList");
       return;
     }
-    // this.set({
-    //   keys: [`${this.parentKeyName}IdList`],
-    //   value: !(shouldAppend ?? false)
-    //     ? [parent, ...parentList]
-    //     : [...parentList, parent],
-    // });
-    !(shouldAppend ?? false)
+    !shouldAppend
       ? parentIdList.unshift(parent.id)
       : parentIdList.push(parent.id);
-
-    if (
-      this.getChildIdListFromParentId({
-        parentId: parent.id,
-      })
-    ) {
-      console.warn("[createParent] this.getChildIdListFromParentId");
-      return;
+    if (shouldMutate) {
+      this._setParentIdList({ parentIdList, shouldMutate });
     }
-    this.set({
-      keys: [
-        `${this.parentKeyName}Id`,
-        parent.id,
-        `${this.childKeyName}IdList`,
-      ],
-      value: [],
-    });
   }
 
-  // parentId (prev) and parent.id (new) can be different.
-  updateParent({ parentId, parent }: { parentId: string; parent: Parent }) {
-    const parentWrappedByArr = this.get({
-      keys: [`${this.parentKeyName}Id`, parentId],
-    });
-    if (!parentWrappedByArr) {
-      console.warn("[updateParent] !parentWrappedByArr");
+  // `parentId` (prev) and `parent.id` (new) can be different. (updating parent's id is allowed.)
+  updateParent({
+    oldParentId,
+    newParent,
+    shouldMutate = true,
+  }: {
+    oldParentId: string;
+    newParent: Parent;
+    shouldMutate?: boolean;
+  }) {
+    const oldParent = this.getParent({ parentId: oldParentId });
+    if (!oldParent) {
+      console.warn("[updateParent] !oldParent");
       return;
     }
 
-    if (parentId === parent.id) {
-      parentWrappedByArr[0] = parent;
-      // this.set({
-      //   keys: [`${this.parentKeyName}Id`, parent.id],
-      //   value: [parent],
-      // });
+    if (oldParentId === newParent.id) {
+      this._setParent({ parent: newParent });
     } else {
-      const parentIdList = this.getParentIdList();
-      if (!parentIdList) {
-        console.warn("[updateParent] !parentIdList");
-        return;
-      }
-      // const parentIdListClone = [...parentIdList];
-      // const targetIdx = parentIdListClone.findIndex(
-      //   (_parentId) => _parentId === parentId,
-      // );
-      // parentIdListClone[targetIdx] = parent.id;
-      // this.set({
-      //   keys: [`${this.parentKeyName}IdList`],
-      //   value: parentIdListClone,
-      // });
-      const targetIdx = parentIdList.findIndex(
-        (_parentId) => _parentId === parentId,
+      this._removeParent({ parentId: oldParentId });
+      this._setParent({ parent: newParent });
+
+      const parentIdList = this.getParentIdList() ?? [];
+      const oldParentIndex = parentIdList.findIndex(
+        (parentId) => parentId === oldParentId,
       );
-      if (targetIdx === -1) {
-        console.warn("[updateParent] targetIdx === -1");
+      if (oldParentIndex === -1) {
+        console.warn("[updateParent] oldParentIndex === -1");
         return;
       }
-      parentIdList[targetIdx] = parent.id;
-
-      const childIdList = this.getChildIdListFromParentId({
-        parentId,
-      });
-      if (!childIdList) {
-        console.warn("[updateParent] !childIdList");
-        return;
-      }
-      this.delete({
-        keys: [
-          `${this.parentKeyName}Id`,
-          parentId,
-          `${this.childKeyName}IdList`,
-        ],
-      });
-      if (this.getChildIdListFromParentId({ parentId: parent.id })) {
-        console.warn("[updateParent] this.getChildIdListFromParentId");
-      }
-      this.set({
-        keys: [
-          `${this.parentKeyName}Id`,
-          parent.id,
-          `${this.childKeyName}IdList`,
-        ],
-        value: childIdList,
+      parentIdList[oldParentIndex] = newParent.id;
+      this._setParentIdList({
+        parentIdList,
+        shouldMutate,
       });
 
-      if (
-        !this.has({
-          keys: [`${this.parentKeyName}Id`, parentId],
-        })
-      ) {
-        console.warn(
-          `[updateParent] Key "${this.serializeMultiKey({
-            keys: [`${this.parentKeyName}Id`, parentId],
-          })}" doesn't exist.`,
+      const childIdListOfOldParentId =
+        this.getChildIdListOfParentId({
+          parentId: oldParentId,
+        }) ?? [];
+      this._removeChildIdListOfParentId({ parentId: oldParentId });
+      this._setChildIdListOfParentId({
+        parentId: newParent.id,
+        childIdListOfParentId: childIdListOfOldParentId,
+        shouldMutate,
+      });
+
+      childIdListOfOldParentId.forEach((childId) => {
+        const parentIdListOfChildId =
+          this.getParentIdListOfChildId({
+            childId,
+          }) ?? [];
+        const parentIndex = parentIdListOfChildId.findIndex(
+          (parentId) => parentId === oldParentId,
         );
-        return;
-      }
-      this.delete({
-        keys: [`${this.parentKeyName}Id`, parentId],
-      });
-      if (
-        this.has({
-          keys: [`${this.parentKeyName}Id`, parent.id],
-        })
-      ) {
-        console.warn(
-          `[updateParent] Key "${this.serializeMultiKey({
-            keys: [`${this.parentKeyName}Id`, parent.id],
-          })}" already exists.`,
-        );
-        return;
-      }
-      this.set({
-        keys: [`${this.parentKeyName}Id`, parent.id],
-        value: [parent],
-      });
-
-      childIdList.forEach((childId) => {
-        const parentIdWrappedByArr = this.getParentIdFromChildId({
-          childId,
-        });
-        if (!parentIdWrappedByArr) {
-          console.warn("[updateParent] !parentIdWrappedByArr");
+        if (parentIndex === -1) {
+          console.warn("[updateParent] parentIndex === -1");
           return;
         }
-        parentIdWrappedByArr[0] = parent.id;
-        // this.set({
-        //   keys: [`${this.childKeyName}Id`, childId, `${this.parentKeyName}Id`],
-        //   value: [parent.id],
-        // });
+        parentIdListOfChildId[parentIndex] = newParent.id;
+        this._setParentIdListOfChildId({
+          childId,
+          parentIdListOfChildId,
+          shouldMutate,
+        });
       });
     }
   }
 
-  removeParent({ parentId }: { parentId: string }) {
-    const parentIdList = this.getParentIdList();
-    if (!parentIdList) {
-      console.warn(`[removeParent] !parentIdList`);
-      return;
-    }
-    // this.set({
-    //   keys: [`${this.parentKeyName}IdList`],
-    //   value: parentIdList.filter((_parentId) => _parentId !== parentId),
-    // });
-    const targetIdx = parentIdList.findIndex(
-      (_parentId) => _parentId === parentId,
-    );
-    if (targetIdx === -1) {
-      console.warn("[removeParent] targetIdx === -1");
-      return;
-    }
-    parentIdList.splice(targetIdx, 1);
+  removeParent({
+    parentId,
+    shouldMutate = true,
+  }: {
+    parentId: string;
+    shouldMutate?: boolean;
+  }) {
+    this._removeParent({ parentId });
 
-    const childIdList = this.getChildIdListFromParentId({
+    this._removeParentFromParentIdList({
       parentId,
-    });
-    if (!childIdList) {
-      console.warn("[removeParent] !childIdList");
-      return;
-    }
-    this.delete({
-      keys: [`${this.parentKeyName}Id`, parentId, `${this.childKeyName}IdList`],
+      shouldMutate,
     });
 
-    if (
-      !this.has({
-        keys: [`${this.parentKeyName}Id`, parentId],
-      })
-    ) {
-      console.warn(
-        `[removeParent] Key "${this.serializeMultiKey({
-          keys: [`${this.parentKeyName}Id`, parentId],
-        })}" doesn't exist.`,
+    this._removeChildIdListOfParentId({ parentId });
+
+    const childIdListOfParentId =
+      this.getChildIdListOfParentId({
+        parentId,
+      }) ?? [];
+    childIdListOfParentId.forEach((childId) => {
+      const parentIdListOfChildId =
+        this.getParentIdListOfChildId({
+          childId,
+        }) ?? [];
+      const parentIndex = parentIdListOfChildId.findIndex(
+        (_parentId) => _parentId === parentId,
       );
-      return;
-    }
-    this.delete({
-      keys: [`${this.parentKeyName}Id`, parentId],
-    });
-
-    childIdList.forEach((childId) => {
-      const parentIdWrappedByArr = this.getParentIdFromChildId({
-        childId,
-      });
-      if (!parentIdWrappedByArr) {
-        console.warn("[removeParent] !parentIdWrappedByArr");
+      if (parentIndex === -1) {
+        console.warn("[removeParent] parentIndex === -1");
         return;
       }
-      this.delete({
-        keys: [`${this.childKeyName}Id`, childId, `${this.parentKeyName}Id`],
+      parentIdListOfChildId.splice(parentIndex, 1);
+      this._setParentIdListOfChildId({
+        childId,
+        parentIdListOfChildId,
+        shouldMutate,
       });
     });
   }
 
-  moveParent({ idxFrom, idxTo }: { idxFrom: number; idxTo: number }) {
+  createChild({
+    parentId,
+    child,
+    shouldAppend = false,
+    shouldMutate = true,
+  }: {
+    parentId: string;
+    child: Child;
+    shouldAppend?: boolean;
+    shouldMutate?: boolean;
+  }) {
+    this._setChild({ child: child });
+
+    this._setParentIdListOfChildId({
+      childId: child.id,
+      parentIdListOfChildId: [],
+      shouldMutate,
+    });
+
+    const childIdListOfParentId = this.getChildIdListOfParentId({ parentId });
+    if (!childIdListOfParentId) {
+      console.warn("[createChild] !childIdList");
+      return;
+    }
+    !shouldAppend
+      ? childIdListOfParentId.unshift(child.id)
+      : childIdListOfParentId.push(child.id);
+    if (shouldMutate) {
+      this._setChildIdListOfParentId({
+        parentId,
+        childIdListOfParentId,
+        shouldMutate,
+      });
+    }
+  }
+
+  // `childId` (prev) and `child.id` (new) can be different. (updating child's id is allowed.)
+  updateChild({
+    oldChildId,
+    newChild,
+    shouldMutate = true,
+  }: {
+    oldChildId: string;
+    newChild: Child;
+    shouldMutate?: boolean;
+  }) {
+    const oldChild = this.getChild({ childId: oldChildId });
+    if (!oldChild) {
+      console.warn("[updateChild] !oldChild");
+      return;
+    }
+
+    if (oldChildId === newChild.id) {
+      this._setChild({ child: newChild });
+    } else {
+      this._removeChild({ childId: oldChildId });
+      this._setChild({ child: newChild });
+
+      const parentIdListOfOldChildId =
+        this.getParentIdListOfChildId({ childId: oldChildId }) ?? [];
+      this._removeParentIdListOfChildId({ childId: oldChildId });
+      this._setParentIdListOfChildId({
+        childId: newChild.id,
+        parentIdListOfChildId: parentIdListOfOldChildId,
+        shouldMutate,
+      });
+
+      parentIdListOfOldChildId.forEach((parentId) => {
+        const childIdListOfParentId =
+          this.getChildIdListOfParentId({
+            parentId,
+          }) ?? [];
+        const childIndex = childIdListOfParentId.findIndex(
+          (childId) => childId === oldChildId,
+        );
+        if (childIndex === -1) {
+          console.warn("[updateChild] childIndex === -1");
+          return;
+        }
+        childIdListOfParentId[childIndex] = newChild.id;
+        this._setChildIdListOfParentId({
+          parentId,
+          childIdListOfParentId,
+          shouldMutate,
+        });
+      });
+    }
+  }
+
+  removeChild({
+    childId,
+    shouldMutate = true,
+  }: {
+    childId: string;
+    shouldMutate?: boolean;
+  }) {
+    this._removeChild({ childId });
+
+    this._removeParentIdListOfChildId({ childId });
+
+    const parentIdListOfChildId =
+      this.getParentIdListOfChildId({
+        childId,
+      }) ?? [];
+    parentIdListOfChildId.forEach((parentId) => {
+      const childIdListOfParentId =
+        this.getChildIdListOfParentId({
+          parentId,
+        }) ?? [];
+      const childIndex = childIdListOfParentId.findIndex(
+        (_childId) => _childId === childId,
+      );
+      if (childIndex === -1) {
+        console.warn("[removeChild] childIndex === -1");
+        return;
+      }
+      childIdListOfParentId.splice(childIndex, 1);
+      this._setChildIdListOfParentId({
+        parentId,
+        childIdListOfParentId,
+        shouldMutate,
+      });
+    });
+  }
+
+  moveParent({ indexFrom, indexTo }: { indexFrom: number; indexTo: number }) {
     const parentIdList = this.getParentIdList();
     if (!parentIdList) {
       console.warn("[moveParent] !parentIdList");
@@ -911,23 +843,23 @@ export class NestedIndexer<
     }
     arrayMoveElement({
       arr: parentIdList,
-      idxFrom,
-      idxTo,
+      indexFrom: indexFrom,
+      indexTo: indexTo,
     });
   }
 
   moveChild({
     parentIdFrom,
     parentIdTo,
-    idxFrom,
-    idxTo,
+    indexFrom,
+    indexTo,
   }: {
     parentIdFrom: string;
     parentIdTo: string;
-    idxFrom: number;
-    idxTo: number;
+    indexFrom: number;
+    indexTo: number;
   }) {
-    const childIdListFrom = this.getChildIdListFromParentId({
+    const childIdListFrom = this.getChildIdListOfParentId({
       parentId: parentIdFrom,
     });
     if (!childIdListFrom) {
@@ -937,29 +869,20 @@ export class NestedIndexer<
     if (parentIdFrom === parentIdTo) {
       arrayMoveElement({
         arr: childIdListFrom,
-        idxFrom,
-        idxTo,
+        indexFrom: indexFrom,
+        indexTo: indexTo,
       });
     } else {
-      const childIdListFrom = this.getChildIdListFromParentId({
+      const childIdListFrom = this.getChildIdListOfParentId({
         parentId: parentIdFrom,
       });
       if (!childIdListFrom) {
         console.warn("[moveChild] !childIdListFrom");
         return;
       }
-      const [targetChildId] = childIdListFrom.splice(idxFrom, 1);
+      const [targetChildId] = childIdListFrom.splice(indexFrom, 1);
 
-      const childIdListTo = this.getChildIdListFromParentId({
-        parentId: parentIdTo,
-      });
-      if (!childIdListTo) {
-        console.warn("[moveChild] !childIdListTo");
-        return;
-      }
-      childIdListTo.splice(idxTo, 0, targetChildId);
-
-      const parentIdWrappedByArr = this.getParentIdFromChildId({
+      const parentIdWrappedByArr = this.getParentIdListOfChildId({
         childId: targetChildId,
       });
       if (!parentIdWrappedByArr) {
@@ -968,26 +891,21 @@ export class NestedIndexer<
       }
       parentIdWrappedByArr[0] = parentIdTo;
 
-      // this.removeChild({
-      //   childId: targetChild.id,
-      // });
-      // this.createChild({
-      //   parentId: parentIdTo,
-      //   child: targetChild,
-      //   shouldAppend: false,
-      // });
-      // arrayMoveElement({
-      //   arr: childIdListTo,
-      //   idxFrom: 0,
-      //   idxTo: idxTo + 1,
-      // });
+      const childIdListTo = this.getChildIdListOfParentId({
+        parentId: parentIdTo,
+      });
+      if (!childIdListTo) {
+        console.warn("[moveChild] !childIdListTo");
+        return;
+      }
+      childIdListTo.splice(indexTo, 0, targetChildId);
     }
   }
 
-  clearChildListFromParentId({ parentId }: { parentId: string }) {
-    const childIdList = this.getChildIdListFromParentId({ parentId });
+  clearChildListOfParentId({ parentId }: { parentId: string }) {
+    const childIdList = this.getChildIdListOfParentId({ parentId });
     if (!childIdList) {
-      console.warn("[clearChildListFromParentId] !childIdList");
+      console.warn("[clearChildListOfParentId] !childIdList");
       return childIdList;
     }
 
