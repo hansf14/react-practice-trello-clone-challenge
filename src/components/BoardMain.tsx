@@ -279,7 +279,7 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
     // );
 
     const childIdList = useMemo(() => {
-      console.log("[childIdList]");
+      // console.log("[childIdList]");
       return (parentItem.items ?? getEmptyArray<ChildItem>()).map(
         (parentItem) => parentItem.id ?? getEmptyArray<ParentItem>(),
       );

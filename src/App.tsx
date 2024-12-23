@@ -113,7 +113,7 @@ function App() {
         <Main>
           <CategoryTaskBoardList
             boardListId="category-task-board"
-            parentItems={defaultCategoryTaskItems}
+            defaultItems={defaultCategoryTaskItems}
             parentKeyName="category"
             childKeyName="task"
           />

@@ -16,6 +16,8 @@ import {
   getEmptyArray,
   getMemoizedArray,
   ScrollbarCondition,
+  SmartMerge,
+  SmartOmit,
   StyledComponentProps,
 } from "@/utils";
 import {
@@ -42,6 +44,9 @@ import {
   getDndContextInfoFromData,
   isCustomItemData,
   BoardListContextIndexer,
+  BoardListContextValue,
+  BoardListContextParams,
+  useBoardContext,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { defaultCategoryTaskItems } from "@/data";
@@ -113,7 +118,7 @@ import { useIsomorphicLayoutEffect } from "usehooks-ts";
 //   return true;
 // }
 
-const BoardListInternalBase = styled.div`
+const BoardListBase = styled.div`
   ${CssScrollbar}
 
   overflow-x: auto;
@@ -158,28 +163,15 @@ const BoardListDropArea = styled.div.withConfig({
     cursor: grab;
   } */
 
-export type BoardListInternalProps = {
-  boardListId: string;
-  parentKeyName: string;
-  childKeyName: string;
-  parentItems?: ParentItem[];
-} & StyledComponentProps<"div">;
+export type BoardListProps = BoardListContextParams &
+  StyledComponentProps<"div">;
 
-export const BoardListInternal = withMemoAndRef<
-  "div",
-  HTMLDivElement,
-  BoardListInternalProps
->({
-  displayName: "BoardListInternal",
+export type BoardListExtendProps = BoardListContextValue;
+
+export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
+  displayName: "BoardList",
   Component: (
-    {
-      boardListId,
-      parentKeyName,
-      childKeyName,
-      parentItems = getEmptyArray<ParentItem>(),
-      children,
-      ...otherProps
-    },
+    { boardListId, parentKeyName, childKeyName, children, ...otherProps },
     ref,
   ) => {
     const [stateActiveParentItem, setStateActiveParentItem] =
@@ -187,42 +179,6 @@ export const BoardListInternal = withMemoAndRef<
     const [stateActiveChildItem, setStateActiveChildItem] =
       useState<ChildItem | null>(null);
     const refDragOverlayReactElement = useRef<React.ReactElement | null>(null);
-
-    const boardListContextParam = useMemo(
-      () => ({
-        boardListId,
-        parentKeyName,
-        childKeyName,
-      }),
-      [boardListId, parentKeyName, childKeyName],
-    );
-
-    const [stateBoardListContext, setStateBoardListContext] = useRecoilState(
-      boardListContextAtomFamily(boardListContextParam),
-    );
-
-    const initBoardListContext = useRecoilCallback(
-      ({ set }) =>
-        ({ items }: { items: ParentItem[] }) => {
-          const newDefaultBoardListContextIndexer = new BoardListContextIndexer(
-            {
-              parentKeyName,
-              childKeyName,
-              items,
-            },
-          );
-
-          set(boardListContextAtomFamily(boardListContextParam), {
-            boardListId,
-            indexer: newDefaultBoardListContextIndexer,
-          });
-        },
-      [boardListContextParam, boardListId, parentKeyName, childKeyName],
-    );
-
-    useIsomorphicLayoutEffect(() => {
-      initBoardListContext({ items: defaultCategoryTaskItems });
-    }, [initBoardListContext]);
 
     const [isDragging, setIsDragging] = useState(false);
     const { dragScroll, getCurPointerEvent } = useDragScroll();
@@ -233,6 +189,17 @@ export const BoardListInternal = withMemoAndRef<
     });
 
     const refDroppable = useRef<HTMLDivElement | null>(null);
+
+    const boardListContextParams = useMemo(
+      () => ({
+        boardListId,
+        parentKeyName,
+        childKeyName,
+      }),
+      [boardListId, parentKeyName, childKeyName],
+    );
+    const { parentItems, stateBoardListContext, setStateBoardListContext } =
+      useBoardContext(boardListContextParams);
 
     const onDragStart = useCallback(
       (event: DragStartEvent) => {
@@ -628,10 +595,7 @@ export const BoardListInternal = withMemoAndRef<
     );
 
     const parentIdList = useMemo(() => {
-      return (
-        parentItems.map((parentItem) => parentItem.id) ??
-        getEmptyArray<ParentItem>()
-      );
+      return parentItems.map((parentItem) => parentItem.id);
     }, [parentItems]);
 
     const modifiers = stateActiveParentItem
@@ -680,7 +644,7 @@ export const BoardListInternal = withMemoAndRef<
         // autoScroll={{ acceleration: 1 }}
         autoScroll={{ enabled: false }}
       >
-        <BoardListInternalBase
+        <BoardListBase
           ref={refBase}
           {...scrollContainerCustomAttributes}
           {...otherProps}
@@ -694,7 +658,7 @@ export const BoardListInternal = withMemoAndRef<
               {children}
             </SortableContext>
           </BoardListDropArea>
-        </BoardListInternalBase>
+        </BoardListBase>
         {createPortal(
           <DragOverlay
             modifiers={modifiers}
@@ -718,29 +682,6 @@ export const BoardListInternal = withMemoAndRef<
           document.body,
         )}
       </DndContext>
-    );
-  },
-});
-
-export type BoardListProps = BoardListInternalProps;
-
-export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
-  displayName: "BoardList",
-  Component: (
-    { parentKeyName, childKeyName, parentItems, children, ...otherProps },
-    ref,
-  ) => {
-    return (
-      //TODO: Recoil Root
-      <BoardListInternal
-        ref={ref}
-        parentKeyName={parentKeyName}
-        childKeyName={childKeyName}
-        parentItems={parentItems}
-        {...otherProps}
-      >
-        {children}
-      </BoardListInternal>
     );
   },
 });

@@ -303,18 +303,18 @@ export class NestedIndexer<
   @Expose()
   childKeyName: string;
   @Expose()
-  items: Parent[];
+  parentItems: Parent[];
 
   constructor({
     parentKeyName,
     childKeyName,
     entries,
-    items,
+    parentItems,
   }: {
     parentKeyName: string;
     childKeyName: string;
     entries?: NestedIndexerEntry<Parent, Child>[];
-    items?: Parent[];
+    parentItems?: Parent[];
   });
   constructor(original: NestedIndexer<Parent, Child>);
 
@@ -324,31 +324,43 @@ export class NestedIndexer<
           parentKeyName: string;
           childKeyName: string;
           entries?: NestedIndexerEntry<Parent, Child>[];
-          items?: Parent[];
+          parentItems?: Parent[];
         }
       | NestedIndexer<Parent, Child>,
   ) {
     if (params instanceof NestedIndexer) {
       super(params);
-      this.items = params.items;
+
+      this.parentKeyName = params.parentKeyName;
+      this.childKeyName = params.childKeyName;
+
+      this.parentItems = params.parentItems;
     } else {
       if (params.entries) {
         const entries = params.entries ?? [];
         super({ entries });
 
-        const parents = this.getParentList__MutableParent() ?? [];
+        this.parentKeyName = params.parentKeyName;
+        this.childKeyName = params.childKeyName;
+
+        const parents = this._getParentList__MutableParent() ?? [];
         for (const parent of parents) {
           parent.items =
-            this.getChildListOfParentId__MutableChild({
+            this._getChildListOfParentId__MutableChild({
               parentId: parent.id,
             }) ?? [];
         }
-        this.items = parents;
-      } else if (params.items) {
+        this.parentItems = parents;
+      } else if (params.parentItems) {
         super();
-        this.items = params.items;
 
-        const parents = params.items;
+        this.parentKeyName = params.parentKeyName;
+        this.childKeyName = params.childKeyName;
+
+        // Prone to infinite loop if not cautious.
+        this.parentItems = [];
+        // ㄴ To prevent infinite loop (because `this.createParent` mutates the `this.parentItems`)
+        const parents = params.parentItems;
         for (const parent of parents) {
           this.createParent({
             parent,
@@ -356,7 +368,12 @@ export class NestedIndexer<
             shouldKeepRef: true,
           });
 
-          for (const child of parent.items ?? []) {
+          const children = [...(parent.items ?? [])];
+          // ㄴ To prevent infinite loop (because `this.createChild` mutates the `parent.items`)
+          delete parent.items;
+          // ㄴ Without this, children count will be exactly twice the original source.
+
+          for (const child of children) {
             this.createChild({
               parentId: parent.id,
               child: child as Child,
@@ -367,11 +384,13 @@ export class NestedIndexer<
         }
       } else {
         super();
-        this.items = [];
+
+        this.parentKeyName = params.parentKeyName;
+        this.childKeyName = params.childKeyName;
+
+        this.parentItems = [];
       }
     }
-    this.parentKeyName = params.parentKeyName;
-    this.childKeyName = params.childKeyName;
   }
 
   // Convert to a plain object
@@ -433,7 +452,7 @@ export class NestedIndexer<
     });
   }
 
-  getParentList__MutableParent() {
+  _getParentList__MutableParent() {
     const parentIdList = this.getParentIdList();
     if (!parentIdList) {
       console.warn("[getParentList__MutableParent] !parentIdList");
@@ -489,7 +508,7 @@ export class NestedIndexer<
       (this.getChildIdListOfParentId({ parentId }) as string[] | undefined) ??
       [];
 
-    return this.set({
+    this.set({
       keys: [`${this.parentKeyName}Id`, parentId, `${this.childKeyName}IdList`],
       value: shouldKeepRef
         ? oldChildIdListOfParentId.splice(
@@ -507,7 +526,7 @@ export class NestedIndexer<
     });
   }
 
-  getChildListOfParentId__MutableChild({ parentId }: { parentId: string }) {
+  _getChildListOfParentId__MutableChild({ parentId }: { parentId: string }) {
     const childIdListOfParentId = this.getChildIdListOfParentId({ parentId });
     if (!childIdListOfParentId) {
       console.warn(
@@ -591,9 +610,11 @@ export class NestedIndexer<
     shouldAppend?: boolean;
     shouldKeepRef?: boolean;
   }) {
-    !shouldAppend ? this.items.unshift(parent) : this.items.push(parent);
+    !shouldAppend
+      ? this.parentItems.unshift(parent)
+      : this.parentItems.push(parent);
     if (!shouldKeepRef) {
-      this.items = [...this.items];
+      this.parentItems = [...this.parentItems];
     }
 
     this._setParent({ parent });
@@ -604,7 +625,14 @@ export class NestedIndexer<
       shouldKeepRef,
     });
 
-    const parentIdList = this.getParentIdList();
+    let parentIdList = this.getParentIdList();
+    if (!parentIdList) {
+      this._setParentIdList({
+        parentIdList: [],
+        shouldKeepRef,
+      });
+    }
+    parentIdList = this.getParentIdList();
     if (!parentIdList) {
       console.warn("[createParent] !parentIdList");
       return;
@@ -633,16 +661,16 @@ export class NestedIndexer<
       return;
     }
 
-    const targetParentIndex = this.items.findIndex(
+    const targetParentIndex = this.parentItems.findIndex(
       (parent) => parent.id === oldParentId,
     );
     if (targetParentIndex === -1) {
       console.warn("[updateParent] targetParentIndex === -1");
       return;
     }
-    this.items[targetParentIndex] = newParent;
+    this.parentItems[targetParentIndex] = newParent;
     if (!shouldKeepRef) {
-      this.items = [...this.items];
+      this.parentItems = [...this.parentItems];
     }
 
     if (oldParentId === newParent.id) {
@@ -705,16 +733,16 @@ export class NestedIndexer<
     parentId: string;
     shouldKeepRef?: boolean;
   }) {
-    const targetParentIndex = this.items.findIndex(
+    const targetParentIndex = this.parentItems.findIndex(
       (parent) => parent.id === parentId,
     );
     if (targetParentIndex === -1) {
       console.warn("[updateParent] targetParentIndex === -1");
       return;
     }
-    this.items.splice(targetParentIndex, 1);
+    this.parentItems.splice(targetParentIndex, 1);
     if (!shouldKeepRef) {
-      this.items = [...this.items];
+      this.parentItems = [...this.parentItems];
     }
 
     this._removeParent({ parentId });
@@ -762,14 +790,14 @@ export class NestedIndexer<
     shouldAppend?: boolean;
     shouldKeepRef?: boolean;
   }) {
-    const targetParentIndex = this.items.findIndex(
+    const targetParentIndex = this.parentItems.findIndex(
       (parent) => parent.id === parentId,
     );
     if (targetParentIndex === -1) {
       console.warn("[updateParent] targetParentIndex === -1");
       return;
     }
-    const targetParent = this.items[targetParentIndex];
+    const targetParent = this.parentItems[targetParentIndex];
     if (!targetParent.items) {
       targetParent.items = [];
     }
@@ -777,8 +805,8 @@ export class NestedIndexer<
       ? targetParent.items.unshift(child)
       : targetParent.items.push(child);
     if (!shouldKeepRef) {
-      this.items[targetParentIndex].items = [...targetParent.items];
-      this.items = [...this.items];
+      this.parentItems[targetParentIndex].items = [...targetParent.items];
+      this.parentItems = [...this.parentItems];
     }
 
     this._setChild({ child });
@@ -820,7 +848,7 @@ export class NestedIndexer<
     newChild: Child;
     shouldKeepRef?: boolean;
   }) {
-    this.items.forEach((parent, parentIndex) => {
+    this.parentItems.forEach((parent, parentIndex) => {
       if (parent.items) {
         const targetChildIndex = parent.items.findIndex(
           (child) => child.id === oldChildId,
@@ -828,8 +856,8 @@ export class NestedIndexer<
         if (targetChildIndex !== -1) {
           parent.items[targetChildIndex] = newChild;
           if (!shouldKeepRef) {
-            this.items[parentIndex].items = [...parent.items];
-            this.items = [...this.items];
+            this.parentItems[parentIndex].items = [...parent.items];
+            this.parentItems = [...this.parentItems];
           }
         }
       }
@@ -885,7 +913,7 @@ export class NestedIndexer<
     childId: string;
     shouldKeepRef?: boolean;
   }) {
-    this.items.forEach((parent, parentIndex) => {
+    this.parentItems.forEach((parent, parentIndex) => {
       if (parent.items) {
         const targetChildIndex = parent.items.findIndex(
           (child) => child.id === childId,
@@ -893,8 +921,8 @@ export class NestedIndexer<
         if (targetChildIndex !== -1) {
           parent.items.splice(targetChildIndex, 1);
           if (!shouldKeepRef) {
-            this.items[parentIndex].items = [...parent.items];
-            this.items = [...this.items];
+            this.parentItems[parentIndex].items = [...parent.items];
+            this.parentItems = [...this.parentItems];
           }
         }
       }
@@ -939,12 +967,12 @@ export class NestedIndexer<
     shouldKeepRef?: boolean;
   }) {
     arrayMoveElement({
-      arr: this.items,
+      arr: this.parentItems,
       indexFrom,
       indexTo,
     });
     if (!shouldKeepRef) {
-      this.items = [...this.items];
+      this.parentItems = [...this.parentItems];
     }
 
     const parentIdList = shouldKeepRef
@@ -984,27 +1012,27 @@ export class NestedIndexer<
       }) ?? [];
 
     if (parentIdFrom === parentIdTo) {
-      const targetParentIndex = this.items.findIndex(
+      const targetParentIndex = this.parentItems.findIndex(
         (parent) => parent.id === parentIdFrom,
       );
       if (targetParentIndex === -1) {
         console.warn("[moveChild] targetParentIndex === -1");
         return;
       }
-      if (!this.items[targetParentIndex].items) {
+      if (!this.parentItems[targetParentIndex].items) {
         console.warn("[moveChild] !this.items[targetParentIndex].items");
         return;
       }
       arrayMoveElement({
-        arr: this.items[targetParentIndex].items,
+        arr: this.parentItems[targetParentIndex].items,
         indexFrom,
         indexTo,
       });
       if (!shouldKeepRef) {
-        this.items[targetParentIndex].items = [
-          ...this.items[targetParentIndex].items,
+        this.parentItems[targetParentIndex].items = [
+          ...this.parentItems[targetParentIndex].items,
         ];
-        this.items = [...this.items];
+        this.parentItems = [...this.parentItems];
       }
 
       arrayMoveElement({
@@ -1013,48 +1041,48 @@ export class NestedIndexer<
         indexTo: indexTo,
       });
     } else {
-      const targetParentIndexOfParentIdFrom = this.items.findIndex(
+      const targetParentIndexOfParentIdFrom = this.parentItems.findIndex(
         (parent) => parent.id === parentIdFrom,
       );
       if (targetParentIndexOfParentIdFrom === -1) {
         console.warn("[moveChild] targetParentIndexOfParentIdFrom === -1");
         return;
       }
-      if (!this.items[targetParentIndexOfParentIdFrom].items) {
+      if (!this.parentItems[targetParentIndexOfParentIdFrom].items) {
         console.warn(
           "[moveChild] !this.items[targetParentIndexOfParentIdFrom].items",
         );
         return;
       }
-      const [targetChild] = this.items[
+      const [targetChild] = this.parentItems[
         targetParentIndexOfParentIdFrom
       ].items.splice(indexFrom, 1);
-      const targetParentIndexOfParentIdTo = this.items.findIndex(
+      const targetParentIndexOfParentIdTo = this.parentItems.findIndex(
         (parent) => parent.id === parentIdTo,
       );
       if (targetParentIndexOfParentIdTo === -1) {
         console.warn("[moveChild] targetParentIndexOfParentIdTo === -1");
         return;
       }
-      if (!this.items[targetParentIndexOfParentIdTo].items) {
+      if (!this.parentItems[targetParentIndexOfParentIdTo].items) {
         console.warn(
           "[moveChild] !this.items[targetParentIndexOfParentIdFrom].items",
         );
         return;
       }
-      this.items[targetParentIndexOfParentIdTo].items.splice(
+      this.parentItems[targetParentIndexOfParentIdTo].items.splice(
         indexFrom,
         0,
         targetChild,
       );
       if (!shouldKeepRef) {
-        this.items[targetParentIndexOfParentIdFrom].items = [
-          ...this.items[targetParentIndexOfParentIdFrom].items,
+        this.parentItems[targetParentIndexOfParentIdFrom].items = [
+          ...this.parentItems[targetParentIndexOfParentIdFrom].items,
         ];
-        this.items[targetParentIndexOfParentIdTo].items = [
-          ...this.items[targetParentIndexOfParentIdTo].items,
+        this.parentItems[targetParentIndexOfParentIdTo].items = [
+          ...this.parentItems[targetParentIndexOfParentIdTo].items,
         ];
-        this.items = [...this.items];
+        this.parentItems = [...this.parentItems];
       }
 
       const [targetChildId] = childIdListOfParentIdFrom.splice(indexFrom, 1);
@@ -1083,16 +1111,16 @@ export class NestedIndexer<
     parentId: string;
     shouldKeepRef?: boolean;
   }) {
-    const targetParentIndex = this.items.findIndex(
+    const targetParentIndex = this.parentItems.findIndex(
       (parent) => parent.id === parentId,
     );
     if (targetParentIndex === -1) {
       console.warn("[updateParent] targetParentIndex === -1");
       return;
     }
-    this.items[targetParentIndex].items = [];
+    this.parentItems[targetParentIndex].items = [];
     if (!shouldKeepRef) {
-      this.items = [...this.items];
+      this.parentItems = [...this.parentItems];
     }
 
     const childIdListOfParentId =

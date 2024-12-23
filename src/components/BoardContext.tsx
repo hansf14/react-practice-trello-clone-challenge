@@ -18,6 +18,8 @@ import {
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { createContext, useMemo } from "react";
 import { useBeforeRender } from "@/hooks/useBeforeRender";
+import { useIsomorphicLayoutEffect } from "usehooks-ts";
+import { BoardListExtendProps } from "@/components/BoardList";
 
 // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#composition-of-existing-algorithms
 export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
@@ -457,10 +459,20 @@ export type BoardListContextParams = {
   parentKeyName: string;
   childKeyName: string;
 };
+
 export type BoardListContext = {
   boardListId: string;
   indexer: BoardListContextIndexer;
 };
+
+export type BoardListContextValue = {
+  boardListId: string;
+  parentKeyName: string;
+  childKeyName: string;
+  defaultItems?: ParentItem[];
+};
+
+export type UseBoardContextParams = BoardListContextParams;
 
 export const boardListContextAtomFamily = atomFamily<
   BoardListContext,
@@ -549,12 +561,6 @@ export const boardListContextAtomFamily = atomFamily<
 //     },
 // });
 
-export type BoardListContextValue = SmartMerge<
-  BoardListContextParams & {
-    defaultItems?: ParentItem[];
-  }
->;
-
 export const BoardListContextProvider__Internal = ({
   value: { boardListId, parentKeyName, childKeyName, defaultItems },
   children,
@@ -571,18 +577,18 @@ export const BoardListContextProvider__Internal = ({
     [boardListId, parentKeyName, childKeyName],
   );
 
-  const [stateBoardListContext, setStateBoardListContext] = useRecoilState(
-    boardListContextAtomFamily(boardListContextParams),
-  );
-
   const initBoardListContext = useRecoilCallback(
     ({ set }) =>
-      ({ items }: { items: ParentItem[] }) => {
+      ({ parentItems }: { parentItems: ParentItem[] }) => {
         const newDefaultBoardListContextIndexer = new BoardListContextIndexer({
           parentKeyName,
           childKeyName,
-          items,
+          parentItems,
         });
+        // console.log(
+        //   "newDefaultBoardListContextIndexer:",
+        //   newDefaultBoardListContextIndexer,
+        // );
 
         set(boardListContextAtomFamily(boardListContextParams), {
           boardListId,
@@ -592,8 +598,9 @@ export const BoardListContextProvider__Internal = ({
     [boardListContextParams, boardListId, parentKeyName, childKeyName],
   );
 
-  useBeforeRender(() => {
-    initBoardListContext({ items: defaultItems ?? [] });
+  useIsomorphicLayoutEffect(() => {
+    // console.log("defaultItems:", defaultItems);
+    initBoardListContext({ parentItems: defaultItems ?? [] });
   }, [defaultItems, initBoardListContext]);
 
   return <>{children}</>;
@@ -615,12 +622,29 @@ export const BoardListContextProvider = ({
   );
 };
 
-export type UseBoardContextParams = BoardListContextParams;
-
 export const useBoardContext = ({
   boardListId,
   parentKeyName,
   childKeyName,
 }: BoardListContextParams) => {
+  const boardListContextParams = useMemo(
+    () => ({
+      boardListId,
+      parentKeyName,
+      childKeyName,
+    }),
+    [boardListId, parentKeyName, childKeyName],
+  );
 
+  const [stateBoardListContext, setStateBoardListContext] = useRecoilState(
+    boardListContextAtomFamily(boardListContextParams),
+  );
+
+  const parentItems = stateBoardListContext.indexer.parentItems;
+
+  return {
+    parentItems,
+    stateBoardListContext,
+    setStateBoardListContext,
+  };
 };
