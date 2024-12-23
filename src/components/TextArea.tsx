@@ -239,20 +239,20 @@ export const TextArea = withMemoAndRef<
   },
 });
 
-export type UseTextAreaParam = {
+export type UseTextAreaParams = {
   onEditStartItem?: OnEditStart;
   onEditCancelItem?: OnEditCancel;
   onEditChangeItem?: OnEditChange;
   onEditFinishItem?: OnEditFinish;
 };
 
-export const useTextArea = (param?: UseTextAreaParam) => {
+export const useTextArea = (params?: UseTextAreaParams) => {
   const {
     onEditStartItem,
     onEditCancelItem,
     onEditChangeItem,
     onEditFinishItem,
-  } = param ?? {};
+  } = params ?? {};
 
   const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
 

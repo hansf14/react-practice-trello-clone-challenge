@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { HelmetProvider } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { RecoilRoot } from "recoil";
+// import { RecoilRoot } from "recoil";
 // import RecoilNexus from "recoil-nexus";
 
 const queryClient = new QueryClient({
@@ -30,12 +30,10 @@ const Root = () => {
   return (
     // <React.StrictMode>
     <HelmetProvider>
-      <RecoilRoot>
-        {/* <RecoilNexus /> */}
-        <QueryClientProvider client={queryClient}>
-          <App />
-        </QueryClientProvider>
-      </RecoilRoot>
+      {/* <RecoilNexus /> */}
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
     </HelmetProvider>
     // </React.StrictMode>,
   );

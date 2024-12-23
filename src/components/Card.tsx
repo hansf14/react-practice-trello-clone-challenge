@@ -14,7 +14,7 @@ import { Input } from "antd";
 import {
   CardContext,
   CardContextValue,
-  CardProvider,
+  CardContextProvider,
   ChildItem,
   DndDataInterfaceCustomGeneric,
   DraggableCustomAttributesKvObj,
@@ -262,7 +262,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     );
 
     return (
-      <CardProvider value={cardContextValue}>
+      <CardContextProvider value={cardContextValue}>
         <CardInternalBase
           ref={callbackRef}
           style={style}
@@ -271,7 +271,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
         >
           {children}
         </CardInternalBase>
-      </CardProvider>
+      </CardContextProvider>
     );
   },
 });

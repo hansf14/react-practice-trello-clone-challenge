@@ -1,4 +1,11 @@
-import { atomFamily } from "recoil";
+import {
+  atomFamily,
+  RecoilRoot,
+  selector,
+  selectorFamily,
+  useRecoilCallback,
+  useRecoilState,
+} from "recoil";
 import { recoilPersist } from "recoil-persist";
 import { NestedIndexer, NestedIndexerBaseItem } from "@/indexer";
 import { createKeyValueMapping, SmartMerge } from "@/utils";
@@ -9,7 +16,8 @@ import {
   rectIntersection,
 } from "@dnd-kit/core";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { createContext } from "react";
+import { createContext, useMemo } from "react";
+import { useBeforeRender } from "@/hooks/useBeforeRender";
 
 // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#composition-of-existing-algorithms
 export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
@@ -206,7 +214,7 @@ export const BoardContext = createContext<BoardContextValue>({
   draggableHandleListeners: undefined,
 });
 
-export const BoardProvider = ({
+export const BoardContextProvider = ({
   value,
   children,
 }: {
@@ -232,7 +240,7 @@ export const CardContext = createContext<CardContextValue>({
   draggableHandleListeners: undefined,
 });
 
-export const CardProvider = ({
+export const CardContextProvider = ({
   value,
   children,
 }: {
@@ -421,7 +429,7 @@ const { persistAtom } = recoilPersist({
 });
 
 const recoilKeys = createKeyValueMapping({
-  arr: ["nestedIndexerAtom"],
+  arr: ["boardListContextAtomFamily"],
 });
 
 export type ParentItem = SmartMerge<
@@ -431,6 +439,7 @@ export type ParentItem = SmartMerge<
   }
 > &
   Record<any, any>;
+
 export type ChildItem = SmartMerge<
   NestedIndexerBaseItem & {
     content: string;
@@ -438,29 +447,32 @@ export type ChildItem = SmartMerge<
 > &
   Record<any, any>;
 
+export class BoardListContextIndexer extends NestedIndexer<
+  ParentItem,
+  ChildItem
+> {}
+
 export type BoardListContextParams = {
   boardListId: string;
   parentKeyName: string;
   childKeyName: string;
-  items: ParentItem[];
 };
 export type BoardListContext = {
   boardListId: string;
-  indexer: NestedIndexer<ParentItem, ChildItem>;
+  indexer: BoardListContextIndexer;
 };
 
-export const boardListContextAtom = atomFamily<
+export const boardListContextAtomFamily = atomFamily<
   BoardListContext,
   BoardListContextParams
 >({
-  key: recoilKeys["nestedIndexerAtom"],
-  default: ({ boardListId, parentKeyName, childKeyName, items }) => {
+  key: recoilKeys["boardListContextAtomFamily"],
+  default: ({ boardListId, parentKeyName, childKeyName }) => {
     return {
       boardListId,
-      indexer: new NestedIndexer({
+      indexer: new BoardListContextIndexer({
         parentKeyName,
         childKeyName,
-        items,
       }),
     };
   },
@@ -495,3 +507,120 @@ export const boardListContextAtom = atomFamily<
     },
   ],
 });
+
+// export type ParentListParams = BoardListContextParams;
+// export type ParentList = {
+//   boardListId: string;
+//   items: ParentItem[];
+// };
+
+// export const parentListSelectorFamily = selectorFamily<
+//   BoardListContext,
+//   BoardListContextParams
+// >({
+//   key: "boardListContextAtomFamily",
+//   get:
+//     (id) =>
+//     ({ get }) => {
+//       // get() from another atomFamily
+//       const sourceValue = get(sourceAtomFamily(id));
+
+//       // Could do additional logic or transformations here
+//       return `My default is: ${sourceValue}`;
+//     },
+// });
+
+// export const parentListSelectorFamily = selectorFamily<
+//   ParentList,
+//   ParentListParams
+// >({
+//   key: "",
+//   get:
+//     ({ boardListId, parentKeyName, childKeyName, items }) =>
+//     ({ get }) => {
+//       get(
+//         boardListContextAtomFamily({
+//           boardListId,
+//           parentKeyName,
+//           childKeyName,
+//           items,
+//         }),
+//       );
+//     },
+// });
+
+export type BoardListContextValue = SmartMerge<
+  BoardListContextParams & {
+    defaultItems?: ParentItem[];
+  }
+>;
+
+export const BoardListContextProvider__Internal = ({
+  value: { boardListId, parentKeyName, childKeyName, defaultItems },
+  children,
+}: {
+  value: BoardListContextValue;
+  children: React.ReactNode;
+}) => {
+  const boardListContextParams = useMemo(
+    () => ({
+      boardListId,
+      parentKeyName,
+      childKeyName,
+    }),
+    [boardListId, parentKeyName, childKeyName],
+  );
+
+  const [stateBoardListContext, setStateBoardListContext] = useRecoilState(
+    boardListContextAtomFamily(boardListContextParams),
+  );
+
+  const initBoardListContext = useRecoilCallback(
+    ({ set }) =>
+      ({ items }: { items: ParentItem[] }) => {
+        const newDefaultBoardListContextIndexer = new BoardListContextIndexer({
+          parentKeyName,
+          childKeyName,
+          items,
+        });
+
+        set(boardListContextAtomFamily(boardListContextParams), {
+          boardListId,
+          indexer: newDefaultBoardListContextIndexer,
+        });
+      },
+    [boardListContextParams, boardListId, parentKeyName, childKeyName],
+  );
+
+  useBeforeRender(() => {
+    initBoardListContext({ items: defaultItems ?? [] });
+  }, [defaultItems, initBoardListContext]);
+
+  return <>{children}</>;
+};
+
+export const BoardListContextProvider = ({
+  value,
+  children,
+}: {
+  value: BoardListContextValue;
+  children: React.ReactNode;
+}) => {
+  return (
+    <RecoilRoot>
+      <BoardListContextProvider__Internal value={value}>
+        {children}
+      </BoardListContextProvider__Internal>
+    </RecoilRoot>
+  );
+};
+
+export type UseBoardContextParams = BoardListContextParams;
+
+export const useBoardContext = ({
+  boardListId,
+  parentKeyName,
+  childKeyName,
+}: BoardListContextParams) => {
+
+};

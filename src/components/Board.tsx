@@ -6,7 +6,7 @@ import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import {
   BoardContextValue,
-  BoardProvider,
+  BoardContextProvider,
   DraggableCustomAttributesKvObj,
   ParentItem,
 } from "@/components/BoardContext";
@@ -132,7 +132,7 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
     };
 
     return (
-      <BoardProvider value={boardContextValue}>
+      <BoardContextProvider value={boardContextValue}>
         <BoardBase
           ref={callbackRef}
           style={style}
@@ -141,7 +141,7 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
         >
           {children}
         </BoardBase>
-      </BoardProvider>
+      </BoardContextProvider>
     );
   },
 });

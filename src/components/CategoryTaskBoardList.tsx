@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { RecoilRoot, useRecoilState } from "recoil";
+import { RecoilRoot, useRecoilCallback, useRecoilState } from "recoil";
 import { Board, BoardProps } from "@/components/Board";
 import { BoardHeader } from "@/components/BoardHeader";
 import { BoardListInternal, BoardListProps } from "@/components/BoardList";
@@ -20,8 +20,10 @@ import {
 } from "@/utils";
 import {
   ChildItem,
-  boardListContextAtom,
+  boardListContextAtomFamily,
   ParentItem,
+  BoardListContextIndexer,
+  BoardListContextProvider,
 } from "@/components/BoardContext";
 import { NestedIndexer, NestedIndexerItem } from "@/indexer";
 import { BoardMain } from "@/components/BoardMain";
@@ -33,15 +35,11 @@ import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import memoizee from "memoizee";
 import { MultiRefMap } from "@/multimap";
 import { OnEditFinish, OnEditStart } from "@/components/TextArea";
+import { useIsomorphicLayoutEffect } from "usehooks-ts";
 
 const CategoryTaskBoardListInternalBase = styled(BoardListInternal)``;
 
-export type CategoryBoardListInternalProps = {
-  boardListId: string;
-  parentKeyName: string;
-  childKeyName: string;
-  parentItems: ParentItem[];
-};
+export type CategoryBoardListInternalProps = BoardListProps;
 
 export const CategoryTaskBoardListInternal = withMemoAndRef<
   "div",
@@ -66,15 +64,6 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     //   },
     //   [setStateNestedIndexer],
     // );
-
-    const [stateBoardListContext, setStateBoardListContext] = useRecoilState(
-      boardListContextAtom({
-        boardListId,
-        parentKeyName,
-        childKeyName,
-        items: defaultCategoryTaskItems,
-      }),
-    );
 
     const categoryList = useMemo(() => {
       // console.log("[categoryList]");
@@ -139,6 +128,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         parentItems={categoryList}
       >
         {categoryList.map((parentItem, index) => {
+          console.log(parentItem.items?.map((item) => item.id));
           return (
             <Board
               key={parentItem.id}
@@ -180,33 +170,50 @@ export const CategoryTaskBoardList = withMemoAndRef<
 >({
   displayName: "CategoryTaskBoardList",
   Component: (
-    { parentKeyName, childKeyName, parentItems: items, ...otherProps },
+    {
+      boardListId,
+      parentKeyName,
+      childKeyName,
+      parentItems,
+      ...otherProps
+    },
     ref,
   ) => {
+    const boardListContextParams = useMemo(
+      () => ({
+        boardListId,
+        parentKeyName,
+        childKeyName,
+      }),
+      [boardListId, parentKeyName, childKeyName],
+    );
+
     return (
-      <RecoilRoot
-      // initializeState={(snapshot) => {
-      //   if (items) {
-      //     // Inject default value
-      //     snapshot.set(
-      //       nestedIndexerAtom,
-      //       new NestedIndexer({
-      //         parentKeyName,
-      //         childKeyName,
-      //         items,
-      //       }),
-      //     );
-      //   }
-      // }}
+      <BoardListContextProvider
+        value={boardListContextParams}
+        // initializeState={(snapshot) => {
+        //   if (items) {
+        //     // Inject default value
+        //     snapshot.set(
+        //       nestedIndexerAtom,
+        //       new NestedIndexer({
+        //         parentKeyName,
+        //         childKeyName,
+        //         items,
+        //       }),
+        //     );
+        //   }
+        // }}
       >
         <CategoryTaskBoardListInternal
           ref={ref}
+          boardListId={boardListId}
           parentKeyName={parentKeyName}
           childKeyName={childKeyName}
           parentItems={items}
           {...otherProps}
         />
-      </RecoilRoot>
+      </BoardListContextProvider>
     );
   },
 });

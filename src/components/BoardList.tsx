@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { css, styled } from "styled-components";
-import { useRecoilState } from "recoil";
+import { useRecoilCallback, useRecoilState } from "recoil";
 import parse from "html-react-parser";
 import { CssScrollbar } from "@/csses/scrollbar";
 import { NestedIndexer } from "@/indexer";
@@ -19,7 +19,7 @@ import {
   StyledComponentProps,
 } from "@/utils";
 import {
-  boardListContextAtom,
+  boardListContextAtomFamily,
   ParentItem,
   ChildItem,
   DndDataInterfaceCustomGeneric,
@@ -41,6 +41,7 @@ import {
   getDraggable,
   getDndContextInfoFromData,
   isCustomItemData,
+  BoardListContextIndexer,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { defaultCategoryTaskItems } from "@/data";
@@ -71,6 +72,7 @@ import {
 } from "@dnd-kit/modifiers";
 import { createPortal } from "react-dom";
 import { DragScrollSpeed, useDragScroll } from "@/hooks/useDragScroll";
+import { useIsomorphicLayoutEffect } from "usehooks-ts";
 
 // // https://github.com/clauderic/dnd-kit/issues/477#issuecomment-985194908
 // https://github.com/clauderic/dnd-kit/discussions/1493
@@ -186,14 +188,41 @@ export const BoardListInternal = withMemoAndRef<
       useState<ChildItem | null>(null);
     const refDragOverlayReactElement = useRef<React.ReactElement | null>(null);
 
-    const [stateBoardListContext, setStateBoardListContext] = useRecoilState(
-      boardListContextAtom({
+    const boardListContextParam = useMemo(
+      () => ({
         boardListId,
         parentKeyName,
         childKeyName,
-        items: defaultCategoryTaskItems,
       }),
+      [boardListId, parentKeyName, childKeyName],
     );
+
+    const [stateBoardListContext, setStateBoardListContext] = useRecoilState(
+      boardListContextAtomFamily(boardListContextParam),
+    );
+
+    const initBoardListContext = useRecoilCallback(
+      ({ set }) =>
+        ({ items }: { items: ParentItem[] }) => {
+          const newDefaultBoardListContextIndexer = new BoardListContextIndexer(
+            {
+              parentKeyName,
+              childKeyName,
+              items,
+            },
+          );
+
+          set(boardListContextAtomFamily(boardListContextParam), {
+            boardListId,
+            indexer: newDefaultBoardListContextIndexer,
+          });
+        },
+      [boardListContextParam, boardListId, parentKeyName, childKeyName],
+    );
+
+    useIsomorphicLayoutEffect(() => {
+      initBoardListContext({ items: defaultCategoryTaskItems });
+    }, [initBoardListContext]);
 
     const [isDragging, setIsDragging] = useState(false);
     const { dragScroll, getCurPointerEvent } = useDragScroll();

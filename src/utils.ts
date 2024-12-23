@@ -465,3 +465,243 @@ export function getMemoizedArray<T, R extends string>({
 }
 
 export const emptyFunction = () => {};
+
+// Complete Copy Including Symbols, Functions, and Inherited Properties
+export function mutateCopy<T extends object = object>({
+  target,
+  source,
+  mode = "keep-own-properties-only",
+}: {
+  target: T;
+  source: T;
+  mode?:
+    | "keep-own-properties-only"
+    | "keep-all-properties-in-own"
+    | "keep-all-properties-separated";
+}) {
+  if (!target || !source) {
+    console.warn("[mutateCopy] !target || !source");
+    return;
+  }
+
+  if (mode === "keep-own-properties-only") {
+    Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+  } else if (mode === "keep-all-properties-in-own") {
+    do {
+      const descriptors = Object.getOwnPropertyDescriptors(source);
+      // Get all own property descriptors.
+      // Retrieves all descriptors for both enumerable and non-enumerable properties, including getter/setter accessors, symbols.
+
+      // Define those properties on the target
+      Object.defineProperties(target, descriptors);
+
+      source = Object.getPrototypeOf(source);
+      // Move to the prototype for inherited properties
+      // Allows traversing up the prototype chain to copy inherited properties.
+    } while (source && source !== Object.prototype);
+  } else if (mode == "keep-all-properties-separated") {
+    // Set the prototype of target to match the source
+    Object.setPrototypeOf(target, Object.getPrototypeOf(source));
+
+    // Copy own properties (enumerable, non-enumerable, and symbols)
+    const descriptors = Object.getOwnPropertyDescriptors(source);
+    Object.defineProperties(target, descriptors);
+  } else {
+    console.warn("[mutateCopy] unsupported mode");
+    return;
+  }
+}
+
+////////////////////////////////
+// Example usage:
+// const symbolKey = Symbol("mySymbol");
+// const parent = {
+//   inheritedFunction() {
+//     return "Inherited!";
+//   },
+//   inheritedValue: 42,
+// };
+// const child = Object.create(parent); // Create child with parent prototype
+// child.ownProp = "child";
+// child[symbolKey] = "symbolValue";
+// Object.defineProperty(child, "hiddenProp", {
+//   value: "hidden",
+//   enumerable: false,
+// });
+
+////////////////////////////////
+
+// const target1 = {};
+// const newTarget1 = target1;
+
+// console.group();
+// console.log("child:", child);
+// // ownProp: "child"
+// // Symbol(mySymbol): "symbolValue"
+// // hiddenProp: "hidden"
+// //   [[Prototype]]: Object
+// //   inheritedFunction: ƒ inheritedFunction()
+// //   inheritedValue: 42
+// //     [[Prototype]]: Object
+// //     constructor: ƒ Object()
+// //     hasOwnProperty: ƒ hasOwnProperty()
+// //     isPrototypeOf: ƒ isPrototypeOf()
+// //     propertyIsEnumerable: ƒ propertyIsEnumerable()
+// //     toLocaleString: ƒ toLocaleString()
+// //     toString: ƒ toString()
+// //     valueOf: ƒ valueOf()
+// //     __defineGetter__: ƒ __defineGetter__()
+// //     __defineSetter__: ƒ __defineSetter__()
+// //     __lookupGetter__: ƒ __lookupGetter__()
+// //     __lookupSetter__: ƒ __lookupSetter__()
+// //     __proto__: (...)
+// //     get __proto__: ƒ __proto__()
+// //     set __proto__: ƒ __proto__()
+
+// mutateCopy({
+//   mode: "keep-own-properties-only",
+//   target: newTarget1,
+//   source: child,
+// });
+
+// console.log(newTarget1);
+// // ownProp: "child"
+// // Symbol(mySymbol): "symbolValue"
+// // hiddenProp: "hidden"
+
+// console.log(target1 === newTarget1);
+// // true
+// console.groupEnd();
+
+////////////////////////////////
+
+// const target2 = {};
+// const newTarget2 = target2;
+
+// mutateCopy({
+//   mode: "keep-all-properties-in-own",
+//   target: newTarget2,
+//   source: child,
+// });
+
+// console.log(newTarget2);
+// // inheritedFunction: ƒ inheritedFunction()
+// // inheritedValue: 42
+// // ownProp: "child"
+// // Symbol(mySymbol): "symbolValue"
+// // hiddenProp: "hidden"
+
+// console.log(target2 === newTarget2);
+// // true
+// console.groupEnd();
+
+////////////////////////////////
+
+// const target3 = {};
+// const newTarget3 = target3;
+
+// mutateCopy({
+//   mode: "keep-all-properties-separated",
+//   target: newTarget3,
+//   source: child,
+// });
+
+// console.log(newTarget3);
+// console.group();
+// console.log("child:", child);
+// // ownProp: "child"
+// // Symbol(mySymbol): "symbolValue"
+// // hiddenProp: "hidden"
+// //   [[Prototype]]: Object
+// //   inheritedFunction: ƒ inheritedFunction()
+// //   inheritedValue: 42
+// //     [[Prototype]]: Object
+// //     constructor: ƒ Object()
+// //     hasOwnProperty: ƒ hasOwnProperty()
+// //     isPrototypeOf: ƒ isPrototypeOf()
+// //     propertyIsEnumerable: ƒ propertyIsEnumerable()
+// //     toLocaleString: ƒ toLocaleString()
+// //     toString: ƒ toString()
+// //     valueOf: ƒ valueOf()
+// //     __defineGetter__: ƒ __defineGetter__()
+// //     __defineSetter__: ƒ __defineSetter__()
+// //     __lookupGetter__: ƒ __lookupGetter__()
+// //     __lookupSetter__: ƒ __lookupSetter__()
+// //     __proto__: (...)
+// //     get __proto__: ƒ __proto__()
+// //     set __proto__: ƒ __proto__()
+
+// console.log(target3 === newTarget3);
+// // true
+// console.groupEnd();
+
+////////////////////////////////
+
+// TODO: Not tested.
+export function mutateCopyDeep<T extends object = object>({
+  target,
+  source,
+  mode = "keep-own-properties-only",
+}: {
+  target: T;
+  source: T;
+  mode?:
+    | "keep-own-properties-only"
+    | "keep-all-properties-in-own"
+    | "keep-all-properties-separated";
+}) {
+  if (!target || !source) {
+    console.warn("[mutateCopy] !target || !source");
+    return;
+  }
+
+  const isObject = (value: any): value is object =>
+    value !== null && typeof value === "object";
+
+  // TODO: Not tested.
+  const copyDescriptors = (target: T, source: T) => {
+    const descriptors = Object.getOwnPropertyDescriptors(source);
+
+    for (const [key, descriptor] of Object.entries(descriptors)) {
+      if (
+        descriptor.value && // Check if it's a value descriptor
+        isObject(descriptor.value) && // Ensure it's an object or array
+        !Array.isArray(descriptor.value) // Handle arrays directly
+      ) {
+        // Recursively copy nested objects
+        if (!target[key as keyof T]) {
+          target[key as keyof T] = Object.create(
+            Object.getPrototypeOf(descriptor.value),
+          ) as any;
+        }
+        mutateCopyDeep({
+          target: target[key as keyof T] as T,
+          source: descriptor.value,
+          mode,
+        });
+      } else if (Array.isArray(descriptor.value)) {
+        // Deep copy arrays
+        target[key as keyof T] = [...descriptor.value] as any;
+      } else {
+        // Directly define the property
+        Object.defineProperty(target, key, descriptor);
+      }
+    }
+  };
+
+  if (mode === "keep-own-properties-only") {
+    copyDescriptors(target, source);
+  } else if (mode === "keep-all-properties-in-own") {
+    do {
+      copyDescriptors(target, source);
+      source = Object.getPrototypeOf(source);
+    } while (source && source !== Object.prototype);
+  } else if (mode === "keep-all-properties-separated") {
+    // Set the prototype of target to match the source
+    Object.setPrototypeOf(target, Object.getPrototypeOf(source));
+    copyDescriptors(target, source);
+  } else {
+    console.warn("[mutateCopyDeep] unsupported mode");
+    return;
+  }
+}
