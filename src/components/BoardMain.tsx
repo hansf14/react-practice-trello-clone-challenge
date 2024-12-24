@@ -309,18 +309,18 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
             {...scrollContainerCustomAttributes}
             {...droppableCustomAttributes}
           >
-            <SortableContext
+            {/* <SortableContext
               id={parentItem.id}
               items={childIdList}
               strategy={
                 // rectSortingStrategy
                 verticalListSortingStrategy
               }
-            >
-              {children}
-              {/* <BoardMainContentPlaceholderBase /> */}
-              {/* <BoardMainContentPlaceholder parentItemId={parentItem.id} /> */}
-            </SortableContext>
+            > */}
+            {children}
+            {/* <BoardMainContentPlaceholderBase /> */}
+            {/* <BoardMainContentPlaceholder parentItemId={parentItem.id} /> */}
+            {/* </SortableContext> */}
           </BoardMainContent>
         </BoardMainContentContainer>
         <Toolbar>

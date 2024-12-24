@@ -1,16 +1,12 @@
 import React, {
-  createContext,
   useCallback,
   useContext,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import { styled } from "styled-components";
 import { GripVertical } from "react-bootstrap-icons";
-import { Input } from "antd";
 import {
   CardContext,
   CardContextValue,
@@ -203,6 +199,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
         //   duration: 150,
         //   easing: "cubic-bezier(0.25, 1, 0.5, 1)",
         // },
+        // transform: undefined,
         transform: CSS.Transform.toString(transform),
         // transform: transform && {
         //   transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,

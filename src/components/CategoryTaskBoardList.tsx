@@ -1,48 +1,25 @@
-import React, {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { RecoilRoot, useRecoilCallback, useRecoilState } from "recoil";
-import { Board, BoardProps } from "@/components/Board";
+import { useCallback, useMemo } from "react";
+import { Board } from "@/components/Board";
 import { BoardHeader } from "@/components/BoardHeader";
 import {
   BoardListExtendProps,
   BoardList,
   BoardListProps,
 } from "@/components/BoardList";
+import { memoizeCallback } from "@/utils";
 import {
-  getEmptyArray,
-  getMemoizedArray,
-  memoizeCallback,
-  SmartOmit,
-  StyledComponentProps,
-} from "@/utils";
-import {
-  ChildItem,
-  boardListContextAtomFamily,
   ParentItem,
-  BoardListContextIndexer,
   BoardListContextProvider,
   useBoardContext,
   BoardListContextValue,
   UseBoardContextParams,
 } from "@/components/BoardContext";
-import { NestedIndexer, NestedIndexerItem } from "@/indexer";
 import { BoardMain } from "@/components/BoardMain";
-import { Card, OnUpdateChildItem } from "@/components/Card";
+import { Card } from "@/components/Card";
 import { styled } from "styled-components";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { defaultCategoryTaskItems } from "@/data";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
-import memoizee from "memoizee";
-import { MultiRefMap } from "@/multimap";
 import { OnEditFinish, OnEditStart } from "@/components/TextArea";
-import { useIsomorphicLayoutEffect } from "usehooks-ts";
 
 const CategoryTaskBoardListInternalBase = styled(BoardList)``;
 

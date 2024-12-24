@@ -1,38 +1,302 @@
+import { createContext, useMemo } from "react";
 import {
   atomFamily,
   RecoilRoot,
-  selector,
-  selectorFamily,
   useRecoilCallback,
   useRecoilState,
 } from "recoil";
 import { recoilPersist } from "recoil-persist";
-import { NestedIndexer, NestedIndexerBaseItem } from "@/indexer";
-import { createKeyValueMapping, SmartMerge } from "@/utils";
 import {
+  ClientRect,
+  closestCenter,
+  closestCorners,
+  Collision,
+  CollisionDescriptor,
   CollisionDetection,
   DraggableAttributes,
+  DroppableContainer,
   pointerWithin,
   rectIntersection,
+  UniqueIdentifier,
 } from "@dnd-kit/core";
 import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { createContext, useMemo } from "react";
-import { useBeforeRender } from "@/hooks/useBeforeRender";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
-import { BoardListExtendProps } from "@/components/BoardList";
-import { useLikeConstructor } from "@/hooks/useLikeConstructor";
+import { NestedIndexer, NestedIndexerBaseItem } from "@/indexer";
+import { createKeyValueMapping, SmartMerge } from "@/utils";
+
+function sortCollisions({ order }: { order: "ascending" | "descending" }) {
+  return (
+    { data: { value: a } }: CollisionDescriptor,
+    { data: { value: b } }: CollisionDescriptor,
+  ) => {
+    return order === "ascending"
+      ? a - b
+      : order === "descending"
+        ? b - a
+        : a - b;
+  };
+}
+
+// import { getIntersectionRatio } from "@dnd-kit/core/dist/utilities/algorithms/rectIntersection";
+// ㄴ File not exists error
+// https://github.com/clauderic/dnd-kit/issues/1198#issuecomment-1734036277
+function getIntersectionRatio(rect1: ClientRect, rect2: ClientRect): number {
+  const xOverlap = Math.max(
+    0,
+    Math.min(rect1.right, rect2.right) - Math.max(rect1.left, rect2.left),
+  );
+  const yOverlap = Math.max(
+    0,
+    Math.min(rect1.bottom, rect2.bottom) - Math.max(rect1.top, rect2.top),
+  );
+
+  const intersectionArea = xOverlap * yOverlap;
+  const rect1Area = rect1.width * rect1.height;
+
+  return rect1Area > 0 ? intersectionArea / rect1Area : 0;
+}
+
+let lastCollisionId: UniqueIdentifier | null = null;
+
+export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
+  const {
+    droppableContainers,
+    droppableRects,
+    collisionRect,
+    active,
+    pointerCoordinates,
+  } = args;
+  // console.log(droppableContainers);
+  // console.log(args);
+
+  const droppables: DroppableContainer[] = [];
+  // const collisions: Collision | CollisionDescriptor[] = [];
+  for (const droppable of droppableContainers) {
+    const { id: droppableId } = droppable;
+    const rect = droppableRects.get(droppableId);
+    if (!rect) {
+      continue;
+    }
+    const intersectionRatio = getIntersectionRatio(rect, collisionRect);
+    if (intersectionRatio > 0) {
+      // collisions.push({
+      //   id: droppableId,
+      //   data: {
+      //     droppableContainer: droppable,
+      //     value: intersectionRatio,
+      //   },
+      // } satisfies CollisionDescriptor);
+      droppables.push(droppable);
+    }
+  }
+
+  const closestCornersCollisions = !droppables.length
+    ? (closestCorners(args) as CollisionDescriptor[])
+    : (closestCorners({
+        collisionRect,
+        droppableRects,
+        droppableContainers: droppables,
+        active,
+        pointerCoordinates,
+      }) as CollisionDescriptor[]);
+
+  closestCornersCollisions.sort(sortCollisions({ order: "ascending" }));
+
+  // console.log(droppables.map((droppable) => droppable.id));
+  console.log(closestCornersCollisions.map((collision) => collision.id));
+  console.log(closestCornersCollisions[0].data.value);
+  console.log(closestCornersCollisions[1].data.value);
+  console.log(lastCollisionId);
+  console.log(active.id);
+
+  // if (
+  //   closestCornersCollisions.length > 0 &&
+  //   closestCornersCollisions[0].id === lastCollisionId
+  // ) {
+  //   closestCornersCollisions.shift();
+  //   return [];
+  // }
+
+  if (closestCornersCollisions.length > 0) {
+    lastCollisionId = closestCornersCollisions[0].id;
+  }
+
+  // console.log(closestCornersCollisions);
+  return closestCornersCollisions;
+};
+
+///////////////////////////////////////////
+// `droppableContainers[0]`
+// data:
+//   current:
+//     customData: {boardListId: 'category-task-board', type: 'child', item: {…}}
+//     sortable: {containerId: 'ba605f3e-b99e-4450-aa0a-ddd0ec22ad71', index: 0, items: Array(6)}
+//   disabled: false
+//   id: "ffbde292-895d-47c8-bd6d-da6fe93dc946"
+//   key: "Droppable-1"
+//   node: {current: div.sc-eUlrpB.NWbTN}
+//   rect:
+//     current: Rect
+//       bottom: (...)
+//       height: 91
+//       left: (...)
+//       right: (...)
+//       top: (...)
+//       width: 248
+// active: {id: 'ffbde292-895d-47c8-bd6d-da6fe93dc946', data: {…}, rect: {…}}
+// collisionRect:
+//   bottom: 316.796875
+//   height: 91
+//   left: 41
+//   right: 289
+//   top: 225.796875
+//   width: 248
+// droppableRects: Map(13) {'ffbde292-895d-47c8-bd6d-da6fe93dc946' => Rect, '7c1ff38e-d7de-4093-bcda-16fcfd1644d0' => Rect, '1288c3bd-5a96-46cd-8eb8-28d191f11da9' => Rect, '16def70c-2057-4ad5-9261-cb833728f30a' => Rect, '0cd50106-6130-4da0-b0a0-39e0496da2ca' => Rect, …}
+// pointerCoordinates: {x: 58, y: 295}
+export const customCollisionDetectionAlgorithm2: CollisionDetection = ({
+  droppableContainers,
+  ...args
+}) => {
+  // console.log(droppableContainers);
+  console.log(args);
+
+  // First, let's see if the `trash` droppable rect is intersecting
+  const rectIntersectionCollisions = rectIntersection({
+    ...args,
+    droppableContainers: droppableContainers.filter(({ id }) => id === "trash"),
+  });
+
+  // Collision detection algorithms return an array of collisions
+  if (rectIntersectionCollisions.length > 0) {
+    // The trash is intersecting, return early
+    return rectIntersectionCollisions;
+  }
+
+  // Compute other collisions
+  return closestCorners({
+    ...args,
+    droppableContainers: droppableContainers.filter(({ id }) => id !== "trash"),
+  });
+};
+
+///////////////////////////////////////////
+
+type CustomDroppableContainer = {
+  id: string;
+};
+
+type CustomCircleCollision = {
+  id: string;
+  data: {
+    droppableContainer: CustomDroppableContainer;
+    value: number;
+  };
+};
+
+type CustomDroppableRects = Map<string, DOMRect>;
+
+type CircleIntersectionArgs = {
+  collisionRect: HTMLElement;
+  droppableRects: CustomDroppableRects;
+  droppableContainers: CustomDroppableContainer[];
+};
+
+// Sort collisions in descending order (from greatest to smallest value)
+function sortCollisionsDescCustom(
+  { data: { value: a } }: CustomCircleCollision,
+  { data: { value: b } }: CustomCircleCollision,
+) {
+  return b - a;
+}
+
+function getCircleIntersection(
+  entry: DOMRect | HTMLElement,
+  target: DOMRect | HTMLElement,
+): number {
+  // Abstracted the logic to calculate the radius for simplicity
+  const circle1 = {
+    radius: 20,
+    x: entry instanceof HTMLElement ? entry.offsetLeft : entry.left,
+    y: entry instanceof HTMLElement ? entry.offsetTop : entry.top,
+  };
+  const circle2 = {
+    radius: 12,
+    x: target instanceof HTMLElement ? target.offsetLeft : target.left,
+    y: target instanceof HTMLElement ? target.offsetTop : target.top,
+  };
+
+  const dx = circle1.x - circle2.x;
+  const dy = circle1.y - circle2.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  if (distance < circle1.radius + circle2.radius) {
+    return distance;
+  }
+
+  return 0;
+}
+
+// Returns the circle that has the greatest intersection area
+const circleIntersection = ({
+  collisionRect,
+  droppableRects,
+  droppableContainers,
+}: CircleIntersectionArgs): CustomCircleCollision[] => {
+  const collisions: CustomCircleCollision[] = [];
+
+  for (const droppableContainer of droppableContainers) {
+    const { id } = droppableContainer;
+    const rect = droppableRects.get(id);
+
+    if (rect) {
+      const intersectionRatio = getCircleIntersection(rect, collisionRect);
+
+      if (intersectionRatio > 0) {
+        collisions.push({
+          id,
+          data: { droppableContainer, value: intersectionRatio },
+        });
+      }
+    }
+  }
+
+  return collisions.sort(sortCollisionsDescCustom);
+};
+
+///////////////////////////////////////////
+
+// https://github.com/clauderic/dnd-kit/issues/900#issuecomment-1879870810
+// export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
+//   const closestCornersCollisions = closestCorners(args);
+//   const closestCenterCollisions = closestCenter(args);
+//   const pointerWithinCollisions = pointerWithin(args);
+
+//   if (
+//     closestCornersCollisions.length > 0 &&
+//     closestCenterCollisions.length > 0 &&
+//     pointerWithinCollisions.length > 0
+//   ) {
+//     return pointerWithinCollisions;
+//   }
+
+//   return [];
+// };
+
+///////////////////////////////////////////
 
 // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#composition-of-existing-algorithms
-export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
-  // // First, let's see if there are any collisions with the pointer
-  // const pointerCollisions = pointerWithin(args);
-  // // Collision detection algorithms return an array of collisions
-  // if (pointerCollisions.length > 0) {
-  //   return pointerCollisions;
-  // }
-  // If there are no collisions with the pointer, return rectangle intersections
-  return rectIntersection(args);
-};
+// export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
+//   // // First, let's see if there are any collisions with the pointer
+//   // const pointerCollisions = pointerWithin(args);
+//   // // Collision detection algorithms return an array of collisions
+//   // if (pointerCollisions.length > 0) {
+//   //   return pointerCollisions;
+//   // }
+//   // If there are no collisions with the pointer, return rectangle intersections
+//   return rectIntersection(args);
+// };
+
+///////////////////////////////////////////
 
 export function getDroppable({
   boardListId,
@@ -583,8 +847,7 @@ export const BoardListContextProvider__Internal = ({
 
   useIsomorphicLayoutEffect(() => {
     initBoardListContext({ parentItems: defaultItems ?? [] });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [defaultItems, initBoardListContext]);
 
   return <>{children}</>;
 };

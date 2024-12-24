@@ -814,43 +814,43 @@ export function mutateCopyDeep<T extends object = object>({
 
 ////////////////////////////////
 // Example usage:
-const symbolKey = Symbol("mySymbol");
-const parent = {
-  inheritedFunction() {
-    return "Inherited!";
-  },
-  inheritedValue: 42,
-  inheritedObject: {},
-};
-const child = Object.create(parent); // Create child with parent prototype
-child.ownProp = { hello: "world" };
-child[symbolKey] = "symbolValue";
-Object.defineProperty(child, "hiddenProp", {
-  value: "hidden",
-  enumerable: false,
-});
+// const symbolKey = Symbol("mySymbol");
+// const parent = {
+//   inheritedFunction() {
+//     return "Inherited!";
+//   },
+//   inheritedValue: 42,
+//   inheritedObject: {},
+// };
+// const child = Object.create(parent); // Create child with parent prototype
+// child.ownProp = { hello: "world" };
+// child[symbolKey] = "symbolValue";
+// Object.defineProperty(child, "hiddenProp", {
+//   value: "hidden",
+//   enumerable: false,
+// });
 
 ////////////////////////////////
 
-const targetDeep1 = {};
-const newTargetDeep1 = targetDeep1;
+// const targetDeep1 = {};
+// const newTargetDeep1 = targetDeep1;
 
-mutateCopyDeep({
-  mode: "keep-own-properties-only",
-  target: newTargetDeep1,
-  source: child,
-});
+// mutateCopyDeep({
+//   mode: "keep-own-properties-only",
+//   target: newTargetDeep1,
+//   source: child,
+// });
 
-console.group();
-console.log("child:", child);
-console.log(newTargetDeep1);
+// console.group();
+// console.log("child:", child);
+// console.log(newTargetDeep1);
 
-console.log(targetDeep1 === newTargetDeep1); // true
-console.log((newTargetDeep1 as any).ownProp); // {hello: 'world'}
-console.log((newTargetDeep1 as any).ownProp === child.ownProp); // false
-console.log((newTargetDeep1 as any).inheritedValue); // undefined
-console.log((newTargetDeep1 as any).inheritedValue === child.inheritedValue); // false
-console.groupEnd();
+// console.log(targetDeep1 === newTargetDeep1); // true
+// console.log((newTargetDeep1 as any).ownProp); // {hello: 'world'}
+// console.log((newTargetDeep1 as any).ownProp === child.ownProp); // false
+// console.log((newTargetDeep1 as any).inheritedValue); // undefined
+// console.log((newTargetDeep1 as any).inheritedValue === child.inheritedValue); // false
+// console.groupEnd();
 
 ////////////////////////////////
 

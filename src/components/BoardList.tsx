@@ -1,56 +1,36 @@
 import React, {
+  startTransition,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { css, styled } from "styled-components";
-import { useRecoilCallback, useRecoilState } from "recoil";
 import parse from "html-react-parser";
 import { CssScrollbar } from "@/csses/scrollbar";
-import { NestedIndexer } from "@/indexer";
+import { getEmptyArray, getMemoizedArray, StyledComponentProps } from "@/utils";
 import {
-  checkHasScrollbar,
-  getEmptyArray,
-  getMemoizedArray,
-  mutateCopy,
-  ScrollbarCondition,
-  SmartMerge,
-  SmartOmit,
-  StyledComponentProps,
-} from "@/utils";
-import {
-  boardListContextAtomFamily,
   ParentItem,
   ChildItem,
-  DndDataInterfaceCustomGeneric,
   DroppableCustomAttributesKvObj,
-  DraggableHandleCustomAttributesKvMapping,
-  DraggableCustomAttributesKvMapping,
-  DndDataInterfaceActive,
-  DndDataInterfaceOver,
   isParentItemData,
   DndDataInterfaceCustom,
   isChildItemData,
   serializeAllowedTypes,
-  DroppableCustomAttributesKvMapping,
   ScrollContainerCustomAttributesKvObj,
   ScrollContainerCustomAttributesKvMapping,
   getDndContextInfoFromActivator,
-  customCollisionDetectionAlgorithm,
   DragOverlayCustomAttributesKvMapping,
-  getDraggable,
   getDndContextInfoFromData,
   isCustomItemData,
   BoardListContextIndexer,
   BoardListContextValue,
   BoardListContextParams,
   useBoardContext,
+  customCollisionDetectionAlgorithm,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { defaultCategoryTaskItems } from "@/data";
 import {
   closestCorners,
   defaultDropAnimationSideEffects,
@@ -61,16 +41,18 @@ import {
   DragOverlay,
   DragStartEvent,
   Modifier,
-  MouseSensorOptions,
   useSensor,
   useSensors,
   MouseSensor, // as MouseSensorBase,
   TouchSensor,
-  KeyboardSensor, // as KeyboardSensorBase,
+  // KeyboardSensor, // as KeyboardSensorBase,
 } from "@dnd-kit/core";
 import {
   horizontalListSortingStrategy,
+  rectSortingStrategy,
+  rectSwappingStrategy,
   SortableContext,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import {
   restrictToHorizontalAxis,
@@ -78,8 +60,6 @@ import {
 } from "@dnd-kit/modifiers";
 import { createPortal } from "react-dom";
 import { DragScrollSpeed, useDragScroll } from "@/hooks/useDragScroll";
-import { useIsomorphicLayoutEffect } from "usehooks-ts";
-import { cloneDeep } from "lodash-es";
 
 // // https://github.com/clauderic/dnd-kit/issues/477#issuecomment-985194908
 // https://github.com/clauderic/dnd-kit/discussions/1493
@@ -370,9 +350,10 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           console.warn("[onDragOver] id should only be string.");
           return;
         }
-        // if (activeId === overId) {
-        //   return;
-        // }
+        if (activeId === overId) {
+          return;
+        }
+        console.log(activeId, overId);
 
         const activeData = isCustomItemData(active.data.current)
           ? active.data.current
@@ -429,18 +410,22 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         }
 
         if (isParentItemData(activeData) && isParentItemData(overData)) {
-          setStateBoardListContext((curBoardListContext) => {
-            const newBoardListContextIndexer = new BoardListContextIndexer(
-              curBoardListContext.indexer,
-            );
-            newBoardListContextIndexer.moveParent({
-              indexFrom,
-              indexTo,
+          // https://github.com/clauderic/dnd-kit/issues/900#issuecomment-1845035824
+          // `startTransition` didn't work for 'Maximum update depth exceeded' error.
+          requestAnimationFrame(() => {
+            setStateBoardListContext((curBoardListContext) => {
+              const newBoardListContextIndexer = new BoardListContextIndexer(
+                curBoardListContext.indexer,
+              );
+              newBoardListContextIndexer.moveParent({
+                indexFrom,
+                indexTo,
+              });
+              return {
+                boardListId,
+                indexer: newBoardListContextIndexer,
+              };
             });
-            return {
-              boardListId,
-              indexer: newBoardListContextIndexer,
-            };
           });
           return;
         }
@@ -464,22 +449,26 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         // console.log((activeData as any).sortable.items);
         // console.groupEnd();
 
-        setStateBoardListContext((curBoardListContext) => {
-          const newBoardListContextIndexer = new BoardListContextIndexer(
-            curBoardListContext.indexer,
-          );
-          newBoardListContextIndexer.moveChild({
-            parentIdFrom: activeDroppableId,
-            parentIdTo: overDroppableId,
-            indexFrom: indexFrom,
-            indexTo: indexTo,
-            shouldKeepRef: false,
+        if (activeDroppableId !== overDroppableId) {
+          requestAnimationFrame(() => {
+            setStateBoardListContext((curBoardListContext) => {
+              const newBoardListContextIndexer = new BoardListContextIndexer(
+                curBoardListContext.indexer,
+              );
+              newBoardListContextIndexer.moveChild({
+                parentIdFrom: activeDroppableId,
+                parentIdTo: overDroppableId,
+                indexFrom: indexFrom,
+                indexTo: indexTo,
+                shouldKeepRef: false,
+              });
+              return {
+                boardListId,
+                indexer: newBoardListContextIndexer,
+              };
+            });
           });
-          return {
-            boardListId,
-            indexer: newBoardListContextIndexer,
-          };
-        });
+        }
       },
       [boardListId, stateBoardListContext, setStateBoardListContext],
     );
@@ -620,6 +609,15 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       return parentItems.map((parentItem) => parentItem.id);
     }, [parentItems]);
 
+    const childIdList = useMemo(() => {
+      return parentItems.reduce<string[]>((acc, curParentItem) => {
+        const childIdList = (curParentItem.items ?? []).map(
+          (childItem) => childItem.id,
+        );
+        return acc.concat(...childIdList);
+      }, []);
+    }, [parentItems]);
+
     const modifiers = stateActiveParentItem
       ? getMemoizedArray({
           arr: [restrictToHorizontalAxis],
@@ -657,11 +655,10 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           // closestCenter
           closestCorners
           // customCollisionDetectionAlgorithm
-          // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#when-should-i-use-the-closest-corners-algorithm-instead-of-closest-center
         }
         onDragStart={onDragStart}
         onDragMove={onDragMove}
-        onDragOver={onDragOver}
+        // onDragOver={onDragOver}
         onDragEnd={onDragEnd}
         // autoScroll={{ acceleration: 1 }}
         autoScroll={{ enabled: false }}
@@ -673,11 +670,15 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         >
           <BoardListDropArea ref={refDroppable} {...droppableCustomAttributes}>
             <SortableContext
-              id={boardListId}
               items={parentIdList}
               strategy={horizontalListSortingStrategy}
             >
-              {children}
+              <SortableContext
+                items={childIdList}
+                strategy={verticalListSortingStrategy}
+              >
+                {children}
+              </SortableContext>
             </SortableContext>
           </BoardListDropArea>
         </BoardListBase>
