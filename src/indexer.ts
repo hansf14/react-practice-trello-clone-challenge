@@ -1080,9 +1080,7 @@ export class NestedIndexer<
         );
         return;
       }
-      const [targetChild] = this.parentItems[
-        targetParentIndexOfParentIdFrom
-      ].items.splice(indexFrom, 1);
+
       const targetParentIndexOfParentIdTo = this.parentItems.findIndex(
         (parent) => parent.id === parentIdTo,
       );
@@ -1096,19 +1094,28 @@ export class NestedIndexer<
         );
         return;
       }
-      this.parentItems[targetParentIndexOfParentIdTo].items.splice(
-        indexFrom,
-        0,
-        targetChild,
-      );
+
       if (!shouldKeepRef) {
-        this.parentItems[targetParentIndexOfParentIdFrom].items = [
+        const childListFrom = [
           ...this.parentItems[targetParentIndexOfParentIdFrom].items,
         ];
-        this.parentItems[targetParentIndexOfParentIdTo].items = [
+        const childListTo = [
           ...this.parentItems[targetParentIndexOfParentIdTo].items,
         ];
-        this.parentItems = [...this.parentItems];
+        const [targetChild] = childListFrom.splice(indexFrom, 1);
+        childListTo.splice(indexTo, 0, targetChild);
+
+        this.parentItems[targetParentIndexOfParentIdFrom].items = childListFrom;
+        this.parentItems[targetParentIndexOfParentIdTo].items = childListTo;
+      } else {
+        const [targetChild] = this.parentItems[
+          targetParentIndexOfParentIdFrom
+        ].items.splice(indexFrom, 1);
+        this.parentItems[targetParentIndexOfParentIdTo].items.splice(
+          indexTo,
+          0,
+          targetChild,
+        );
       }
 
       const [targetChildId] = childIdListOfParentIdFrom.splice(indexFrom, 1);

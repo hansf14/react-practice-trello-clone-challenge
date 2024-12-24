@@ -29,17 +29,20 @@ import {
   BoardListContextValue,
   BoardListContextParams,
   useBoardContext,
+  getDroppable,
+  getDraggable,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { createPortal } from "react-dom";
 import {
+  adjustIfIntersectPlaceholder,
+  DragScrollConfig,
   DragScrollSpeed,
   UseDragScroll,
   useDragScroll,
 } from "@/hooks/useDragScroll";
 import {
   DragDropContext,
-  Draggable,
   Droppable,
   OnDragEndResponder,
   OnDragStartResponder,
@@ -494,6 +497,15 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     //   [setStateBoardListContext],
     // );
 
+    const horizontalDragScrollConfig = useMemo(
+      () => ({ scrollSpeed: 6 }) satisfies DragScrollConfig,
+      [],
+    );
+    const verticalDragScrollConfig = useMemo(
+      () => ({ scrollSpeed: 3 }) satisfies DragScrollConfig,
+      [],
+    );
+
     const parentItemIdList = useMemo(() => {
       return parentItems.map((parentItem) => parentItem.id);
     }, [parentItems]);
@@ -502,17 +514,13 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       addDragScrollConfig({
         boardListId,
         scrollContainerId: boardListId,
-        config: {
-          scrollSpeed: 6,
-        },
+        config: horizontalDragScrollConfig,
       });
       parentItemIdList.forEach((parentItemId) => {
         addDragScrollConfig({
           boardListId,
           scrollContainerId: parentItemId,
-          config: {
-            scrollSpeed: 3,
-          },
+          config: verticalDragScrollConfig,
         });
       });
       return () => {
@@ -530,6 +538,8 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     }, [
       boardListId,
       parentItemIdList,
+      horizontalDragScrollConfig,
+      verticalDragScrollConfig,
       addDragScrollConfig,
       removeDragScrollConfig,
     ]);
@@ -538,24 +548,47 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       (start, responderProvided) => {
         // console.log(start);
         // console.log(responderProvided);
+
         setIsDragging(true);
+      },
+      [],
+    );
+
+    const onDragUpdate = useCallback<OnDragUpdateResponder>(
+      (update, responderProvided) => {
+        console.log("[onDragUpdate]");
+        console.log(update);
+
+        const { source, destination, type, draggableId } = update;
+        if (!destination) {
+          return;
+        }
+
+        adjustIfIntersectPlaceholder({
+          src: source,
+          dst: destination,
+          boardListId,
+          draggableId,
+        });
       },
       [],
     );
 
     const onDragEnd = useCallback<OnDragEndResponder>(
       (result, responderProvided) => {
+        console.log("[onDragEnd]");
         // console.log(result);
         // console.log(responderProvided);
+
         setIsDragging(false);
 
         const { source, destination, type } = result;
         if (!destination) {
           return;
         }
-        console.log(type);
-        console.log(source);
-        console.log(destination);
+        // console.log(type);
+        // console.log(source);
+        // console.log(destination);
 
         const { droppableId: srcDroppableId, index: srcDraggableIndex } =
           source;
@@ -583,23 +616,25 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         }
 
         if (type === "child") {
-          requestAnimationFrame(() => {
-            setStateBoardListContext((curBoardListContext) => {
-              const newBoardListContextIndexer = new BoardListContextIndexer(
-                curBoardListContext.indexer,
-              );
-              newBoardListContextIndexer.moveChild({
-                parentIdFrom: srcDroppableId,
-                parentIdTo: dstDroppableId,
-                indexFrom: srcDraggableIndex,
-                indexTo: dstDraggableIndex,
-                shouldKeepRef: false,
-              });
-              return {
-                boardListId,
-                indexer: newBoardListContextIndexer,
-              };
+          setStateBoardListContext((curBoardListContext) => {
+            const newBoardListContextIndexer = new BoardListContextIndexer(
+              curBoardListContext.indexer,
+            );
+            console.log(newBoardListContextIndexer.parentItems[0].items);
+            console.log(newBoardListContextIndexer.parentItems[1].items);
+            newBoardListContextIndexer.moveChild({
+              parentIdFrom: srcDroppableId,
+              parentIdTo: dstDroppableId,
+              indexFrom: srcDraggableIndex,
+              indexTo: dstDraggableIndex,
+              shouldKeepRef: false,
             });
+            console.log(newBoardListContextIndexer.parentItems[0].items);
+            console.log(newBoardListContextIndexer.parentItems[1].items);
+            return {
+              boardListId,
+              indexer: newBoardListContextIndexer,
+            };
           });
         }
       },
@@ -635,6 +670,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     return (
       <DragDropContext
         onDragStart={onDragStart}
+        onDragUpdate={onDragUpdate}
         onDragEnd={onDragEnd}
         autoScrollerOptions={{
           disabled: true,

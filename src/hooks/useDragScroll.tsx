@@ -1,16 +1,158 @@
-import { ScrollContainerCustomAttributesKvMapping } from "@/components/BoardContext";
+import {
+  getDraggable,
+  ScrollContainerCustomAttributesKvMapping,
+} from "@/components/BoardContext";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
+import { MultiMap } from "@/multimap";
 import {
   checkHasScrollbar,
   getCursorScrollOffsetOnElement,
+  getRectIntersectionRatio,
   memoizeCallback,
   SmartMerge,
   SmartOmit,
   SmartPick,
 } from "@/utils";
+import { DraggableLocation, DroppableProvided } from "@hello-pangea/dnd";
 import { throttle } from "lodash-es";
-import { createRef, useCallback, useEffect, useRef } from "react";
-import { createGlobalStyle } from "styled-components";
+import React, { createRef, useCallback, useEffect, useRef } from "react";
+import styled, { createGlobalStyle, css } from "styled-components";
+
+export type PlaceholderContainerProps = {
+  gapHorizontalLength?: number;
+  gapVerticalLength?: number;
+};
+
+export const PlaceholderContainer = styled.div<PlaceholderContainerProps>`
+  // background: red;
+  ${({ gapHorizontalLength = 0, gapVerticalLength = 0 }) => {
+    return css`
+      margin: ${gapVerticalLength / -2}px ${gapHorizontalLength / -2}px;
+    `;
+  }}
+`;
+
+export function getPlaceholder({
+  boardListId,
+  droppableId,
+  placeholder,
+  gapHorizontalLength,
+  gapVerticalLength,
+}: {
+  boardListId: string;
+  droppableId: string;
+  placeholder: DroppableProvided["placeholder"];
+} & PlaceholderContainerProps) {
+  return (
+    <PlaceholderContainer
+      ref={setPlaceholderRef<HTMLDivElement>({
+        boardListId,
+        droppableId,
+      })}
+      gapHorizontalLength={gapHorizontalLength}
+      gapVerticalLength={gapVerticalLength}
+    >
+      {React.cloneElement(placeholder as React.ReactElement, {
+        shouldAnimate: false,
+      })}
+    </PlaceholderContainer>
+  );
+}
+
+export const storeOfPlaceholderRefs = new MultiMap<
+  string[],
+  React.MutableRefObject<HTMLElement | null>
+>();
+
+export const setPlaceholderRef = <
+  T extends HTMLElement | null = HTMLElement | null,
+>({
+  boardListId,
+  droppableId,
+}: {
+  boardListId: string;
+  droppableId: string;
+}): React.MutableRefObject<T> => {
+  let [refPlaceholder] =
+    storeOfPlaceholderRefs.get({ keys: [boardListId, droppableId] }) ?? [];
+  if (!refPlaceholder) {
+    refPlaceholder = React.createRef() as React.MutableRefObject<T | null>;
+    storeOfPlaceholderRefs.set({
+      keys: [boardListId, droppableId],
+      value: [refPlaceholder],
+    });
+  }
+  return refPlaceholder as React.MutableRefObject<T>;
+};
+
+export type AdjustIfIntersectPlaceholderParamsCommon = {
+  boardListId: string;
+  draggableId: string;
+  scrollIntoViewOptions?: Parameters<
+    typeof document.documentElement.scrollIntoView
+  >[0];
+};
+
+export function adjustIfIntersectPlaceholder(
+  params:
+    | ({
+        srcDroppableId: string;
+        dstDroppableId: string;
+      } & AdjustIfIntersectPlaceholderParamsCommon)
+    | ({
+        src: DraggableLocation<string>;
+        dst: DraggableLocation<string> | null;
+      } & AdjustIfIntersectPlaceholderParamsCommon),
+) {
+  let { srcDroppableId, dstDroppableId } = params as {
+    srcDroppableId: string;
+    dstDroppableId: string;
+  };
+  const { src, dst } = params as {
+    src: DraggableLocation<string>;
+    dst: DraggableLocation<string> | null;
+  };
+  const {
+    boardListId,
+    draggableId,
+    scrollIntoViewOptions = {
+      behavior: "smooth",
+    },
+  } = params as AdjustIfIntersectPlaceholderParamsCommon;
+
+  if (!src && !dst && (!srcDroppableId || !dstDroppableId)) {
+    console.warn("[adjustIfIntersectPlaceholder] invalid params.");
+    return;
+  }
+  if (src && dst) {
+    srcDroppableId = src.droppableId;
+    dstDroppableId = dst.droppableId;
+  }
+
+  if (srcDroppableId === dstDroppableId) {
+    return;
+  }
+
+  const { draggable } = getDraggable({ boardListId, draggableId });
+  if (!draggable) {
+    return;
+  }
+
+  const placeholder = storeOfPlaceholderRefs.get({
+    keys: [boardListId, dstDroppableId],
+  })?.[0]?.current;
+  if (!placeholder) {
+    return;
+  }
+
+  const intersectionRatio = getRectIntersectionRatio({
+    rect1: draggable.getBoundingClientRect(),
+    rect2: placeholder.getBoundingClientRect(),
+  });
+  if (intersectionRatio > 0) {
+    placeholder.scrollIntoView(scrollIntoViewOptions);
+  }
+}
 
 export type DragScrollBufferZone = {
   // Distance from the edge to trigger scrolling

@@ -918,3 +918,27 @@ export function mutateCopyDeep<T extends object = object>({
 //   (newTargetDeep3 as any).inheritedFunction === child.inheritedFunction,
 // ); // true
 // console.groupEnd();
+
+////////////////////////////////
+
+export function getRectIntersectionRatio({
+  rect1,
+  rect2,
+}: {
+  rect1: DOMRect;
+  rect2: DOMRect;
+}): number {
+  const xOverlap = Math.max(
+    0,
+    Math.min(rect1.right, rect2.right) - Math.max(rect1.left, rect2.left),
+  );
+  const yOverlap = Math.max(
+    0,
+    Math.min(rect1.bottom, rect2.bottom) - Math.max(rect1.top, rect2.top),
+  );
+
+  const intersectionArea = xOverlap * yOverlap;
+  const rect1Area = rect1.width * rect1.height;
+
+  return rect1Area > 0 ? intersectionArea / rect1Area : 0;
+}

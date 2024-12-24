@@ -25,6 +25,8 @@ import {
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { Droppable } from "@hello-pangea/dnd";
+import { MultiMap } from "@/multimap";
+import { getPlaceholder } from "@/hooks/useDragScroll";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
@@ -55,19 +57,11 @@ const BoardMainContent = styled.div`
   height: 100%;
 
   overflow-x: hidden;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-
-  &::-webkit-scrollbar {
-    padding-right: 10px;
-  }
+  overflow-y: scroll;
 `;
 
 const BoardMainContentMinusMargin = styled.div`
-  margin: -5px 0;
-
-  width: 100%;
+  margin: -5px 10px -5px 0;
   height: 100%;
 
   display: flex;
@@ -320,7 +314,42 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                 >
                   <BoardMainContentMinusMargin>
                     {children}
-                    {droppableProvided.placeholder}
+                    {getPlaceholder({
+                      boardListId,
+                      droppableId: parentItem.id,
+                      placeholder: droppableProvided.placeholder,
+                      gapVerticalLength: 10,
+                    })}
+                    {/* <div
+                      style={{
+                        margin: "-5px 0",
+                        background: "red",
+                      }}
+                    >
+                      {React.cloneElement(
+                        droppableProvided.placeholder as React.ReactElement,
+                        {
+                          ref: a<HTMLDivElement>({
+                            boardListId,
+                            droppableId: parentItem.id,
+                          }),
+
+                          shouldAnimate: false,
+                        },
+                      )}
+                    </div> */}
+                    {/* <div
+                      ref={a<HTMLDivElement>({
+                        boardListId,
+                        droppableId: parentItem.id,
+                      })}
+                      style={{
+                        margin: "-5px 0",
+                        background: "red",
+                      }}
+                    >
+                      {droppableProvided.placeholder}
+                    </div> */}
                   </BoardMainContentMinusMargin>
                 </BoardMainContent>
               );
