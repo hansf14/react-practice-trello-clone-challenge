@@ -673,7 +673,8 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         onDragUpdate={onDragUpdate}
         onDragEnd={onDragEnd}
         autoScrollerOptions={{
-          disabled: true,
+          // disabled: true,
+          maxPixelScroll: 0,
         }}
       >
         <UseDragScroll />

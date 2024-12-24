@@ -23,7 +23,10 @@ export type PlaceholderContainerProps = {
   gapVerticalLength?: number;
 };
 
-export const PlaceholderContainer = styled.div<PlaceholderContainerProps>`
+export const PlaceholderContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) =>
+    !["gapHorizontalLength", "gapVerticalLength"].includes(prop),
+})<PlaceholderContainerProps>`
   // background: red;
   ${({ gapHorizontalLength = 0, gapVerticalLength = 0 }) => {
     return css`
@@ -334,8 +337,55 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
       const { x: scrollDirectionX, y: scrollDirectionY } = scrollDirection;
       // console.log(scrollDirection);
 
+      let isOffTheElementOrInvalid = false;
       const intervalId = setInterval(() => {
+        if (isOffTheElementOrInvalid) {
+          return;
+        }
         const rafId = requestAnimationFrame(() => {
+          const event = getCurPointerEvent();
+          if (!event) {
+            isOffTheElementOrInvalid = true; // Invalid
+            endDragScroll({ scrollContainer });
+            return;
+          }
+          const cursorOffset = getCursorScrollOffsetOnElement({
+            element: scrollContainer,
+            event,
+            offsetType: "no-scroll",
+          });
+          if (!cursorOffset) {
+            isOffTheElementOrInvalid = true; // Invalid
+            endDragScroll({ scrollContainer });
+            return;
+          }
+
+          const { xNoScroll, yNoScroll } = cursorOffset;
+          if (
+            typeof xNoScroll === "undefined" ||
+            typeof yNoScroll === "undefined"
+          ) {
+            isOffTheElementOrInvalid = true; // Invalid
+            endDragScroll({ scrollContainer });
+            return;
+          }
+          if (
+            xNoScroll < 0 ||
+            xNoScroll > scrollContainer.scrollWidth ||
+            yNoScroll < 0 ||
+            yNoScroll > scrollContainer.scrollHeight
+          ) {
+            // console.log(cursorOffset);
+            // console.log(
+            //   scrollContainer.scrollWidth,
+            //   scrollContainer.scrollHeight,
+            // );
+
+            isOffTheElementOrInvalid = true; // Off the element
+            endDragScroll({ scrollContainer });
+            return;
+          }
+
           const horizontalSpeed =
             scrollDirectionX === -1 ? scrollSpeedLeft : scrollSpeedRight;
           const verticalSpeed =
@@ -363,6 +413,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
           // console.groupEnd();
 
           if (!isDragScrollAllowed) {
+            isOffTheElementOrInvalid = true; // Invalid
             endDragScroll({ scrollContainer });
           }
         });
@@ -371,7 +422,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
 
       refScrollIntervalIdMap.current.set(scrollContainer, intervalId);
     },
-    [endDragScroll],
+    [getCurPointerEvent, endDragScroll],
   );
 
   const idDragScroll = useMemoizeCallbackId();

@@ -167,87 +167,87 @@ import { createKeyValueMapping, SmartMerge } from "@/utils";
 
 ///////////////////////////////////////////
 
-type CustomDroppableContainer = {
-  id: string;
-};
+// type CustomDroppableContainer = {
+//   id: string;
+// };
 
-type CustomCircleCollision = {
-  id: string;
-  data: {
-    droppableContainer: CustomDroppableContainer;
-    value: number;
-  };
-};
+// type CustomCircleCollision = {
+//   id: string;
+//   data: {
+//     droppableContainer: CustomDroppableContainer;
+//     value: number;
+//   };
+// };
 
-type CustomDroppableRects = Map<string, DOMRect>;
+// type CustomDroppableRects = Map<string, DOMRect>;
 
-type CircleIntersectionArgs = {
-  collisionRect: HTMLElement;
-  droppableRects: CustomDroppableRects;
-  droppableContainers: CustomDroppableContainer[];
-};
+// type CircleIntersectionArgs = {
+//   collisionRect: HTMLElement;
+//   droppableRects: CustomDroppableRects;
+//   droppableContainers: CustomDroppableContainer[];
+// };
 
-// Sort collisions in descending order (from greatest to smallest value)
-function sortCollisionsDescCustom(
-  { data: { value: a } }: CustomCircleCollision,
-  { data: { value: b } }: CustomCircleCollision,
-) {
-  return b - a;
-}
+// // Sort collisions in descending order (from greatest to smallest value)
+// function sortCollisionsDescCustom(
+//   { data: { value: a } }: CustomCircleCollision,
+//   { data: { value: b } }: CustomCircleCollision,
+// ) {
+//   return b - a;
+// }
 
-function getCircleIntersection(
-  entry: DOMRect | HTMLElement,
-  target: DOMRect | HTMLElement,
-): number {
-  // Abstracted the logic to calculate the radius for simplicity
-  const circle1 = {
-    radius: 20,
-    x: entry instanceof HTMLElement ? entry.offsetLeft : entry.left,
-    y: entry instanceof HTMLElement ? entry.offsetTop : entry.top,
-  };
-  const circle2 = {
-    radius: 12,
-    x: target instanceof HTMLElement ? target.offsetLeft : target.left,
-    y: target instanceof HTMLElement ? target.offsetTop : target.top,
-  };
+// function getCircleIntersection(
+//   entry: DOMRect | HTMLElement,
+//   target: DOMRect | HTMLElement,
+// ): number {
+//   // Abstracted the logic to calculate the radius for simplicity
+//   const circle1 = {
+//     radius: 20,
+//     x: entry instanceof HTMLElement ? entry.offsetLeft : entry.left,
+//     y: entry instanceof HTMLElement ? entry.offsetTop : entry.top,
+//   };
+//   const circle2 = {
+//     radius: 12,
+//     x: target instanceof HTMLElement ? target.offsetLeft : target.left,
+//     y: target instanceof HTMLElement ? target.offsetTop : target.top,
+//   };
 
-  const dx = circle1.x - circle2.x;
-  const dy = circle1.y - circle2.y;
-  const distance = Math.sqrt(dx * dx + dy * dy);
+//   const dx = circle1.x - circle2.x;
+//   const dy = circle1.y - circle2.y;
+//   const distance = Math.sqrt(dx * dx + dy * dy);
 
-  if (distance < circle1.radius + circle2.radius) {
-    return distance;
-  }
+//   if (distance < circle1.radius + circle2.radius) {
+//     return distance;
+//   }
 
-  return 0;
-}
+//   return 0;
+// }
 
-// Returns the circle that has the greatest intersection area
-const circleIntersection = ({
-  collisionRect,
-  droppableRects,
-  droppableContainers,
-}: CircleIntersectionArgs): CustomCircleCollision[] => {
-  const collisions: CustomCircleCollision[] = [];
+// // Returns the circle that has the greatest intersection area
+// const circleIntersection = ({
+//   collisionRect,
+//   droppableRects,
+//   droppableContainers,
+// }: CircleIntersectionArgs): CustomCircleCollision[] => {
+//   const collisions: CustomCircleCollision[] = [];
 
-  for (const droppableContainer of droppableContainers) {
-    const { id } = droppableContainer;
-    const rect = droppableRects.get(id);
+//   for (const droppableContainer of droppableContainers) {
+//     const { id } = droppableContainer;
+//     const rect = droppableRects.get(id);
 
-    if (rect) {
-      const intersectionRatio = getCircleIntersection(rect, collisionRect);
+//     if (rect) {
+//       const intersectionRatio = getCircleIntersection(rect, collisionRect);
 
-      if (intersectionRatio > 0) {
-        collisions.push({
-          id,
-          data: { droppableContainer, value: intersectionRatio },
-        });
-      }
-    }
-  }
+//       if (intersectionRatio > 0) {
+//         collisions.push({
+//           id,
+//           data: { droppableContainer, value: intersectionRatio },
+//         });
+//       }
+//     }
+//   }
 
-  return collisions.sort(sortCollisionsDescCustom);
-};
+//   return collisions.sort(sortCollisionsDescCustom);
+// };
 
 ///////////////////////////////////////////
 
