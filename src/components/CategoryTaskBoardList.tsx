@@ -62,8 +62,11 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       }),
       [boardListId, parentKeyName, childKeyName],
     );
-    const { parentItems, stateBoardListContext, setStateBoardListContext } =
-      useBoardContext(boardListContextParams);
+    const {
+      parentItems__Immutable: parentItems,
+      stateBoardListContext,
+      setStateBoardListContext,
+    } = useBoardContext(boardListContextParams);
 
     // const onUpdateChildItem = useCallback<OnUpdateChildItem>(
     //   ({ event, oldChildItem, newChildItem }) => {
@@ -142,7 +145,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         childKeyName={childKeyName}
       >
         {parentItems.map((parentItem, parentIndex) => {
-          // console.log(parentItem.items?.map((item) => item.id));
+          // console.log(parentItems.map((item) => item.id));
           return (
             <Board
               key={parentItem.id}
@@ -204,22 +207,7 @@ export const CategoryTaskBoardList = withMemoAndRef<
     );
 
     return (
-      <BoardListContextProvider
-        value={boardListContextParams}
-        // initializeState={(snapshot) => {
-        //   if (items) {
-        //     // Inject default value
-        //     snapshot.set(
-        //       nestedIndexerAtom,
-        //       new NestedIndexer({
-        //         parentKeyName,
-        //         childKeyName,
-        //         items,
-        //       }),
-        //     );
-        //   }
-        // }}
-      >
+      <BoardListContextProvider value={boardListContextParams}>
         <CategoryTaskBoardListInternal
           ref={ref}
           boardListId={boardListId}

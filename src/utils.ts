@@ -471,6 +471,7 @@ export function mutateCopy<T extends object = object>({
   target,
   source,
   mode = "keep-own-properties-only",
+  newDescriptorConfig,
 }: {
   target: T;
   source: T;
@@ -478,6 +479,11 @@ export function mutateCopy<T extends object = object>({
     | "keep-own-properties-only"
     | "keep-all-properties-in-own"
     | "keep-all-properties-separated";
+  newDescriptorConfig?: {
+    writable?: boolean;
+    configurable?: boolean;
+    enumerable?: boolean;
+  };
 }) {
   if (!target || !source) {
     console.warn("[mutateCopy] !target || !source");
@@ -485,31 +491,101 @@ export function mutateCopy<T extends object = object>({
   }
 
   if (mode === "keep-own-properties-only") {
-    Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
-  } else if (mode === "keep-all-properties-in-own") {
-    do {
-      const descriptors = Object.getOwnPropertyDescriptors(source);
-      // Get all own property descriptors.
-      // Retrieves all descriptors for both enumerable and non-enumerable properties, including getter/setter accessors, symbols.
-
-      // Define those properties on the target
+    if (!newDescriptorConfig) {
+      Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+      const descriptors = changePropertyConfig({
+        descriptors: Object.getOwnPropertyDescriptors(source),
+        writable: newDescriptorConfig.writable,
+        configurable: newDescriptorConfig.configurable,
+        enumerable: newDescriptorConfig.enumerable,
+      });
       Object.defineProperties(target, descriptors);
+    }
+  } else if (mode === "keep-all-properties-in-own") {
+    if (!newDescriptorConfig) {
+      do {
+        const descriptors = Object.getOwnPropertyDescriptors(source);
+        // Get all own property descriptors.
+        // Retrieves all descriptors for both enumerable and non-enumerable properties, including getter/setter accessors, symbols.
 
-      source = Object.getPrototypeOf(source);
-      // Move to the prototype for inherited properties
-      // Allows traversing up the prototype chain to copy inherited properties.
-    } while (source && source !== Object.prototype);
+        // Define those properties on the target
+        Object.defineProperties(target, descriptors);
+
+        source = Object.getPrototypeOf(source);
+        // Move to the prototype for inherited properties
+        // Allows traversing up the prototype chain to copy inherited properties.
+      } while (source && source !== Object.prototype);
+    } else {
+      do {
+        const descriptors = changePropertyConfig({
+          descriptors: Object.getOwnPropertyDescriptors(source),
+          writable: newDescriptorConfig.writable,
+          configurable: newDescriptorConfig.configurable,
+          enumerable: newDescriptorConfig.enumerable,
+        });
+        Object.defineProperties(target, descriptors);
+        source = Object.getPrototypeOf(source);
+      } while (source && source !== Object.prototype);
+    }
   } else if (mode == "keep-all-properties-separated") {
-    // Set the prototype of target to match the source
-    Object.setPrototypeOf(target, Object.getPrototypeOf(source));
+    if (!newDescriptorConfig) {
+      // Set the prototype of target to match the source
+      Object.setPrototypeOf(target, Object.getPrototypeOf(source));
 
-    // Copy own properties (enumerable, non-enumerable, and symbols)
-    const descriptors = Object.getOwnPropertyDescriptors(source);
-    Object.defineProperties(target, descriptors);
+      // Copy own properties (enumerable, non-enumerable, and symbols)
+      const descriptors = Object.getOwnPropertyDescriptors(source);
+      Object.defineProperties(target, descriptors);
+    } else {
+      Object.setPrototypeOf(target, Object.getPrototypeOf(source));
+      const descriptors = changePropertyConfig({
+        descriptors: Object.getOwnPropertyDescriptors(source),
+        writable: newDescriptorConfig.writable,
+        configurable: newDescriptorConfig.configurable,
+        enumerable: newDescriptorConfig.enumerable,
+      });
+      Object.defineProperties(target, descriptors);
+    }
   } else {
     console.warn("[mutateCopy] unsupported mode");
     return;
   }
+}
+
+export function changePropertyConfig({
+  descriptors,
+  writable,
+  configurable,
+  enumerable,
+}: {
+  descriptors: PropertyDescriptorMap;
+  writable?: boolean;
+  configurable?: boolean;
+  enumerable?: boolean;
+}): PropertyDescriptorMap {
+  const updatedDescriptors: PropertyDescriptorMap = {};
+  for (const [key, descriptor] of Object.entries(descriptors)) {
+    const _writable =
+      typeof writable === "undefined" ? descriptor.writable : writable;
+    const _configurable =
+      typeof configurable === "undefined"
+        ? descriptor.configurable
+        : configurable;
+    const _enumerable =
+      typeof enumerable === "undefined" ? descriptor.enumerable : enumerable;
+
+    updatedDescriptors[key] = {
+      ...descriptor,
+      writable: _writable,
+      configurable: _configurable,
+      enumerable: _enumerable,
+    };
+  }
+  return updatedDescriptors;
+}
+
+export function isObject(value: any): value is object {
+  return value !== null && typeof value === "object";
 }
 
 ////////////////////////////////
@@ -571,6 +647,10 @@ export function mutateCopy<T extends object = object>({
 
 // console.log(target1 === newTarget1);
 // // true
+// console.log((target1 as any).ownProp); // "child"
+// console.log((target1 as any).ownProp === child.ownProp); // true
+// console.log((target1 as any).inheritedValue); // undefined
+// console.log((target1 as any).inheritedValue === child.inheritedValue); // false
 // console.groupEnd();
 
 ////////////////////////////////
@@ -584,6 +664,7 @@ export function mutateCopy<T extends object = object>({
 //   source: child,
 // });
 
+// console.group();
 // console.log(newTarget2);
 // // inheritedFunction: ƒ inheritedFunction()
 // // inheritedValue: 42
@@ -593,6 +674,10 @@ export function mutateCopy<T extends object = object>({
 
 // console.log(target2 === newTarget2);
 // // true
+// console.log((target2 as any).ownProp); // "child"
+// console.log((target2 as any).ownProp === child.ownProp); // true
+// console.log((target2 as any).inheritedValue); // 42
+// console.log((target2 as any).inheritedValue === child.inheritedValue); // true
 // console.groupEnd();
 
 ////////////////////////////////
@@ -606,8 +691,8 @@ export function mutateCopy<T extends object = object>({
 //   source: child,
 // });
 
-// console.log(newTarget3);
 // console.group();
+// console.log(newTarget3);
 // console.log("child:", child);
 // // ownProp: "child"
 // // Symbol(mySymbol): "symbolValue"
@@ -633,15 +718,19 @@ export function mutateCopy<T extends object = object>({
 
 // console.log(target3 === newTarget3);
 // // true
+// console.log((target3 as any).ownProp); // "child"
+// console.log((target3 as any).ownProp === child.ownProp); // true
+// console.log((target3 as any).inheritedValue); // 42
+// console.log((target3 as any).inheritedValue === child.inheritedValue); // true
 // console.groupEnd();
 
 ////////////////////////////////
 
-// TODO: Not tested.
 export function mutateCopyDeep<T extends object = object>({
   target,
   source,
   mode = "keep-own-properties-only",
+  newDescriptorConfig,
 }: {
   target: T;
   source: T;
@@ -649,59 +738,166 @@ export function mutateCopyDeep<T extends object = object>({
     | "keep-own-properties-only"
     | "keep-all-properties-in-own"
     | "keep-all-properties-separated";
+  newDescriptorConfig?: {
+    writable?: boolean;
+    configurable?: boolean;
+    enumerable?: boolean;
+  };
 }) {
   if (!target || !source) {
     console.warn("[mutateCopy] !target || !source");
     return;
   }
 
-  const isObject = (value: any): value is object =>
-    value !== null && typeof value === "object";
-
-  // TODO: Not tested.
-  const copyDescriptors = (target: T, source: T) => {
-    const descriptors = Object.getOwnPropertyDescriptors(source);
-
-    for (const [key, descriptor] of Object.entries(descriptors)) {
-      if (
-        descriptor.value && // Check if it's a value descriptor
-        isObject(descriptor.value) && // Ensure it's an object or array
-        !Array.isArray(descriptor.value) // Handle arrays directly
-      ) {
-        // Recursively copy nested objects
-        if (!target[key as keyof T]) {
-          target[key as keyof T] = Object.create(
-            Object.getPrototypeOf(descriptor.value),
-          ) as any;
-        }
-        mutateCopyDeep({
-          target: target[key as keyof T] as T,
-          source: descriptor.value,
-          mode,
-        });
-      } else if (Array.isArray(descriptor.value)) {
-        // Deep copy arrays
-        target[key as keyof T] = [...descriptor.value] as any;
-      } else {
-        // Directly define the property
-        Object.defineProperty(target, key, descriptor);
-      }
-    }
-  };
-
   if (mode === "keep-own-properties-only") {
-    copyDescriptors(target, source);
+    copyDescriptors({ target, source });
   } else if (mode === "keep-all-properties-in-own") {
     do {
-      copyDescriptors(target, source);
+      copyDescriptors({ target, source });
       source = Object.getPrototypeOf(source);
     } while (source && source !== Object.prototype);
   } else if (mode === "keep-all-properties-separated") {
     // Set the prototype of target to match the source
     Object.setPrototypeOf(target, Object.getPrototypeOf(source));
-    copyDescriptors(target, source);
+    copyDescriptors({ target, source });
   } else {
     console.warn("[mutateCopyDeep] unsupported mode");
     return;
   }
+
+  function copyDescriptors<T extends object = object>({
+    target,
+    source,
+  }: {
+    target: T;
+    source: T;
+  }) {
+    let descriptors: PropertyDescriptorMap =
+      Object.getOwnPropertyDescriptors(source);
+    if (newDescriptorConfig) {
+      descriptors = changePropertyConfig({
+        descriptors,
+        writable: newDescriptorConfig.writable,
+        configurable: newDescriptorConfig.configurable,
+      });
+    }
+
+    for (const [key, descriptor] of Object.entries(descriptors)) {
+      if (
+        descriptor.value && // Check if it's a value descriptor
+        isObject(descriptor.value) // Ensure it's an object or array
+      ) {
+        if (Array.isArray(descriptor.value)) {
+          // Deep copy arrays
+          target[key as keyof T] = [...descriptor.value] as any;
+        } else {
+          // Recursively copy nested objects
+          if (!target[key as keyof T]) {
+            target[key as keyof T] = Object.create(
+              Object.getPrototypeOf(descriptor.value),
+            ) as any;
+          }
+          mutateCopyDeep({
+            target: target[key as keyof T] as T,
+            source: descriptor.value,
+            mode,
+            newDescriptorConfig,
+          });
+        }
+      } else {
+        // Directly define the property
+        Object.defineProperty(target, key, descriptor);
+      }
+    }
+  }
 }
+
+////////////////////////////////
+// Example usage:
+const symbolKey = Symbol("mySymbol");
+const parent = {
+  inheritedFunction() {
+    return "Inherited!";
+  },
+  inheritedValue: 42,
+  inheritedObject: {},
+};
+const child = Object.create(parent); // Create child with parent prototype
+child.ownProp = { hello: "world" };
+child[symbolKey] = "symbolValue";
+Object.defineProperty(child, "hiddenProp", {
+  value: "hidden",
+  enumerable: false,
+});
+
+////////////////////////////////
+
+const targetDeep1 = {};
+const newTargetDeep1 = targetDeep1;
+
+mutateCopyDeep({
+  mode: "keep-own-properties-only",
+  target: newTargetDeep1,
+  source: child,
+});
+
+console.group();
+console.log("child:", child);
+console.log(newTargetDeep1);
+
+console.log(targetDeep1 === newTargetDeep1); // true
+console.log((newTargetDeep1 as any).ownProp); // {hello: 'world'}
+console.log((newTargetDeep1 as any).ownProp === child.ownProp); // false
+console.log((newTargetDeep1 as any).inheritedValue); // undefined
+console.log((newTargetDeep1 as any).inheritedValue === child.inheritedValue); // false
+console.groupEnd();
+
+////////////////////////////////
+
+// const targetDeep2 = {};
+// const newTargetDeep2 = targetDeep2;
+
+// mutateCopyDeep({
+//   mode: "keep-all-properties-in-own",
+//   target: newTargetDeep2,
+//   source: child,
+// });
+
+// console.group();
+// console.log("child:", child);
+// console.log(newTargetDeep2);
+
+// console.log(targetDeep2 === newTargetDeep2); // true
+// console.log((newTargetDeep2 as any).ownProp); // {hello: 'world'}
+// console.log((newTargetDeep2 as any).ownProp === child.ownProp); // false
+// console.log((newTargetDeep2 as any).inheritedValue); // 42
+// console.log((newTargetDeep2 as any).inheritedValue === child.inheritedValue); // true
+// console.log(
+//   (newTargetDeep2 as any).inheritedFunction === child.inheritedFunction,
+// ); // true
+// console.groupEnd();
+
+////////////////////////////////
+
+// const targetDeep3 = {};
+// const newTargetDeep3 = targetDeep3;
+
+// mutateCopyDeep({
+//   mode: "keep-all-properties-separated",
+//   target: newTargetDeep3,
+//   source: child,
+// });
+
+// console.group();
+// console.log("child:", child);
+// console.log(newTargetDeep3);
+
+// console.log(targetDeep3 === newTargetDeep3); // true
+// console.log((newTargetDeep3 as any).ownProp); // {hello: 'world'}
+// console.log((newTargetDeep3 as any).ownProp === child.ownProp); // false
+// console.log((newTargetDeep3 as any).inheritedValue); // 42
+// console.log((newTargetDeep3 as any).inheritedValue === child.inheritedValue); // true
+// console.log(
+//   (newTargetDeep3 as any).inheritedFunction === child.inheritedFunction,
+// ); // true
+// console.groupEnd();

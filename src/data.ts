@@ -80,16 +80,16 @@ export const defaultCategoryTaskItems: ParentItem[] = [
         // text: "Done1",
         text: "77d2ba3a-d639-480c-b735-2a11b17b24cb",
       },
-      {
-        id: "0c352776-4a3b-4a9c-aace-8765dd6c0f7a",
-        // text: "Done2",
-        text: "0c352776-4a3b-4a9c-aace-8765dd6c0f7a",
-      },
-      {
-        id: "d78baa56-4f74-46ff-9193-c6068aec8524",
-        // text: "Done3",
-        text: "d78baa56-4f74-46ff-9193-c6068aec8524",
-      },
+      // {
+      //   id: "0c352776-4a3b-4a9c-aace-8765dd6c0f7a",
+      //   // text: "Done2",
+      //   text: "0c352776-4a3b-4a9c-aace-8765dd6c0f7a",
+      // },
+      // {
+      //   id: "d78baa56-4f74-46ff-9193-c6068aec8524",
+      //   // text: "Done3",
+      //   text: "d78baa56-4f74-46ff-9193-c6068aec8524",
+      // },
       // {
       //   id: "82734eea-6208-4750-a52c-6f5c1c99ade4",
       //   // text: "Done4",

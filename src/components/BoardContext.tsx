@@ -20,6 +20,7 @@ import { createContext, useMemo } from "react";
 import { useBeforeRender } from "@/hooks/useBeforeRender";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import { BoardListExtendProps } from "@/components/BoardList";
+import { useLikeConstructor } from "@/hooks/useLikeConstructor";
 
 // https://docs.dndkit.com/api-documentation/context-provider/collision-detection-algorithms#composition-of-existing-algorithms
 export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
@@ -86,35 +87,54 @@ export function getDndContextInfoFromData({
   }
 
   if (isParentItemData(data)) {
-    const parentIdList = boardListContext.indexer.getParentIdList() ?? null;
-    const indexOfDraggable = !parentIdList
-      ? -1
-      : parentIdList?.findIndex((parentId) => parentId === draggableId);
-    const childIdList =
-      boardListContext.indexer.getChildIdListOfParentId({
-        parentId: draggableId,
-      }) ?? null;
+    // const parentIdList = boardListContext.indexer.getParentIdList() ?? null;
+    // const indexOfDraggable = !parentIdList
+    //   ? -1
+    //   : parentIdList?.findIndex((parentId) => parentId === draggableId);
+    // const childIdList =
+    //   boardListContext.indexer.getChildIdListOfParentId({
+    //     parentId: draggableId,
+    //   }) ?? null;
+    // return {
+    //   draggableId,
+    //   droppableId: boardListId,
+    //   indexOfDraggable,
+    //   parentAsDroppableOfChild: {
+    //     droppableId: draggableId,
+    //     droppableLength: !childIdList ? -1 : childIdList.length,
+    //   },
+    // };
+
+    const _data = data as DndDataInterfaceActive | DndDataInterfaceOver;
+    const indexOfDraggable = _data.sortable.index;
     return {
       draggableId,
       droppableId: boardListId,
       indexOfDraggable,
       parentAsDroppableOfChild: {
         droppableId: draggableId,
-        droppableLength: !childIdList ? -1 : childIdList.length,
+        droppableLength: _data.sortable.items.length,
       },
     };
   } else if (isChildItemData(data)) {
-    const [droppableId] = boardListContext.indexer.getParentIdListOfChildId({
-      childId: draggableId,
-    }) ?? [null];
-    const childIdList = !droppableId
-      ? null
-      : boardListContext.indexer.getChildIdListOfParentId({
-          parentId: droppableId,
-        });
-    const indexOfDraggable = !childIdList
-      ? -1
-      : childIdList.findIndex((childId) => childId === draggableId);
+    // const childIdList = !droppableId
+    //   ? null
+    //   : boardListContext.indexer.getChildIdListOfParentId({
+    //       parentId: droppableId,
+    //     });
+    // const indexOfDraggable = !childIdList
+    //   ? -1
+    //   : childIdList.findIndex((childId) => childId === draggableId);
+    // return {
+    //   draggableId,
+    //   droppableId,
+    //   indexOfDraggable,
+    //   parentAsDroppableOfChild: null,
+    // };
+
+    const _data = data as DndDataInterfaceActive | DndDataInterfaceOver;
+    const droppableId = _data.sortable.containerId;
+    const indexOfDraggable = _data.sortable.index;
     return {
       draggableId,
       droppableId,
@@ -286,7 +306,9 @@ export const DndDataItemTypeKvMapping = createKeyValueMapping({
   arr: DndDataItemTypes,
 });
 
-export type DndDataInterfaceCustomGeneric<T extends DndDataItemType> = {
+export type DndDataInterfaceCustomGeneric<
+  T extends DndDataItemType = DndDataItemType,
+> = {
   customData: {
     boardListId: string;
     type: string;
@@ -298,18 +320,19 @@ export type DndDataInterfaceCustomGeneric<T extends DndDataItemType> = {
   };
 };
 
-export type DndActiveDataInterface<T extends DndDataItemType> = SmartMerge<
-  DndDataInterfaceCustomGeneric<T>
-  //  & {
-  //   sortable: {
-  //     containerId: string;
-  //     index: number;
-  //     items: string[];
-  //   };
-  // }
+export type DndDataInterfaceActive<
+  T extends DndDataItemType = DndDataItemType,
+> = SmartMerge<
+  DndDataInterfaceCustomGeneric<T> & {
+    sortable: {
+      containerId: string;
+      index: number;
+      items: string[];
+    };
+  }
 >;
-export type DndOverDataInterface<T extends DndDataItemType> =
-  DndActiveDataInterface<T>;
+export type DndDataInterfaceOver<T extends DndDataItemType = DndDataItemType> =
+  DndDataInterfaceActive<T>;
 
 ///////////////////////////////////////
 
@@ -488,6 +511,7 @@ export const boardListContextAtomFamily = atomFamily<
       }),
     };
   },
+  // dangerouslyAllowMutability: true,
   effects_UNSTABLE: [persistAtom],
   effects: [
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -519,47 +543,6 @@ export const boardListContextAtomFamily = atomFamily<
     },
   ],
 });
-
-// export type ParentListParams = BoardListContextParams;
-// export type ParentList = {
-//   boardListId: string;
-//   items: ParentItem[];
-// };
-
-// export const parentListSelectorFamily = selectorFamily<
-//   BoardListContext,
-//   BoardListContextParams
-// >({
-//   key: "boardListContextAtomFamily",
-//   get:
-//     (id) =>
-//     ({ get }) => {
-//       // get() from another atomFamily
-//       const sourceValue = get(sourceAtomFamily(id));
-
-//       // Could do additional logic or transformations here
-//       return `My default is: ${sourceValue}`;
-//     },
-// });
-
-// export const parentListSelectorFamily = selectorFamily<
-//   ParentList,
-//   ParentListParams
-// >({
-//   key: "",
-//   get:
-//     ({ boardListId, parentKeyName, childKeyName, items }) =>
-//     ({ get }) => {
-//       get(
-//         boardListContextAtomFamily({
-//           boardListId,
-//           parentKeyName,
-//           childKeyName,
-//           items,
-//         }),
-//       );
-//     },
-// });
 
 export const BoardListContextProvider__Internal = ({
   value: { boardListId, parentKeyName, childKeyName, defaultItems },
@@ -599,9 +582,9 @@ export const BoardListContextProvider__Internal = ({
   );
 
   useIsomorphicLayoutEffect(() => {
-    // console.log("defaultItems:", defaultItems);
     initBoardListContext({ parentItems: defaultItems ?? [] });
-  }, [defaultItems, initBoardListContext]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return <>{children}</>;
 };
@@ -643,7 +626,7 @@ export const useBoardContext = ({
   const parentItems = stateBoardListContext.indexer.parentItems;
 
   return {
-    parentItems,
+    parentItems__Immutable: parentItems,
     stateBoardListContext,
     setStateBoardListContext,
   };

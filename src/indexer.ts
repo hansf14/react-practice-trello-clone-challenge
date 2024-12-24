@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { Expose, instanceToPlain } from "class-transformer";
 import { MultiMap } from "@/multimap";
-import { arrayMoveElement, SmartMerge } from "@/utils";
+import { arrayMoveElement, mutateCopyDeep, SmartMerge } from "@/utils";
 
 export type IndexerKey = string[];
 
@@ -328,69 +328,78 @@ export class NestedIndexer<
         }
       | NestedIndexer<Parent, Child>,
   ) {
-    if (params instanceof NestedIndexer) {
-      super(params);
+    if (params instanceof NestedIndexer || params.parentItems) {
+      super();
 
       this.parentKeyName = params.parentKeyName;
       this.childKeyName = params.childKeyName;
 
-      this.parentItems = params.parentItems;
-    } else {
-      if (params.entries) {
-        const entries = params.entries ?? [];
-        super({ entries });
+      const parentItems: Parent[] = [];
+      mutateCopyDeep({
+        target: parentItems,
+        source: params.parentItems ?? [],
+      });
+      // params instanceof NestedIndexer ? params.parentItems : params.parentItems
+      // const parentItems = cloneDeep(params.parentItems);
+      // ㄴ If not deep clone, the copied `parentItems` and/or `parentItems[0]`, etc. would be immutable when params is from RecoilState (immutable).
 
-        this.parentKeyName = params.parentKeyName;
-        this.childKeyName = params.childKeyName;
+      this.parentKeyName = params.parentKeyName;
+      this.childKeyName = params.childKeyName;
 
-        const parents = this._getParentList__MutableParent() ?? [];
-        for (const parent of parents) {
-          parent.items =
-            this._getChildListOfParentId__MutableChild({
-              parentId: parent.id,
-            }) ?? [];
-        }
-        this.parentItems = parents;
-      } else if (params.parentItems) {
-        super();
+      // Prone to infinite loop if not cautious.
+      this.parentItems = [];
+      // ㄴ To prevent infinite loop (because `this.createParent` mutates the `this.parentItems`)
+      const parents = parentItems;
+      for (const parent of parents) {
+        this.createParent({
+          parent,
+          shouldAppend: true,
+          shouldKeepRef: false,
+        });
 
-        this.parentKeyName = params.parentKeyName;
-        this.childKeyName = params.childKeyName;
+        const children = [...(parent.items ?? [])];
+        // ㄴ To prevent infinite loop (because `this.createChild` mutates the `parent.items`)
 
-        // Prone to infinite loop if not cautious.
-        this.parentItems = [];
-        // ㄴ To prevent infinite loop (because `this.createParent` mutates the `this.parentItems`)
-        const parents = params.parentItems;
-        for (const parent of parents) {
-          this.createParent({
-            parent,
+        // console.log(Object.getOwnPropertyDescriptor(parent, "items"));
+        parent.items = [];
+        // ㄴ Without this, children count will be exactly twice the original source (because it children will get assigned once from `createParent`, and again from `createChild`).
+
+        for (const child of children) {
+          this.createChild({
+            parentId: parent.id,
+            child: child as Child,
             shouldAppend: true,
-            shouldKeepRef: true,
+            shouldKeepRef: false,
           });
-
-          const children = [...(parent.items ?? [])];
-          // ㄴ To prevent infinite loop (because `this.createChild` mutates the `parent.items`)
-          delete parent.items;
-          // ㄴ Without this, children count will be exactly twice the original source.
-
-          for (const child of children) {
-            this.createChild({
-              parentId: parent.id,
-              child: child as Child,
-              shouldAppend: true,
-              shouldKeepRef: true,
-            });
-          }
         }
-      } else {
-        super();
-
-        this.parentKeyName = params.parentKeyName;
-        this.childKeyName = params.childKeyName;
-
-        this.parentItems = [];
       }
+    } else if (params.entries) {
+      const entries = params.entries ?? [];
+      super({ entries });
+
+      this.parentKeyName = params.parentKeyName;
+      this.childKeyName = params.childKeyName;
+
+      const parents = this._getParentList__MutableParent() ?? [];
+      for (const parent of parents) {
+        parent.items =
+          this._getChildListOfParentId__MutableChild({
+            parentId: parent.id,
+          }) ?? [];
+      }
+      this.parentItems = parents;
+    } else {
+      super();
+
+      this.parentKeyName = params.parentKeyName;
+      this.childKeyName = params.childKeyName;
+
+      this.parentItems = [];
     }
+
+    // console.log(Object.getOwnPropertyDescriptor(this, "parentKeyName"));
+    // console.log(Object.getOwnPropertyDescriptor(this, "childKeyName"));
+    // console.log(Object.getOwnPropertyDescriptor(this, "parentItems"));
   }
 
   // Convert to a plain object
@@ -583,15 +592,16 @@ export class NestedIndexer<
     const _parentIdListOfChild =
       (this.getParentIdListOfChildId({ childId }) as string[] | undefined) ??
       [];
+    if (shouldKeepRef) {
+      _parentIdListOfChild.splice(
+        0,
+        _parentIdListOfChild.length,
+        ...parentIdListOfChildId,
+      );
+    }
     this.set({
       keys: [`${this.childKeyName}Id`, childId, `${this.parentKeyName}Id`],
-      value: shouldKeepRef
-        ? _parentIdListOfChild.splice(
-            0,
-            _parentIdListOfChild.length,
-            ...parentIdListOfChildId,
-          )
-        : parentIdListOfChildId,
+      value: shouldKeepRef ? _parentIdListOfChild : parentIdListOfChildId,
     });
   }
 
@@ -966,13 +976,24 @@ export class NestedIndexer<
     indexTo: number;
     shouldKeepRef?: boolean;
   }) {
-    arrayMoveElement({
-      arr: this.parentItems,
-      indexFrom,
-      indexTo,
-    });
+    // console.log(Object.getOwnPropertyDescriptor(this, "parentItems"));
+    // console.log(Object.getOwnPropertyDescriptor(this.parentItems[0], "items"));
+
     if (!shouldKeepRef) {
-      this.parentItems = [...this.parentItems];
+      const parentItems = [...this.parentItems];
+      arrayMoveElement({
+        arr: parentItems,
+        indexFrom,
+        indexTo,
+      });
+
+      this.parentItems = parentItems;
+    } else {
+      arrayMoveElement({
+        arr: this.parentItems,
+        indexFrom,
+        indexTo,
+      });
     }
 
     const parentIdList = shouldKeepRef
@@ -1023,22 +1044,27 @@ export class NestedIndexer<
         console.warn("[moveChild] !this.items[targetParentIndex].items");
         return;
       }
-      arrayMoveElement({
-        arr: this.parentItems[targetParentIndex].items,
-        indexFrom,
-        indexTo,
-      });
       if (!shouldKeepRef) {
-        this.parentItems[targetParentIndex].items = [
-          ...this.parentItems[targetParentIndex].items,
-        ];
-        this.parentItems = [...this.parentItems];
+        const childItems = [...this.parentItems[targetParentIndex].items];
+        arrayMoveElement({
+          arr: childItems,
+          indexFrom,
+          indexTo,
+        });
+
+        this.parentItems[targetParentIndex].items = childItems;
+      } else {
+        arrayMoveElement({
+          arr: this.parentItems,
+          indexFrom,
+          indexTo,
+        });
       }
 
       arrayMoveElement({
         arr: childIdListOfParentIdFrom,
-        indexFrom: indexFrom,
-        indexTo: indexTo,
+        indexFrom,
+        indexTo,
       });
     } else {
       const targetParentIndexOfParentIdFrom = this.parentItems.findIndex(

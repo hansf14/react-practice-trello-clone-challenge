@@ -15,6 +15,7 @@ import {
   checkHasScrollbar,
   getEmptyArray,
   getMemoizedArray,
+  mutateCopy,
   ScrollbarCondition,
   SmartMerge,
   SmartOmit,
@@ -28,8 +29,8 @@ import {
   DroppableCustomAttributesKvObj,
   DraggableHandleCustomAttributesKvMapping,
   DraggableCustomAttributesKvMapping,
-  DndActiveDataInterface,
-  DndOverDataInterface,
+  DndDataInterfaceActive,
+  DndDataInterfaceOver,
   isParentItemData,
   DndDataInterfaceCustom,
   isChildItemData,
@@ -78,6 +79,7 @@ import {
 import { createPortal } from "react-dom";
 import { DragScrollSpeed, useDragScroll } from "@/hooks/useDragScroll";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
+import { cloneDeep } from "lodash-es";
 
 // // https://github.com/clauderic/dnd-kit/issues/477#issuecomment-985194908
 // https://github.com/clauderic/dnd-kit/discussions/1493
@@ -198,8 +200,11 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       }),
       [boardListId, parentKeyName, childKeyName],
     );
-    const { parentItems, stateBoardListContext, setStateBoardListContext } =
-      useBoardContext(boardListContextParams);
+    const {
+      parentItems__Immutable: parentItems,
+      stateBoardListContext,
+      setStateBoardListContext,
+    } = useBoardContext(boardListContextParams);
 
     const onDragStart = useCallback(
       (event: DragStartEvent) => {
@@ -351,7 +356,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 
     const onDragOver = useCallback(
       (event: DragOverEvent) => {
-        // console.log("[onDragOver]");
+        console.log("[onDragOver]");
 
         const { active, over } = event;
         // console.log("active:", active);
@@ -384,7 +389,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         const {
           draggableId: activeDraggableId,
           droppableId: activeDroppableId,
-          indexOfDraggable: idxFrom,
+          indexOfDraggable: indexFrom,
         } = getDndContextInfoFromData({
           boardListContext: stateBoardListContext,
           data: activeData,
@@ -392,22 +397,32 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         let {
           draggableId: overDraggableId,
           droppableId: overDroppableId,
-          indexOfDraggable: idxTo,
+          indexOfDraggable: indexTo,
           parentAsDroppableOfChild,
         } = getDndContextInfoFromData({
           boardListContext: stateBoardListContext,
           data: overData,
         });
 
+        // console.group();
+        // console.log(activeDraggableId);
+        // console.log(activeDroppableId);
+        // console.log(indexFrom);
+        // console.log(overDraggableId);
+        // console.log(overDroppableId);
+        // console.log(indexTo);
+        // console.log(parentAsDroppableOfChild);
+        // console.groupEnd();
+
         if (
           (!isParentItemData(activeData) && !isChildItemData(activeData)) ||
           (!isParentItemData(overData) && !isChildItemData(overData)) ||
           !activeDraggableId ||
           !activeDroppableId ||
-          idxFrom < 0 ||
+          indexFrom < 0 ||
           !overDraggableId ||
           !overDroppableId ||
-          idxTo < 0 ||
+          indexTo < 0 ||
           (isParentItemData(overData) && !parentAsDroppableOfChild)
         ) {
           return;
@@ -415,13 +430,16 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 
         if (isParentItemData(activeData) && isParentItemData(overData)) {
           setStateBoardListContext((curBoardListContext) => {
-            curBoardListContext.indexer.moveParent({
-              indexFrom: idxFrom,
-              indexTo: idxTo,
+            const newBoardListContextIndexer = new BoardListContextIndexer(
+              curBoardListContext.indexer,
+            );
+            newBoardListContextIndexer.moveParent({
+              indexFrom,
+              indexTo,
             });
             return {
               boardListId,
-              indexer: curBoardListContext.indexer,
+              indexer: newBoardListContextIndexer,
             };
           });
           return;
@@ -432,30 +450,34 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
             return;
           }
           overDroppableId = parentAsDroppableOfChild.droppableId;
-          idxTo = parentAsDroppableOfChild.droppableLength;
-          if (!overDroppableId || idxTo < 0) {
+          indexTo = parentAsDroppableOfChild.droppableLength;
+          if (!overDroppableId || indexTo < 0) {
             return;
           }
         }
 
-        console.group();
-        console.log(
-          `Active: ${activeDraggableId} ${activeDroppableId} ${idxFrom}`,
-        );
-        console.log(`Over: ${overDraggableId} ${overDroppableId} ${idxTo}`);
-        console.log((activeData as any).sortable.items);
-        console.groupEnd();
+        // console.group();
+        // console.log(
+        //   `Active: ${activeDraggableId} ${activeDroppableId} ${indexFrom}`,
+        // );
+        // console.log(`Over: ${overDraggableId} ${overDroppableId} ${indexTo}`);
+        // console.log((activeData as any).sortable.items);
+        // console.groupEnd();
 
         setStateBoardListContext((curBoardListContext) => {
-          curBoardListContext.indexer.moveChild({
+          const newBoardListContextIndexer = new BoardListContextIndexer(
+            curBoardListContext.indexer,
+          );
+          newBoardListContextIndexer.moveChild({
             parentIdFrom: activeDroppableId,
             parentIdTo: overDroppableId,
-            indexFrom: idxFrom,
-            indexTo: idxTo,
+            indexFrom: indexFrom,
+            indexTo: indexTo,
+            shouldKeepRef: false,
           });
           return {
             boardListId,
-            indexer: curBoardListContext.indexer,
+            indexer: newBoardListContextIndexer,
           };
         });
       },
