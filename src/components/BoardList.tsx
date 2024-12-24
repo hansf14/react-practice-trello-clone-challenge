@@ -41,6 +41,8 @@ import {
   DragDropContext,
   Draggable,
   Droppable,
+  OnDragEndResponder,
+  OnDragStartResponder,
   OnDragUpdateResponder,
 } from "@hello-pangea/dnd";
 
@@ -532,6 +534,78 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       removeDragScrollConfig,
     ]);
 
+    const onDragStart = useCallback<OnDragStartResponder>(
+      (start, responderProvided) => {
+        // console.log(start);
+        // console.log(responderProvided);
+        setIsDragging(true);
+      },
+      [],
+    );
+
+    const onDragEnd = useCallback<OnDragEndResponder>(
+      (result, responderProvided) => {
+        // console.log(result);
+        // console.log(responderProvided);
+        setIsDragging(false);
+
+        const { source, destination, type } = result;
+        if (!destination) {
+          return;
+        }
+        console.log(type);
+        console.log(source);
+        console.log(destination);
+
+        const { droppableId: srcDroppableId, index: srcDraggableIndex } =
+          source;
+        const { droppableId: dstDroppableId, index: dstDraggableIndex } =
+          destination;
+
+        if (type === "parent") {
+          requestAnimationFrame(() => {
+            setStateBoardListContext((curBoardListContext) => {
+              const newBoardListContextIndexer = new BoardListContextIndexer(
+                curBoardListContext.indexer,
+              );
+              newBoardListContextIndexer.moveParent({
+                indexFrom: srcDraggableIndex,
+                indexTo: dstDraggableIndex,
+                shouldKeepRef: false,
+              });
+              return {
+                boardListId,
+                indexer: newBoardListContextIndexer,
+              };
+            });
+          });
+          return;
+        }
+
+        if (type === "child") {
+          requestAnimationFrame(() => {
+            setStateBoardListContext((curBoardListContext) => {
+              const newBoardListContextIndexer = new BoardListContextIndexer(
+                curBoardListContext.indexer,
+              );
+              newBoardListContextIndexer.moveChild({
+                parentIdFrom: srcDroppableId,
+                parentIdTo: dstDroppableId,
+                indexFrom: srcDraggableIndex,
+                indexTo: dstDraggableIndex,
+                shouldKeepRef: false,
+              });
+              return {
+                boardListId,
+                indexer: newBoardListContextIndexer,
+              };
+            });
+          });
+        }
+      },
+      [boardListId, setStateBoardListContext],
+    );
+
     const childItemIdList = useMemo(() => {
       return parentItems.reduce<string[]>((acc, curParentItem) => {
         const childIdList = (curParentItem.items ?? []).map(
@@ -540,19 +614,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         return acc.concat(...childIdList);
       }, []);
     }, [parentItems]);
-
-    // const modifiers = stateActiveParentItem
-    //   ? getMemoizedArray({
-    //       arr: [restrictToHorizontalAxis],
-    //       keys: ["stateActiveParentItem"],
-    //     })
-    //   : stateActiveChildItem
-    //     ? getMemoizedArray({
-    //         arr: [restrictToWindowEdges],
-    //         keys: ["stateActiveChildItem"],
-    //       })
-    //     : getEmptyArray<Modifier>();
-    // // console.log(modifiers);
 
     const scrollContainerCustomAttributes: ScrollContainerCustomAttributesKvObj =
       {
@@ -573,19 +634,8 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 
     return (
       <DragDropContext
-        // onDragStart={onDragStart}
-        onDragStart={(start, responderProvided) => {
-          setIsDragging(true);
-          console.log(start);
-          console.log(responderProvided);
-        }}
-        onDragEnd={() => {
-          setIsDragging(false);
-        }}
-        // onDragUpdate={onDragMove}
-        // // onDragOver={onDragOver}
-        // onDragEnd={onDragEnd}
-        // autoScroll={{ acceleration: 1 }}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
         autoScrollerOptions={{
           disabled: true,
         }}
@@ -617,73 +667,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
             }}
           </Droppable>
         </BoardListBase>
-        {/* {createPortal(
-          <DragOverlay
-            modifiers={modifiers}
-            // dropAnimation={null}
-            // ㄴ No animation
-            dropAnimation={{
-              // ...defaultDropAnimation,
-              sideEffects: defaultDropAnimationSideEffects({
-                styles: {
-                  active: {
-                    opacity: "1",
-                  },
-                },
-              }),
-            }}
-            // https://github.com/clauderic/dnd-kit/issues/317
-            // ㄴ Removes flickering due to opacity animation
-          >
-            {refDragOverlayReactElement.current}
-          </DragOverlay>,
-          document.body,
-        )} */}
       </DragDropContext>
     );
   },
 });
-
-// https://github.com/clauderic/dnd-kit/pull/334#issuecomment-1965708784
-// import { snapCenterToCursor } from '@dnd-kit/modifiers';
-// import {
-//   CollisionDetection, DndContext, DragOverlay, rectIntersection
-// } from '@dnd-kit/core';
-
-// const fixCursorSnapOffset: CollisionDetection = (args) => {
-//   // Bail out if keyboard activated
-//   if (!args.pointerCoordinates) {
-//     return rectIntersection(args);
-//   }
-//   const { x, y } = args.pointerCoordinates;
-//   const { width, height } = args.collisionRect;
-//   const updated = {
-//     ...args,
-//     // The collision rectangle is broken when using snapCenterToCursor. Reset
-//     // the collision rectangle based on pointer location and overlay size.
-//     collisionRect: {
-//       width,
-//       height,
-//       bottom: y + height / 2,
-//       left: x - width / 2,
-//       right: x + width / 2,
-//       top: y - height / 2,
-//     },
-//   };
-//   return rectIntersection(updated);
-// };
-
-// const Component = () => {
-//   return (
-//     <DndContext
-//       collisionDetection={fixCursorSnapOffset}
-//     >
-//       {/* ... */}
-//       <DragOverlay modifiers={[snapCenterToCursor]}>
-//           <div>
-//             Your overlay
-//           </div>
-//       </DragOverlay>
-//     </DndContext>
-//   );
-// };

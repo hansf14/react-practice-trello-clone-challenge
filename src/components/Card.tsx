@@ -30,9 +30,7 @@ import {
 import { Draggable } from "@hello-pangea/dnd";
 
 const CardInternalBase = styled.div`
-  &:not(:last-child) {
-    margin-bottom: 10px;
-  }
+  margin: 5px 0;
 
   padding: 10px;
   background-color: rgba(255, 255, 255, 0.45);

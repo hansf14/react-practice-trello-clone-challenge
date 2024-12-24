@@ -88,7 +88,7 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
     // const sortableConfig = useMemo<UseSortableArguments>(
     //   () => ({
     //     id: parentItem.id,
-    //     // disabled // TODO: isEditMode
+    //
     //     data: {
     //       customData: {
     //         boardListId,
@@ -149,21 +149,12 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
     };
 
     return (
-      <Draggable draggableId={parentItem.id} index={index}>
+      <Draggable
+        draggableId={parentItem.id}
+        index={index}
+        // disabled // TODO: isEditMode
+      >
         {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
-          // if (
-          //   draggableStateSnapshot.isDragging &&
-          //   draggableProvided.draggableProps.style
-          // ) {
-          //   draggableProvided.draggableProps.style.left =
-          //     draggableProvided.draggableProps.style.offsetLeft;
-          //   draggableProvided.draggableProps.style.top =
-          //     draggableProvided.draggableProps.style.offsetTop;
-          // }
-          // console.log(draggableStateSnapshot);
-          // (draggableProvided.draggableProps.style as CSSProperties).marginLeft =
-          //   draggableStateSnapshot.isDragging ? 10 : 0;
-
           return (
             <BoardBase
               ref={draggableProvided.innerRef}

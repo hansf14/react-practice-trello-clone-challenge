@@ -51,19 +51,27 @@ const BoardMainContentContainer = styled.div`
 const BoardMainContent = styled.div`
   ${CssScrollbar}
 
-  max-width: 100%;
-  /* margin-right: 10px; */
-  /* padding-right: 10px; */
+  width: 100%;
+  height: 100%;
 
   overflow-x: hidden;
   overflow-y: auto;
-  height: 100%;
   display: flex;
   flex-direction: column;
 
   &::-webkit-scrollbar {
     padding-right: 10px;
   }
+`;
+
+const BoardMainContentMinusMargin = styled.div`
+  margin: -5px 0;
+
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
 `;
 
 const BoardMainContentPlaceholderBase = styled.div`
@@ -310,8 +318,10 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                   {...droppableCustomAttributes}
                   {...scrollContainerCustomAttributes}
                 >
-                  {children}
-                  {droppableProvided.placeholder}
+                  <BoardMainContentMinusMargin>
+                    {children}
+                    {droppableProvided.placeholder}
+                  </BoardMainContentMinusMargin>
                 </BoardMainContent>
               );
             }}

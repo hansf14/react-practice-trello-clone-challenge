@@ -278,8 +278,13 @@ export function getCursorScrollOffsetOnElement({
 }: {
   element: HTMLElement;
   event: PointerEvent | MouseEvent | TouchEvent;
-  offsetType: "scroll" | "no-scroll";
-}) {
+  offsetType: "no-scroll" | "scroll" | "all";
+}): {
+  xNoScroll: number | undefined;
+  yNoScroll: number | undefined;
+  xScroll: number | undefined;
+  yScroll: number | undefined;
+} | null {
   let xOffsetOnDocumentOfCursor = 0;
   let yOffsetOnDocumentOfCursor = 0;
   if ((event as TouchEvent).touches) {
@@ -297,14 +302,26 @@ export function getCursorScrollOffsetOnElement({
     yOffsetOnDocumentOfCursor - yOffsetOnDocumentOfElement;
   if (offsetType === "no-scroll") {
     return {
-      x: xOffsetOnElementOfCursor,
-      y: yOffsetOnElementOfCursor,
+      xNoScroll: xOffsetOnElementOfCursor,
+      yNoScroll: yOffsetOnElementOfCursor,
+      xScroll: undefined,
+      yScroll: undefined,
     };
   } else if (offsetType === "scroll") {
     const { scrollLeft: xOffsetOfScroll, scrollTop: yOffsetOfScroll } = element;
     return {
-      x: xOffsetOnElementOfCursor + xOffsetOfScroll,
-      y: yOffsetOnElementOfCursor + yOffsetOfScroll,
+      xNoScroll: undefined,
+      yNoScroll: undefined,
+      xScroll: xOffsetOnElementOfCursor + xOffsetOfScroll,
+      yScroll: yOffsetOnElementOfCursor + yOffsetOfScroll,
+    };
+  } else if (offsetType === "all") {
+    const { scrollLeft: xOffsetOfScroll, scrollTop: yOffsetOfScroll } = element;
+    return {
+      xNoScroll: xOffsetOnElementOfCursor,
+      yNoScroll: yOffsetOnElementOfCursor,
+      xScroll: xOffsetOnElementOfCursor + xOffsetOfScroll,
+      yScroll: yOffsetOnElementOfCursor + yOffsetOfScroll,
     };
   }
   return null;
