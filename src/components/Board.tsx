@@ -1,6 +1,4 @@
-import { css, styled } from "styled-components";
-import { useSortable, UseSortableArguments } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { css, CSSProperties, styled } from "styled-components";
 import { StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { useCallback, useImperativeHandle, useMemo, useRef } from "react";
@@ -11,14 +9,17 @@ import {
   ParentItem,
 } from "@/components/BoardContext";
 import { DndDataInterfaceCustomGeneric } from "@/components/BoardContext";
+import { Draggable } from "@hello-pangea/dnd";
 
 type BoardBaseProps = {
-  isDragSource?: boolean;
+  isDragging?: boolean;
 };
 
 const BoardBase = styled.div.withConfig({
-  shouldForwardProp: (prop) => !["isDragSource"].includes(prop),
+  shouldForwardProp: (prop) => !["isDragging"].includes(prop),
 })<BoardBaseProps>`
+  margin: 0 5px;
+
   flex-shrink: 0;
   height: 85%;
   max-width: 300px;
@@ -37,9 +38,9 @@ const BoardBase = styled.div.withConfig({
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
 
-  ${({ isDragSource }) => {
+  ${({ isDragging }) => {
     return css`
-      ${(isDragSource ?? false)
+      ${(isDragging ?? false)
         ? `
         border: 2px solid yellow;
         opacity: 0.7;
@@ -63,85 +64,109 @@ const BoardBase = styled.div.withConfig({
 export type BoardProps = {
   boardListId: string;
   parentItem: ParentItem;
+  index: number;
 } & StyledComponentProps<"div">;
 
 export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
-  Component: ({ boardListId, parentItem, children, ...otherProps }, ref) => {
-    const sortableConfig = useMemo<UseSortableArguments>(
-      () => ({
-        id: parentItem.id,
-        // disabled // TODO: isEditMode
-        data: {
-          customData: {
-            boardListId,
-            type: "parent",
-            item: parentItem,
-          },
-        } satisfies DndDataInterfaceCustomGeneric<"parent">,
-      }),
-      [boardListId, parentItem],
-    );
+  Component: (
+    { boardListId, parentItem, index, children, ...otherProps },
+    ref,
+  ) => {
+    // const sortableConfig = useMemo<UseSortableArguments>(
+    //   () => ({
+    //     id: parentItem.id,
+    //     // disabled // TODO: isEditMode
+    //     data: {
+    //       customData: {
+    //         boardListId,
+    //         type: "parent",
+    //         item: parentItem,
+    //       },
+    //     } satisfies DndDataInterfaceCustomGeneric<"parent">,
+    //   }),
+    //   [boardListId, parentItem],
+    // );
 
-    const {
-      isDragging,
-      setNodeRef,
-      setActivatorNodeRef,
-      attributes: draggableHandleAttributes,
-      listeners: draggableHandleListeners,
-      transform,
-      transition,
-    } = useSortable(sortableConfig);
+    // const {
+    //   isDragging,
+    //   setNodeRef,
+    //   setActivatorNodeRef,
+    //   attributes: draggableHandleAttributes,
+    //   listeners: draggableHandleListeners,
+    //   transform,
+    //   transition,
+    // } = useSortable(sortableConfig);
 
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
 
-    const callbackRef = useCallback(
-      (el: HTMLDivElement | null) => {
-        refBase.current = el;
-        setNodeRef(el);
-      },
-      [setNodeRef],
-    );
+    // const callbackRef = useCallback(
+    //   (el: HTMLDivElement | null) => {
+    //     refBase.current = el;
+    //     setNodeRef(el);
+    //   },
+    //   [setNodeRef],
+    // );
 
-    const boardContextValue = useMemo<BoardContextValue>(
-      () => ({
-        setActivatorNodeRef,
-        draggableHandleAttributes,
-        draggableHandleListeners,
-      }),
-      [
-        draggableHandleAttributes,
-        draggableHandleListeners,
-        setActivatorNodeRef,
-      ],
-    );
+    // const boardContextValue = useMemo<BoardContextValue>(
+    //   () => ({
+    //     setActivatorNodeRef,
+    //     draggableHandleAttributes,
+    //     draggableHandleListeners,
+    //   }),
+    //   [
+    //     draggableHandleAttributes,
+    //     draggableHandleListeners,
+    //     setActivatorNodeRef,
+    //   ],
+    // );
 
-    const style = useMemo(
-      () => ({
-        transition: "none",
-        transform: CSS.Transform.toString(transform),
-      }),
-      [transform],
-    );
+    // const style = useMemo(
+    //   () => ({
+    //     transition: "none",
+    //     transform: CSS.Transform.toString(transform),
+    //   }),
+    //   [transform],
+    // );
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
       "data-draggable-id": parentItem.id,
     };
 
     return (
-      <BoardContextProvider value={boardContextValue}>
-        <BoardBase
-          ref={callbackRef}
-          style={style}
-          {...draggableCustomAttributes}
-          {...otherProps}
-        >
-          {children}
-        </BoardBase>
-      </BoardContextProvider>
+      <Draggable draggableId={parentItem.id} index={index}>
+        {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
+          // if (
+          //   draggableStateSnapshot.isDragging &&
+          //   draggableProvided.draggableProps.style
+          // ) {
+          //   draggableProvided.draggableProps.style.left =
+          //     draggableProvided.draggableProps.style.offsetLeft;
+          //   draggableProvided.draggableProps.style.top =
+          //     draggableProvided.draggableProps.style.offsetTop;
+          // }
+          // console.log(draggableStateSnapshot);
+          // (draggableProvided.draggableProps.style as CSSProperties).marginLeft =
+          //   draggableStateSnapshot.isDragging ? 10 : 0;
+
+          return (
+            <BoardBase
+              ref={draggableProvided.innerRef}
+              isDragging={draggableStateSnapshot.isDragging}
+              {...draggableProvided.draggableProps}
+              {...draggableProvided.dragHandleProps}
+              // ref={callbackRef}
+              {...draggableCustomAttributes}
+              {...otherProps}
+            >
+              {children}
+            </BoardBase>
+          );
+        }}
+      </Draggable>
     );
   },
 });

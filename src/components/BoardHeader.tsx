@@ -92,8 +92,8 @@ export const BoardHeaderDragHandle = withMemoAndRef<
   Component: ({ boardListId, parentItemId, ...otherProps }, ref) => {
     const {
       setActivatorNodeRef,
-      draggableHandleAttributes,
-      draggableHandleListeners,
+      // draggableHandleAttributes,
+      // draggableHandleListeners,
     } = useContext(BoardContext);
 
     const refBase = useRef<HTMLDivElement | null>(null);
@@ -118,8 +118,8 @@ export const BoardHeaderDragHandle = withMemoAndRef<
     return (
       <BoardHeaderDragHandleBase
         ref={callbackRef}
-        {...draggableHandleAttributes}
-        {...draggableHandleListeners}
+        // {...draggableHandleAttributes}
+        // {...draggableHandleListeners}
         {...draggableHandleCustomAttributes}
         {...otherProps}
       >

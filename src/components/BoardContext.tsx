@@ -6,124 +6,110 @@ import {
   useRecoilState,
 } from "recoil";
 import { recoilPersist } from "recoil-persist";
-import {
-  ClientRect,
-  closestCenter,
-  closestCorners,
-  Collision,
-  CollisionDescriptor,
-  CollisionDetection,
-  DraggableAttributes,
-  DroppableContainer,
-  pointerWithin,
-  rectIntersection,
-  UniqueIdentifier,
-} from "@dnd-kit/core";
-import { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import { NestedIndexer, NestedIndexerBaseItem } from "@/indexer";
 import { createKeyValueMapping, SmartMerge } from "@/utils";
 
-function sortCollisions({ order }: { order: "ascending" | "descending" }) {
-  return (
-    { data: { value: a } }: CollisionDescriptor,
-    { data: { value: b } }: CollisionDescriptor,
-  ) => {
-    return order === "ascending"
-      ? a - b
-      : order === "descending"
-        ? b - a
-        : a - b;
-  };
-}
+// function sortCollisions({ order }: { order: "ascending" | "descending" }) {
+//   return (
+//     { data: { value: a } }: CollisionDescriptor,
+//     { data: { value: b } }: CollisionDescriptor,
+//   ) => {
+//     return order === "ascending"
+//       ? a - b
+//       : order === "descending"
+//         ? b - a
+//         : a - b;
+//   };
+// }
 
-// import { getIntersectionRatio } from "@dnd-kit/core/dist/utilities/algorithms/rectIntersection";
-// ㄴ File not exists error
-// https://github.com/clauderic/dnd-kit/issues/1198#issuecomment-1734036277
-function getIntersectionRatio(rect1: ClientRect, rect2: ClientRect): number {
-  const xOverlap = Math.max(
-    0,
-    Math.min(rect1.right, rect2.right) - Math.max(rect1.left, rect2.left),
-  );
-  const yOverlap = Math.max(
-    0,
-    Math.min(rect1.bottom, rect2.bottom) - Math.max(rect1.top, rect2.top),
-  );
+// // import { getIntersectionRatio } from "@dnd-kit/core/dist/utilities/algorithms/rectIntersection";
+// // ㄴ File not exists error
+// // https://github.com/clauderic/dnd-kit/issues/1198#issuecomment-1734036277
+// function getIntersectionRatio(rect1: ClientRect, rect2: ClientRect): number {
+//   const xOverlap = Math.max(
+//     0,
+//     Math.min(rect1.right, rect2.right) - Math.max(rect1.left, rect2.left),
+//   );
+//   const yOverlap = Math.max(
+//     0,
+//     Math.min(rect1.bottom, rect2.bottom) - Math.max(rect1.top, rect2.top),
+//   );
 
-  const intersectionArea = xOverlap * yOverlap;
-  const rect1Area = rect1.width * rect1.height;
+//   const intersectionArea = xOverlap * yOverlap;
+//   const rect1Area = rect1.width * rect1.height;
 
-  return rect1Area > 0 ? intersectionArea / rect1Area : 0;
-}
+//   return rect1Area > 0 ? intersectionArea / rect1Area : 0;
+// }
 
-let lastCollisionId: UniqueIdentifier | null = null;
+// let lastCollisionId: UniqueIdentifier | null = null;
 
-export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
-  const {
-    droppableContainers,
-    droppableRects,
-    collisionRect,
-    active,
-    pointerCoordinates,
-  } = args;
-  // console.log(droppableContainers);
-  // console.log(args);
+// export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
+//   const {
+//     droppableContainers,
+//     droppableRects,
+//     collisionRect,
+//     active,
+//     pointerCoordinates,
+//   } = args;
+//   // console.log(droppableContainers);
+//   // console.log(args);
 
-  const droppables: DroppableContainer[] = [];
-  // const collisions: Collision | CollisionDescriptor[] = [];
-  for (const droppable of droppableContainers) {
-    const { id: droppableId } = droppable;
-    const rect = droppableRects.get(droppableId);
-    if (!rect) {
-      continue;
-    }
-    const intersectionRatio = getIntersectionRatio(rect, collisionRect);
-    if (intersectionRatio > 0) {
-      // collisions.push({
-      //   id: droppableId,
-      //   data: {
-      //     droppableContainer: droppable,
-      //     value: intersectionRatio,
-      //   },
-      // } satisfies CollisionDescriptor);
-      droppables.push(droppable);
-    }
-  }
+//   const droppables: DroppableContainer[] = [];
+//   // const collisions: Collision | CollisionDescriptor[] = [];
+//   for (const droppable of droppableContainers) {
+//     const { id: droppableId } = droppable;
+//     const rect = droppableRects.get(droppableId);
+//     if (!rect) {
+//       continue;
+//     }
+//     const intersectionRatio = getIntersectionRatio(rect, collisionRect);
+//     if (intersectionRatio > 0) {
+//       // collisions.push({
+//       //   id: droppableId,
+//       //   data: {
+//       //     droppableContainer: droppable,
+//       //     value: intersectionRatio,
+//       //   },
+//       // } satisfies CollisionDescriptor);
+//       droppables.push(droppable);
+//     }
+//   }
 
-  const closestCornersCollisions = !droppables.length
-    ? (closestCorners(args) as CollisionDescriptor[])
-    : (closestCorners({
-        collisionRect,
-        droppableRects,
-        droppableContainers: droppables,
-        active,
-        pointerCoordinates,
-      }) as CollisionDescriptor[]);
+//   const closestCornersCollisions = !droppables.length
+//     ? (closestCorners(args) as CollisionDescriptor[])
+//     : (closestCorners({
+//         collisionRect,
+//         droppableRects,
+//         droppableContainers: droppables,
+//         active,
+//         pointerCoordinates,
+//       }) as CollisionDescriptor[]);
 
-  closestCornersCollisions.sort(sortCollisions({ order: "ascending" }));
+//   closestCornersCollisions.sort(sortCollisions({ order: "ascending" }));
 
-  // console.log(droppables.map((droppable) => droppable.id));
-  console.log(closestCornersCollisions.map((collision) => collision.id));
-  console.log(closestCornersCollisions[0].data.value);
-  console.log(closestCornersCollisions[1].data.value);
-  console.log(lastCollisionId);
-  console.log(active.id);
+//   // console.log(droppables.map((droppable) => droppable.id));
+//   console.log(closestCornersCollisions.map((collision) => collision.id));
+//   console.log(closestCornersCollisions[0].data.value);
+//   console.log(closestCornersCollisions[1].data.value);
+//   console.log(lastCollisionId);
+//   console.log(active.id);
 
-  // if (
-  //   closestCornersCollisions.length > 0 &&
-  //   closestCornersCollisions[0].id === lastCollisionId
-  // ) {
-  //   closestCornersCollisions.shift();
-  //   return [];
-  // }
+//   // if (
+//   //   closestCornersCollisions.length > 0 &&
+//   //   closestCornersCollisions[0].id === lastCollisionId
+//   // ) {
+//   //   closestCornersCollisions.shift();
+//   //   return [];
+//   // }
 
-  if (closestCornersCollisions.length > 0) {
-    lastCollisionId = closestCornersCollisions[0].id;
-  }
+//   if (closestCornersCollisions.length > 0) {
+//     lastCollisionId = closestCornersCollisions[0].id;
+//   }
 
-  // console.log(closestCornersCollisions);
-  return closestCornersCollisions;
-};
+//   // console.log(closestCornersCollisions);
+//   return closestCornersCollisions;
+// };
 
 ///////////////////////////////////////////
 // `droppableContainers[0]`
@@ -153,31 +139,31 @@ export const customCollisionDetectionAlgorithm: CollisionDetection = (args) => {
 //   width: 248
 // droppableRects: Map(13) {'ffbde292-895d-47c8-bd6d-da6fe93dc946' => Rect, '7c1ff38e-d7de-4093-bcda-16fcfd1644d0' => Rect, '1288c3bd-5a96-46cd-8eb8-28d191f11da9' => Rect, '16def70c-2057-4ad5-9261-cb833728f30a' => Rect, '0cd50106-6130-4da0-b0a0-39e0496da2ca' => Rect, …}
 // pointerCoordinates: {x: 58, y: 295}
-export const customCollisionDetectionAlgorithm2: CollisionDetection = ({
-  droppableContainers,
-  ...args
-}) => {
-  // console.log(droppableContainers);
-  console.log(args);
+// export const customCollisionDetectionAlgorithm2: CollisionDetection = ({
+//   droppableContainers,
+//   ...args
+// }) => {
+//   // console.log(droppableContainers);
+//   console.log(args);
 
-  // First, let's see if the `trash` droppable rect is intersecting
-  const rectIntersectionCollisions = rectIntersection({
-    ...args,
-    droppableContainers: droppableContainers.filter(({ id }) => id === "trash"),
-  });
+//   // First, let's see if the `trash` droppable rect is intersecting
+//   const rectIntersectionCollisions = rectIntersection({
+//     ...args,
+//     droppableContainers: droppableContainers.filter(({ id }) => id === "trash"),
+//   });
 
-  // Collision detection algorithms return an array of collisions
-  if (rectIntersectionCollisions.length > 0) {
-    // The trash is intersecting, return early
-    return rectIntersectionCollisions;
-  }
+//   // Collision detection algorithms return an array of collisions
+//   if (rectIntersectionCollisions.length > 0) {
+//     // The trash is intersecting, return early
+//     return rectIntersectionCollisions;
+//   }
 
-  // Compute other collisions
-  return closestCorners({
-    ...args,
-    droppableContainers: droppableContainers.filter(({ id }) => id !== "trash"),
-  });
-};
+//   // Compute other collisions
+//   return closestCorners({
+//     ...args,
+//     droppableContainers: droppableContainers.filter(({ id }) => id !== "trash"),
+//   });
+// };
 
 ///////////////////////////////////////////
 
@@ -490,14 +476,14 @@ export function getDndContextInfoFromActivator({
 
 export type BoardContextValue = {
   setActivatorNodeRef: ((el: HTMLElement | null) => void) | undefined;
-  draggableHandleAttributes: DraggableAttributes | undefined;
-  draggableHandleListeners: SyntheticListenerMap | undefined;
+  // draggableHandleAttributes: DraggableAttributes | undefined;
+  // draggableHandleListeners: SyntheticListenerMap | undefined;
 };
 
 export const BoardContext = createContext<BoardContextValue>({
   setActivatorNodeRef: undefined,
-  draggableHandleAttributes: undefined,
-  draggableHandleListeners: undefined,
+  // draggableHandleAttributes: undefined,
+  // draggableHandleListeners: undefined,
 });
 
 export const BoardContextProvider = ({
@@ -516,14 +502,14 @@ export const BoardContextProvider = ({
 
 export type CardContextValue = {
   setActivatorNodeRef: ((el: HTMLElement | null) => void) | undefined;
-  draggableHandleAttributes: DraggableAttributes | undefined;
-  draggableHandleListeners: SyntheticListenerMap | undefined;
+  // draggableHandleAttributes: DraggableAttributes | undefined;
+  // draggableHandleListeners: SyntheticListenerMap | undefined;
 };
 
 export const CardContext = createContext<CardContextValue>({
   setActivatorNodeRef: undefined,
-  draggableHandleAttributes: undefined,
-  draggableHandleListeners: undefined,
+  // draggableHandleAttributes: undefined,
+  // draggableHandleListeners: undefined,
 });
 
 export const CardContextProvider = ({

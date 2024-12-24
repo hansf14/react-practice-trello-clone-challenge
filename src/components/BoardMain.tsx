@@ -18,20 +18,13 @@ import { Input } from "antd";
 import { CssScrollbar } from "@/csses/scrollbar";
 import {
   ChildItem,
-  DndDataInterfaceCustomGeneric,
-  DraggableCustomAttributesKvObj,
   DroppableCustomAttributesKvObj,
   ParentItem,
   ScrollContainerCustomAttributesKvObj,
   serializeAllowedTypes,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS, Transform } from "@dnd-kit/utilities";
-import { DraggableAttributes } from "@dnd-kit/core";
+import { Droppable } from "@hello-pangea/dnd";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
@@ -67,7 +60,6 @@ const BoardMainContent = styled.div`
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
 
   &::-webkit-scrollbar {
     padding-right: 10px;
@@ -305,23 +297,25 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
     return (
       <BoardMainBase ref={ref} {...otherProps}>
         <BoardMainContentContainer>
-          <BoardMainContent
-            {...scrollContainerCustomAttributes}
-            {...droppableCustomAttributes}
+          <Droppable
+            droppableId={parentItem.id}
+            direction="vertical"
+            type="child"
           >
-            {/* <SortableContext
-              id={parentItem.id}
-              items={childIdList}
-              strategy={
-                // rectSortingStrategy
-                verticalListSortingStrategy
-              }
-            > */}
-            {children}
-            {/* <BoardMainContentPlaceholderBase /> */}
-            {/* <BoardMainContentPlaceholder parentItemId={parentItem.id} /> */}
-            {/* </SortableContext> */}
-          </BoardMainContent>
+            {(droppableProvided, droppableStateSnapshot) => {
+              return (
+                <BoardMainContent
+                  ref={droppableProvided.innerRef}
+                  {...droppableProvided.droppableProps}
+                  {...droppableCustomAttributes}
+                  {...scrollContainerCustomAttributes}
+                >
+                  {children}
+                  {droppableProvided.placeholder}
+                </BoardMainContent>
+              );
+            }}
+          </Droppable>
         </BoardMainContentContainer>
         <Toolbar>
           <ChildItemAdder

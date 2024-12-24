@@ -18,8 +18,6 @@ import {
 } from "@/components/BoardContext";
 import { SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { CSS, Transform } from "@dnd-kit/utilities";
-import { useSortable, UseSortableArguments } from "@dnd-kit/sortable";
 import {
   OnEditCancel,
   OnEditChange,
@@ -29,8 +27,13 @@ import {
   TextAreaHandle,
   useTextArea,
 } from "@/components/TextArea";
+import { Draggable } from "@hello-pangea/dnd";
 
 const CardInternalBase = styled.div`
+  &:not(:last-child) {
+    margin-bottom: 10px;
+  }
+
   padding: 10px;
   background-color: rgba(255, 255, 255, 0.45);
 `;
@@ -61,8 +64,8 @@ export const CardDragHandle = withMemoAndRef<
   Component: ({ boardListId, childItemId, ...otherProps }, ref) => {
     const {
       setActivatorNodeRef,
-      draggableHandleAttributes,
-      draggableHandleListeners,
+      // draggableHandleAttributes,
+      // draggableHandleListeners,
     } = useContext(CardContext);
 
     const refBase = useRef<HTMLDivElement | null>(null);
@@ -87,8 +90,8 @@ export const CardDragHandle = withMemoAndRef<
     return (
       <CardDragHandleBase
         ref={callbackRef}
-        {...draggableHandleAttributes}
-        {...draggableHandleListeners}
+        // {...draggableHandleAttributes}
+        // {...draggableHandleListeners}
         {...draggableHandleCustomAttributes}
         {...otherProps}
       >
@@ -111,6 +114,7 @@ export type OnUpdateChildItem = <C extends ChildItem>({
 export type CardProps = {
   boardListId: string;
   childItem: ChildItem;
+  index: number;
   onEditStartItem?: OnEditStart;
   onEditCancelItem?: OnEditCancel;
   onEditChangeItem?: OnEditChange;
@@ -123,6 +127,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     {
       boardListId,
       childItem,
+      index,
       onEditStartItem,
       onEditCancelItem,
       onEditChangeItem,
@@ -131,82 +136,82 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     },
     ref,
   ) => {
-    const sortableConfig = useMemo<UseSortableArguments>(
-      () => ({
-        id: childItem.id,
-        // disabled // TODO: isEditMode
-        data: {
-          customData: {
-            boardListId,
-            type: "child",
-            item: childItem,
-          },
-        } satisfies DndDataInterfaceCustomGeneric<"child">,
-      }),
-      [boardListId, childItem],
-    );
+    // const sortableConfig = useMemo<UseSortableArguments>(
+    //   () => ({
+    //     id: childItem.id,
+    //     // disabled // TODO: isEditMode
+    //     data: {
+    //       customData: {
+    //         boardListId,
+    //         type: "child",
+    //         item: childItem,
+    //       },
+    //     } satisfies DndDataInterfaceCustomGeneric<"child">,
+    //   }),
+    //   [boardListId, childItem],
+    // );
 
-    const {
-      isDragging,
-      setNodeRef,
-      setActivatorNodeRef,
-      attributes: draggableHandleAttributes,
-      listeners: draggableHandleListeners,
-      transform: _transform,
-      transition,
-    } = useSortable(sortableConfig);
+    // const {
+    //   isDragging,
+    //   setNodeRef,
+    //   setActivatorNodeRef,
+    //   attributes: draggableHandleAttributes,
+    //   listeners: draggableHandleListeners,
+    //   transform: _transform,
+    //   transition,
+    // } = useSortable(sortableConfig);
 
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
 
-    const callbackRef = useCallback(
-      (el: HTMLDivElement | null) => {
-        refBase.current = el;
-        setNodeRef(el);
-      },
-      [setNodeRef],
-    );
+    // const callbackRef = useCallback(
+    //   (el: HTMLDivElement | null) => {
+    //     refBase.current = el;
+    //     setNodeRef(el);
+    //   },
+    //   [setNodeRef],
+    // );
 
-    const cardContextValue = useMemo<CardContextValue>(
-      () => ({
-        setActivatorNodeRef,
-        draggableHandleAttributes,
-        draggableHandleListeners,
-      }),
-      [
-        draggableHandleAttributes,
-        draggableHandleListeners,
-        setActivatorNodeRef,
-      ],
-    );
+    // const cardContextValue = useMemo<CardContextValue>(
+    //   () => ({
+    //     setActivatorNodeRef,
+    //     draggableHandleAttributes,
+    //     draggableHandleListeners,
+    //   }),
+    //   [
+    //     draggableHandleAttributes,
+    //     draggableHandleListeners,
+    //     setActivatorNodeRef,
+    //   ],
+    // );
 
-    const transform: Transform = useMemo(
-      () => ({
-        ...((_transform ?? {}) as Transform),
-        scaleX: 1,
-        scaleY: 1,
-      }),
-      [_transform],
-    );
+    // const transform: Transform = useMemo(
+    //   () => ({
+    //     ...((_transform ?? {}) as Transform),
+    //     scaleX: 1,
+    //     scaleY: 1,
+    //   }),
+    //   [_transform],
+    // );
 
-    const style = useMemo(
-      () => ({
-        transition,
-        // transition: "none",
-        // transition: {
-        //   duration: 150,
-        //   easing: "cubic-bezier(0.25, 1, 0.5, 1)",
-        // },
-        // transform: undefined,
-        transform: CSS.Transform.toString(transform),
-        // transform: transform && {
-        //   transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        // },
-      }),
-      [transition, transform],
-    );
+    // const style = useMemo(
+    //   () => ({
+    //     transition,
+    //     // transition: "none",
+    //     // transition: {
+    //     //   duration: 150,
+    //     //   easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+    //     // },
+    //     // transform: undefined,
+    //     transform: CSS.Transform.toString(transform),
+    //     // transform: transform && {
+    //     //   transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    //     // },
+    //   }),
+    //   [transition, transform],
+    // );
 
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
@@ -259,16 +264,25 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     );
 
     return (
-      <CardContextProvider value={cardContextValue}>
-        <CardInternalBase
-          ref={callbackRef}
-          style={style}
-          {...draggableCustomAttributes}
-          {...otherProps}
-        >
-          {children}
-        </CardInternalBase>
-      </CardContextProvider>
+      // <CardContextProvider value={cardContextValue}>
+      <Draggable draggableId={childItem.id} index={index}>
+        {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
+          return (
+            <CardInternalBase
+              // ref={callbackRef}
+              // style={style}
+              ref={draggableProvided.innerRef}
+              {...draggableProvided.draggableProps}
+              {...draggableProvided.dragHandleProps}
+              {...draggableCustomAttributes}
+              {...otherProps}
+            >
+              {children}
+            </CardInternalBase>
+          );
+        }}
+      </Draggable>
+      // </CardContextProvider>
     );
   },
 });

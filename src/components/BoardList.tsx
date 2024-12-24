@@ -28,38 +28,16 @@ import {
   BoardListContextValue,
   BoardListContextParams,
   useBoardContext,
-  customCollisionDetectionAlgorithm,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import {
-  closestCorners,
-  defaultDropAnimationSideEffects,
-  DndContext,
-  DragEndEvent,
-  DragMoveEvent,
-  DragOverEvent,
-  DragOverlay,
-  DragStartEvent,
-  Modifier,
-  useSensor,
-  useSensors,
-  MouseSensor, // as MouseSensorBase,
-  TouchSensor,
-  // KeyboardSensor, // as KeyboardSensorBase,
-} from "@dnd-kit/core";
-import {
-  horizontalListSortingStrategy,
-  rectSortingStrategy,
-  rectSwappingStrategy,
-  SortableContext,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import {
-  restrictToHorizontalAxis,
-  restrictToWindowEdges,
-} from "@dnd-kit/modifiers";
 import { createPortal } from "react-dom";
 import { DragScrollSpeed, useDragScroll } from "@/hooks/useDragScroll";
+import {
+  DragDropContext,
+  Draggable,
+  Droppable,
+  OnDragUpdateResponder,
+} from "@hello-pangea/dnd";
 
 // // https://github.com/clauderic/dnd-kit/issues/477#issuecomment-985194908
 // https://github.com/clauderic/dnd-kit/discussions/1493
@@ -123,22 +101,29 @@ type BoardListDropAreaProps = {
 const BoardListDropArea = styled.div.withConfig({
   shouldForwardProp: (prop) => !["isDropTarget"].includes(prop),
 })<BoardListDropAreaProps>`
-  width: max-content;
+  width: 100%;
+  height: 100%;
+
+  padding: 10px;
+`;
+// ${({ isDropTarget }) =>
+//   (isDropTarget ?? false)
+//     ? css`
+//         background-color: rgb(0, 0, 0, 0.5);
+//       `
+//     : ""}
+
+const BoardListDropAreaMinusMargin = styled.div`
+  margin: 0 -5px;
+  // ㄴ To deduct the flex item's margin
+
+  width: 100%;
   height: 100%;
 
   display: flex;
   justify-content: stretch;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
   border-radius: 10px;
-
-  ${({ isDropTarget }) =>
-    (isDropTarget ?? false)
-      ? css`
-          background-color: rgb(0, 0, 0, 0.5);
-        `
-      : ""}
 `;
 
 /* &.${boardClassNameKvMapping["board-sortable-handle"]} {
@@ -186,292 +171,204 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       setStateBoardListContext,
     } = useBoardContext(boardListContextParams);
 
-    const onDragStart = useCallback(
-      (event: DragStartEvent) => {
-        // console.log("[onDragStart]");
-        // console.log(event);
+    // const onDragStart = useCallback(
+    //   (event: DragStartEvent) => {
+    //     // console.log("[onDragStart]");
+    //     // console.log(event);
 
-        setIsDragging(true);
+    //     setIsDragging(true);
 
-        if (event.active.data.current) {
-          const activator = event.activatorEvent.target as HTMLElement | null;
-          if (!activator) {
-            return;
-          }
+    //     if (event.active.data.current) {
+    //       const activator = event.activatorEvent.target as HTMLElement | null;
+    //       if (!activator) {
+    //         return;
+    //       }
 
-          const { draggableElement: draggable } =
-            getDndContextInfoFromActivator({
-              boardListId,
-              activator,
-            });
-          if (!draggable) {
-            return;
-          }
+    //       const { draggableElement: draggable } =
+    //         getDndContextInfoFromActivator({
+    //           boardListId,
+    //           activator,
+    //         });
+    //       if (!draggable) {
+    //         return;
+    //       }
 
-          const draggableClone = draggable.cloneNode(true) as HTMLElement;
-          draggableClone.setAttribute(
-            DragOverlayCustomAttributesKvMapping["data-drag-overlay"],
-            "true",
-          );
-          // console.log(draggableClone);
+    //       const draggableClone = draggable.cloneNode(true) as HTMLElement;
+    //       draggableClone.setAttribute(
+    //         DragOverlayCustomAttributesKvMapping["data-drag-overlay"],
+    //         "true",
+    //       );
+    //       // console.log(draggableClone);
 
-          refDragOverlayReactElement.current = parse(
-            draggableClone.outerHTML,
-          ) as React.ReactElement;
-          refDragOverlayReactElement.current = React.cloneElement(
-            refDragOverlayReactElement.current,
-            {
-              style: {
-                width: draggable.offsetWidth,
-                height: draggable.offsetHeight,
-                cursor: "grabbing",
-                opacity: "1",
-              } satisfies React.CSSProperties,
-            },
-          );
+    //       refDragOverlayReactElement.current = parse(
+    //         draggableClone.outerHTML,
+    //       ) as React.ReactElement;
+    //       refDragOverlayReactElement.current = React.cloneElement(
+    //         refDragOverlayReactElement.current,
+    //         {
+    //           style: {
+    //             width: draggable.offsetWidth,
+    //             height: draggable.offsetHeight,
+    //             cursor: "grabbing",
+    //             opacity: "1",
+    //           } satisfies React.CSSProperties,
+    //         },
+    //       );
 
-          const activeDataUnknown = event.active.data
-            .current as DndDataInterfaceCustom;
-          if (isParentItemData(activeDataUnknown)) {
-            const activeDataParent = activeDataUnknown;
-            setStateActiveParentItem(activeDataParent.customData.item);
-          } else if (isChildItemData(activeDataUnknown)) {
-            const activeDataChild = activeDataUnknown;
-            setStateActiveChildItem(activeDataChild.customData.item);
-          } else {
-            console.warn("[onDragStart] invalid dndData.type");
-          }
-        }
-      },
-      [boardListId],
-    );
+    //       const activeDataUnknown = event.active.data
+    //         .current as DndDataInterfaceCustom;
+    //       if (isParentItemData(activeDataUnknown)) {
+    //         const activeDataParent = activeDataUnknown;
+    //         setStateActiveParentItem(activeDataParent.customData.item);
+    //       } else if (isChildItemData(activeDataUnknown)) {
+    //         const activeDataChild = activeDataUnknown;
+    //         setStateActiveChildItem(activeDataChild.customData.item);
+    //       } else {
+    //         console.warn("[onDragStart] invalid dndData.type");
+    //       }
+    //     }
+    //   },
+    //   [boardListId],
+    // );
 
-    // Update scroll direction on drag move
-    const onDragMove = useCallback(
-      ({ active, over, activatorEvent, delta, collisions }: DragMoveEvent) => {
-        // console.log("[onDragMove]");
+    // const onDragOver = useCallback(
+    //   (event: DragOverEvent) => {
+    //     console.log("[onDragOver]");
 
-        const pointerEvent = getCurPointerEvent();
-        if (!pointerEvent) {
-          return;
-        }
-        const { clientX, clientY } = pointerEvent;
-        const underlyingElements = document.elementsFromPoint(
-          clientX,
-          clientY,
-        ) as HTMLElement[];
+    //     const { active, over } = event;
+    //     // console.log("active:", active);
+    //     // console.log("over:", over);
+    //     if (!over) {
+    //       return;
+    //     }
+    //     const activeId = active.id;
+    //     const overId = over.id;
+    //     if (typeof activeId !== "string" || typeof overId !== "string") {
+    //       console.warn("[onDragOver] id should only be string.");
+    //       return;
+    //     }
+    //     if (activeId === overId) {
+    //       return;
+    //     }
+    //     console.log(activeId, overId);
 
-        const boardListIdAttribute =
-          ScrollContainerCustomAttributesKvMapping["data-board-list-id"];
-        const scrollContainerIdAttribute =
-          ScrollContainerCustomAttributesKvMapping["data-scroll-container-id"];
+    //     const activeData = isCustomItemData(active.data.current)
+    //       ? active.data.current
+    //       : null;
+    //     if (!activeData) {
+    //       return;
+    //     }
+    //     const overData = isCustomItemData(over.data.current)
+    //       ? over.data.current
+    //       : null;
+    //     if (!overData) {
+    //       return;
+    //     }
+    //     const {
+    //       draggableId: activeDraggableId,
+    //       droppableId: activeDroppableId,
+    //       indexOfDraggable: indexFrom,
+    //     } = getDndContextInfoFromData({
+    //       boardListContext: stateBoardListContext,
+    //       data: activeData,
+    //     });
+    //     let {
+    //       draggableId: overDraggableId,
+    //       droppableId: overDroppableId,
+    //       indexOfDraggable: indexTo,
+    //       parentAsDroppableOfChild,
+    //     } = getDndContextInfoFromData({
+    //       boardListContext: stateBoardListContext,
+    //       data: overData,
+    //     });
 
-        const scrollContainers = underlyingElements.filter(
-          (underlyingElement) => {
-            const underlyingElementBoardListId =
-              underlyingElement.getAttribute(boardListIdAttribute);
+    //     // console.group();
+    //     // console.log(activeDraggableId);
+    //     // console.log(activeDroppableId);
+    //     // console.log(indexFrom);
+    //     // console.log(overDraggableId);
+    //     // console.log(overDroppableId);
+    //     // console.log(indexTo);
+    //     // console.log(parentAsDroppableOfChild);
+    //     // console.groupEnd();
 
-            return (
-              underlyingElement.hasAttribute(boardListIdAttribute) &&
-              underlyingElementBoardListId === boardListId &&
-              underlyingElement.hasAttribute(scrollContainerIdAttribute)
-            );
-          },
-        );
+    //     if (
+    //       (!isParentItemData(activeData) && !isChildItemData(activeData)) ||
+    //       (!isParentItemData(overData) && !isChildItemData(overData)) ||
+    //       !activeDraggableId ||
+    //       !activeDroppableId ||
+    //       indexFrom < 0 ||
+    //       !overDraggableId ||
+    //       !overDroppableId ||
+    //       indexTo < 0 ||
+    //       (isParentItemData(overData) && !parentAsDroppableOfChild)
+    //     ) {
+    //       return;
+    //     }
 
-        scrollContainers.forEach(async (scrollContainer) => {
-          const scrollContainerId = scrollContainer.getAttribute(
-            ScrollContainerCustomAttributesKvMapping[
-              "data-scroll-container-id"
-            ],
-          );
+    //     if (isParentItemData(activeData) && isParentItemData(overData)) {
+    //       // https://github.com/clauderic/dnd-kit/issues/900#issuecomment-1845035824
+    //       // `startTransition` didn't work for 'Maximum update depth exceeded' error.
+    //       requestAnimationFrame(() => {
+    //         setStateBoardListContext((curBoardListContext) => {
+    //           const newBoardListContextIndexer = new BoardListContextIndexer(
+    //             curBoardListContext.indexer,
+    //           );
+    //           newBoardListContextIndexer.moveParent({
+    //             indexFrom,
+    //             indexTo,
+    //           });
+    //           return {
+    //             boardListId,
+    //             indexer: newBoardListContextIndexer,
+    //           };
+    //         });
+    //       });
+    //       return;
+    //     }
 
-          let scrollSpeed: DragScrollSpeed = {
-            top: 6,
-            bottom: 6,
-            left: 6,
-            right: 6,
-          };
-          let isDragScrollNeededForThisScrollContainer = false;
-          if (!scrollContainerId) {
-          } else if (scrollContainerId === boardListId) {
-            isDragScrollNeededForThisScrollContainer = await dragScroll({
-              scrollContainer: scrollContainer,
-              scrollSpeed,
-              desiredFps: 60,
-            });
+    //     if (isParentItemData(overData)) {
+    //       if (!parentAsDroppableOfChild) {
+    //         return;
+    //       }
+    //       overDroppableId = parentAsDroppableOfChild.droppableId;
+    //       indexTo = parentAsDroppableOfChild.droppableLength;
+    //       if (!overDroppableId || indexTo < 0) {
+    //         return;
+    //       }
+    //     }
 
-            // console.log(
-            //   scrollContainerId,
-            //   isDragScrollNeededForThisScrollContainer,
-            // );
-            if (isDragScrollNeededForThisScrollContainer) {
-              return;
-            }
-          } else {
-            scrollSpeed = {
-              top: 3,
-              bottom: 3,
-              left: 3,
-              right: 3,
-            };
-            isDragScrollNeededForThisScrollContainer = await dragScroll({
-              scrollContainer: scrollContainer,
-              scrollSpeed,
-              desiredFps: 60,
-            });
+    //     // console.group();
+    //     // console.log(
+    //     //   `Active: ${activeDraggableId} ${activeDroppableId} ${indexFrom}`,
+    //     // );
+    //     // console.log(`Over: ${overDraggableId} ${overDroppableId} ${indexTo}`);
+    //     // console.log((activeData as any).sortable.items);
+    //     // console.groupEnd();
 
-            // console.log(
-            //   scrollContainerId,
-            //   isDragScrollNeededForThisScrollContainer,
-            // );
-            if (isDragScrollNeededForThisScrollContainer) {
-              return;
-            }
-          }
-        });
-      },
-      [boardListId, dragScroll, getCurPointerEvent],
-    );
-
-    const onDragOver = useCallback(
-      (event: DragOverEvent) => {
-        console.log("[onDragOver]");
-
-        const { active, over } = event;
-        // console.log("active:", active);
-        // console.log("over:", over);
-        if (!over) {
-          return;
-        }
-        const activeId = active.id;
-        const overId = over.id;
-        if (typeof activeId !== "string" || typeof overId !== "string") {
-          console.warn("[onDragOver] id should only be string.");
-          return;
-        }
-        if (activeId === overId) {
-          return;
-        }
-        console.log(activeId, overId);
-
-        const activeData = isCustomItemData(active.data.current)
-          ? active.data.current
-          : null;
-        if (!activeData) {
-          return;
-        }
-        const overData = isCustomItemData(over.data.current)
-          ? over.data.current
-          : null;
-        if (!overData) {
-          return;
-        }
-        const {
-          draggableId: activeDraggableId,
-          droppableId: activeDroppableId,
-          indexOfDraggable: indexFrom,
-        } = getDndContextInfoFromData({
-          boardListContext: stateBoardListContext,
-          data: activeData,
-        });
-        let {
-          draggableId: overDraggableId,
-          droppableId: overDroppableId,
-          indexOfDraggable: indexTo,
-          parentAsDroppableOfChild,
-        } = getDndContextInfoFromData({
-          boardListContext: stateBoardListContext,
-          data: overData,
-        });
-
-        // console.group();
-        // console.log(activeDraggableId);
-        // console.log(activeDroppableId);
-        // console.log(indexFrom);
-        // console.log(overDraggableId);
-        // console.log(overDroppableId);
-        // console.log(indexTo);
-        // console.log(parentAsDroppableOfChild);
-        // console.groupEnd();
-
-        if (
-          (!isParentItemData(activeData) && !isChildItemData(activeData)) ||
-          (!isParentItemData(overData) && !isChildItemData(overData)) ||
-          !activeDraggableId ||
-          !activeDroppableId ||
-          indexFrom < 0 ||
-          !overDraggableId ||
-          !overDroppableId ||
-          indexTo < 0 ||
-          (isParentItemData(overData) && !parentAsDroppableOfChild)
-        ) {
-          return;
-        }
-
-        if (isParentItemData(activeData) && isParentItemData(overData)) {
-          // https://github.com/clauderic/dnd-kit/issues/900#issuecomment-1845035824
-          // `startTransition` didn't work for 'Maximum update depth exceeded' error.
-          requestAnimationFrame(() => {
-            setStateBoardListContext((curBoardListContext) => {
-              const newBoardListContextIndexer = new BoardListContextIndexer(
-                curBoardListContext.indexer,
-              );
-              newBoardListContextIndexer.moveParent({
-                indexFrom,
-                indexTo,
-              });
-              return {
-                boardListId,
-                indexer: newBoardListContextIndexer,
-              };
-            });
-          });
-          return;
-        }
-
-        if (isParentItemData(overData)) {
-          if (!parentAsDroppableOfChild) {
-            return;
-          }
-          overDroppableId = parentAsDroppableOfChild.droppableId;
-          indexTo = parentAsDroppableOfChild.droppableLength;
-          if (!overDroppableId || indexTo < 0) {
-            return;
-          }
-        }
-
-        // console.group();
-        // console.log(
-        //   `Active: ${activeDraggableId} ${activeDroppableId} ${indexFrom}`,
-        // );
-        // console.log(`Over: ${overDraggableId} ${overDroppableId} ${indexTo}`);
-        // console.log((activeData as any).sortable.items);
-        // console.groupEnd();
-
-        if (activeDroppableId !== overDroppableId) {
-          requestAnimationFrame(() => {
-            setStateBoardListContext((curBoardListContext) => {
-              const newBoardListContextIndexer = new BoardListContextIndexer(
-                curBoardListContext.indexer,
-              );
-              newBoardListContextIndexer.moveChild({
-                parentIdFrom: activeDroppableId,
-                parentIdTo: overDroppableId,
-                indexFrom: indexFrom,
-                indexTo: indexTo,
-                shouldKeepRef: false,
-              });
-              return {
-                boardListId,
-                indexer: newBoardListContextIndexer,
-              };
-            });
-          });
-        }
-      },
-      [boardListId, stateBoardListContext, setStateBoardListContext],
-    );
+    //     if (activeDroppableId !== overDroppableId) {
+    //       requestAnimationFrame(() => {
+    //         setStateBoardListContext((curBoardListContext) => {
+    //           const newBoardListContextIndexer = new BoardListContextIndexer(
+    //             curBoardListContext.indexer,
+    //           );
+    //           newBoardListContextIndexer.moveChild({
+    //             parentIdFrom: activeDroppableId,
+    //             parentIdTo: overDroppableId,
+    //             indexFrom: indexFrom,
+    //             indexTo: indexTo,
+    //             shouldKeepRef: false,
+    //           });
+    //           return {
+    //             boardListId,
+    //             indexer: newBoardListContextIndexer,
+    //           };
+    //         });
+    //       });
+    //     }
+    //   },
+    //   [boardListId, stateBoardListContext, setStateBoardListContext],
+    // );
 
     // function handleDragOver(event) {
     //   const { active, over, draggingRect } = event;
@@ -530,80 +427,62 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     //   });
     // }
 
-    const onDragEnd = useCallback(
-      (event: DragEndEvent) => {
-        console.log("[onDragEnd]");
+    // const onDragEnd = useCallback(
+    //   (event: DragEndEvent) => {
+    //     console.log("[onDragEnd]");
 
-        setIsDragging(false);
+    //     setIsDragging(false);
 
-        setStateActiveParentItem(null);
-        setStateActiveChildItem(null);
-        refDragOverlayReactElement.current = null;
+    //     setStateActiveParentItem(null);
+    //     setStateActiveChildItem(null);
+    //     refDragOverlayReactElement.current = null;
 
-        // const { active, over } = event;
-        // // console.log(event);
-        // // console.log("active:", active);
-        // // console.log("over:", over);
+    //     // const { active, over } = event;
+    //     // // console.log(event);
+    //     // // console.log("active:", active);
+    //     // // console.log("over:", over);
 
-        // if (!over) {
-        //   return;
-        // }
+    //     // if (!over) {
+    //     //   return;
+    //     // }
 
-        // const activeId = active.id;
-        // const overId = over.id;
-        // if (typeof activeId !== "string" || typeof overId !== "string") {
-        //   console.warn("[onDragOver] id should only be string.");
-        //   return;
-        // }
+    //     // const activeId = active.id;
+    //     // const overId = over.id;
+    //     // if (typeof activeId !== "string" || typeof overId !== "string") {
+    //     //   console.warn("[onDragOver] id should only be string.");
+    //     //   return;
+    //     // }
 
-        // const activeDataUnknown = active.data
-        //   .current as DndDataInterfaceUnknown;
-        // const overDataUnknown = over.data.current as DndDataInterfaceUnknown;
-        // if (!activeDataUnknown || !overDataUnknown || activeId === overId) {
-        //   return;
-        // }
+    //     // const activeDataUnknown = active.data
+    //     //   .current as DndDataInterfaceUnknown;
+    //     // const overDataUnknown = over.data.current as DndDataInterfaceUnknown;
+    //     // if (!activeDataUnknown || !overDataUnknown || activeId === overId) {
+    //     //   return;
+    //     // }
 
-        // if (
-        //   isParentItemData(activeDataUnknown) &&
-        //   isParentItemData(overDataUnknown)
-        // ) {
-        //   const activeData = activeDataUnknown;
-        //   const overData = overDataUnknown;
+    //     // if (
+    //     //   isParentItemData(activeDataUnknown) &&
+    //     //   isParentItemData(overDataUnknown)
+    //     // ) {
+    //     //   const activeData = activeDataUnknown;
+    //     //   const overData = overDataUnknown;
 
-        //   const idxFrom = activeData.sortable.index;
-        //   const idxTo = overData.sortable.index;
-        //   setStateNestedIndexer((curNestedIndexer) => {
-        //     const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
-        //       curNestedIndexer,
-        //     );
-        //     newNestedIndexer.moveParent({
-        //       idxFrom,
-        //       idxTo,
-        //     });
-        //     return newNestedIndexer;
-        //   });
-        // }
-      },
-      [setStateBoardListContext],
-    );
-
-    const sensors = useSensors(
-      useSensor(MouseSensor, {
-        // activationConstraint: {
-        //   distance: 3,
-        //   // ㄴ Need to move 3px to activate drag event.
-        // },
-      }),
-      useSensor(TouchSensor, {
-        // activationConstraint: {
-        //   distance: 3,
-        //   // ㄴ Need to move 3px to activate drag event.
-        // },
-      }),
-      // useSensor(KeyboardSensor, {
-      //   coordinateGetter: sortableKeyboardCoordinates,
-      // }),
-    );
+    //     //   const idxFrom = activeData.sortable.index;
+    //     //   const idxTo = overData.sortable.index;
+    //     //   setStateNestedIndexer((curNestedIndexer) => {
+    //     //     const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
+    //     //       curNestedIndexer,
+    //     //     );
+    //     //     newNestedIndexer.moveParent({
+    //     //       idxFrom,
+    //     //       idxTo,
+    //     //     });
+    //     //     return newNestedIndexer;
+    //     //   });
+    //     // }
+    //   },
+    //   [setStateBoardListContext],
+    // );
 
     const parentIdList = useMemo(() => {
       return parentItems.map((parentItem) => parentItem.id);
@@ -618,18 +497,18 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       }, []);
     }, [parentItems]);
 
-    const modifiers = stateActiveParentItem
-      ? getMemoizedArray({
-          arr: [restrictToHorizontalAxis],
-          keys: ["stateActiveParentItem"],
-        })
-      : stateActiveChildItem
-        ? getMemoizedArray({
-            arr: [restrictToWindowEdges],
-            keys: ["stateActiveChildItem"],
-          })
-        : getEmptyArray<Modifier>();
-    // console.log(modifiers);
+    // const modifiers = stateActiveParentItem
+    //   ? getMemoizedArray({
+    //       arr: [restrictToHorizontalAxis],
+    //       keys: ["stateActiveParentItem"],
+    //     })
+    //   : stateActiveChildItem
+    //     ? getMemoizedArray({
+    //         arr: [restrictToWindowEdges],
+    //         keys: ["stateActiveChildItem"],
+    //       })
+    //     : getEmptyArray<Modifier>();
+    // // console.log(modifiers);
 
     const scrollContainerCustomAttributes: ScrollContainerCustomAttributesKvObj =
       {
@@ -649,40 +528,48 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     };
 
     return (
-      <DndContext
-        sensors={sensors}
-        collisionDetection={
-          // closestCenter
-          closestCorners
-          // customCollisionDetectionAlgorithm
-        }
-        onDragStart={onDragStart}
-        onDragMove={onDragMove}
-        // onDragOver={onDragOver}
-        onDragEnd={onDragEnd}
+      <DragDropContext
+        onDragEnd={() => {}}
+        // onDragStart={onDragStart}
+        onDragStart={(start, responderProvided) => {
+          console.log(start);
+          console.log(responderProvided);
+        }}
+        // onDragUpdate={onDragMove}
+        // // onDragOver={onDragOver}
+        // onDragEnd={onDragEnd}
         // autoScroll={{ acceleration: 1 }}
-        autoScroll={{ enabled: false }}
+        autoScrollerOptions={{
+          disabled: true,
+        }}
       >
         <BoardListBase
           ref={refBase}
           {...scrollContainerCustomAttributes}
           {...otherProps}
         >
-          <BoardListDropArea ref={refDroppable} {...droppableCustomAttributes}>
-            <SortableContext
-              items={parentIdList}
-              strategy={horizontalListSortingStrategy}
-            >
-              <SortableContext
-                items={childIdList}
-                strategy={verticalListSortingStrategy}
-              >
-                {children}
-              </SortableContext>
-            </SortableContext>
-          </BoardListDropArea>
+          <Droppable
+            droppableId={boardListId}
+            direction="horizontal"
+            type="parent"
+          >
+            {(droppableProvided, droppableStateSnapshot) => {
+              return (
+                <BoardListDropArea
+                  ref={droppableProvided.innerRef}
+                  {...droppableProvided.droppableProps}
+                  {...droppableCustomAttributes}
+                >
+                  <BoardListDropAreaMinusMargin>
+                    {children}
+                    {droppableProvided.placeholder}
+                  </BoardListDropAreaMinusMargin>
+                </BoardListDropArea>
+              );
+            }}
+          </Droppable>
         </BoardListBase>
-        {createPortal(
+        {/* {createPortal(
           <DragOverlay
             modifiers={modifiers}
             // dropAnimation={null}
@@ -703,8 +590,8 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
             {refDragOverlayReactElement.current}
           </DragOverlay>,
           document.body,
-        )}
-      </DndContext>
+        )} */}
+      </DragDropContext>
     );
   },
 });

@@ -1,9 +1,11 @@
+import { ScrollContainerCustomAttributesKvMapping } from "@/components/BoardContext";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import {
   checkHasScrollbar,
   getCursorScrollOffsetOnElement,
   memoizeCallback,
   SmartMerge,
+  SmartOmit,
   SmartPick,
 } from "@/utils";
 import {
@@ -72,6 +74,15 @@ export type EndDragScrollParams = SmartPick<
   "scrollContainer"
 >;
 
+export interface DragScrollConfig
+  extends SmartOmit<DragScrollParams, "scrollContainer"> {}
+
+export type DragScrollConfigs = {
+  [boardListId: string]: {
+    [scrollContainerId: string]: DragScrollConfig;
+  };
+};
+
 let isOnPointerDownAttached = false;
 let isOnPointerMoveAttached = false;
 let isOnPointerUpAttached = false;
@@ -79,11 +90,13 @@ let curPointerEvent: React.MutableRefObject<PointerEvent | null> = createRef();
 curPointerEvent.current = null;
 let isDragScrollAllowed: boolean = false;
 
-export const useDragScroll = () => {
+export const useDragScroll = (configs: DragScrollConfigs) => {
   const refScrollIntervalIdMap = useRef<
     Map<HTMLElement, number | NodeJS.Timeout>
   >(new Map());
   const refScrollRafIdMap = useRef<Map<HTMLElement, number>>(new Map());
+
+  const getCurPointerEvent = useCallback(() => curPointerEvent.current, []);
 
   const onPointerDown = useCallback(() => {
     isDragScrollAllowed = true;
@@ -334,12 +347,102 @@ export const useDragScroll = () => {
     [idDragScroll, startDragScroll, endDragScroll],
   );
 
-  const getCurPointerEvent = useCallback(() => curPointerEvent.current, []);
+  // Update scroll on drag move
+  const onDragMove = useCallback(() => {
+    console.log("[onDragMove]");
+
+    const pointerEvent = getCurPointerEvent();
+    if (!pointerEvent) {
+      return;
+    }
+    const { clientX, clientY } = pointerEvent;
+    const underlyingElements = document.elementsFromPoint(
+      clientX,
+      clientY,
+    ) as HTMLElement[];
+
+    const boardListIdAttribute =
+      ScrollContainerCustomAttributesKvMapping["data-board-list-id"];
+    const scrollContainerIdAttribute =
+      ScrollContainerCustomAttributesKvMapping["data-scroll-container-id"];
+
+    const scrollContainers = underlyingElements.filter((underlyingElement) => {
+      // const underlyingElementBoardListId =
+      //   underlyingElement.getAttribute(boardListIdAttribute);
+      return (
+        underlyingElement.hasAttribute(boardListIdAttribute) &&
+        underlyingElement.hasAttribute(scrollContainerIdAttribute)
+      );
+    });
+
+    scrollContainers.forEach(async (scrollContainer) => {
+      const scrollContainerId = scrollContainer.getAttribute(
+        ScrollContainerCustomAttributesKvMapping["data-scroll-container-id"],
+      );
+
+      let scrollSpeed: DragScrollSpeed = {
+        top: 6,
+        bottom: 6,
+        left: 6,
+        right: 6,
+      };
+      let isDragScrollNeededForThisScrollContainer = false;
+      if (!scrollContainerId) {
+      } else if (scrollContainerId === boardListId) {
+        isDragScrollNeededForThisScrollContainer = await dragScroll({
+          scrollContainer: scrollContainer,
+          scrollSpeed,
+          desiredFps: 60,
+        });
+
+        // console.log(
+        //   scrollContainerId,
+        //   isDragScrollNeededForThisScrollContainer,
+        // );
+        if (isDragScrollNeededForThisScrollContainer) {
+          return;
+        }
+      } else {
+        scrollSpeed = {
+          top: 3,
+          bottom: 3,
+          left: 3,
+          right: 3,
+        };
+        isDragScrollNeededForThisScrollContainer = await dragScroll({
+          scrollContainer: scrollContainer,
+          scrollSpeed,
+          desiredFps: 60,
+        });
+
+        // console.log(
+        //   scrollContainerId,
+        //   isDragScrollNeededForThisScrollContainer,
+        // );
+        if (isDragScrollNeededForThisScrollContainer) {
+          return;
+        }
+      }
+    });
+  }, [dragScroll, getCurPointerEvent]);
+
+  useEffect(() => {
+    if (!isOnPointerMoveAttached) {
+      document.body.addEventListener("pointermove", onDragMove);
+      isOnPointerMoveAttached = true;
+    }
+    return () => {
+      if (isOnPointerMoveAttached) {
+        document.body.removeEventListener("pointermove", onDragMove);
+        isOnPointerMoveAttached = false;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnPointerMoveAttached, onDragMove]);
 
   return {
     startDragScroll,
     endDragScroll,
     dragScroll,
-    getCurPointerEvent,
   };
 };

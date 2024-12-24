@@ -121,13 +121,14 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         parentKeyName={parentKeyName}
         childKeyName={childKeyName}
       >
-        {parentItems.map((parentItem, parentIndex) => {
+        {parentItems.map((parentItem, parentItemIndex) => {
           // console.log(parentItems.map((item) => item.id));
           return (
             <Board
               key={parentItem.id}
               boardListId={boardListId}
               parentItem={parentItem}
+              index={parentItemIndex}
             >
               <BoardHeader
                 boardListId={boardListId}
@@ -136,16 +137,19 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                 onEditFinishItem={onEditFinishParentItem({ parentItem })}
               />
               <BoardMain boardListId={boardListId} parentItem={parentItem}>
-                {parentItems[parentIndex].items?.map((task) => {
-                  return (
-                    <Card
-                      key={task.id}
-                      boardListId={boardListId}
-                      childItem={task}
-                      // onUpdateChildItem={onUpdateChildItem}
-                    />
-                  );
-                })}
+                {parentItems[parentItemIndex].items?.map(
+                  (childItem, childItemIndex) => {
+                    return (
+                      <Card
+                        key={childItem.id}
+                        boardListId={boardListId}
+                        childItem={childItem}
+                        index={childItemIndex}
+                        // onUpdateChildItem={onUpdateChildItem}
+                      />
+                    );
+                  },
+                )}
               </BoardMain>
             </Board>
           );
