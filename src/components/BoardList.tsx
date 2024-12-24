@@ -1,6 +1,7 @@
 import React, {
   startTransition,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -31,7 +32,11 @@ import {
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { createPortal } from "react-dom";
-import { DragScrollSpeed, useDragScroll } from "@/hooks/useDragScroll";
+import {
+  DragScrollSpeed,
+  UseDragScroll,
+  useDragScroll,
+} from "@/hooks/useDragScroll";
 import {
   DragDropContext,
   Draggable,
@@ -148,7 +153,10 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     const refDragOverlayReactElement = useRef<React.ReactElement | null>(null);
 
     const [isDragging, setIsDragging] = useState(false);
-    const { dragScroll, getCurPointerEvent } = useDragScroll();
+
+    const { addDragScrollConfig, removeDragScrollConfig } = useDragScroll({
+      isDragging,
+    });
 
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
@@ -484,11 +492,47 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     //   [setStateBoardListContext],
     // );
 
-    const parentIdList = useMemo(() => {
+    const parentItemIdList = useMemo(() => {
       return parentItems.map((parentItem) => parentItem.id);
     }, [parentItems]);
 
-    const childIdList = useMemo(() => {
+    useEffect(() => {
+      addDragScrollConfig({
+        boardListId,
+        scrollContainerId: boardListId,
+        config: {
+          scrollSpeed: 6,
+        },
+      });
+      parentItemIdList.forEach((parentItemId) => {
+        addDragScrollConfig({
+          boardListId,
+          scrollContainerId: parentItemId,
+          config: {
+            scrollSpeed: 3,
+          },
+        });
+      });
+      return () => {
+        removeDragScrollConfig({
+          boardListId,
+          scrollContainerId: boardListId,
+        });
+        parentItemIdList.forEach((parentItemId) => {
+          removeDragScrollConfig({
+            boardListId,
+            scrollContainerId: parentItemId,
+          });
+        });
+      };
+    }, [
+      boardListId,
+      parentItemIdList,
+      addDragScrollConfig,
+      removeDragScrollConfig,
+    ]);
+
+    const childItemIdList = useMemo(() => {
       return parentItems.reduce<string[]>((acc, curParentItem) => {
         const childIdList = (curParentItem.items ?? []).map(
           (childItem) => childItem.id,
@@ -529,11 +573,14 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 
     return (
       <DragDropContext
-        onDragEnd={() => {}}
         // onDragStart={onDragStart}
         onDragStart={(start, responderProvided) => {
+          setIsDragging(true);
           console.log(start);
           console.log(responderProvided);
+        }}
+        onDragEnd={() => {
+          setIsDragging(false);
         }}
         // onDragUpdate={onDragMove}
         // // onDragOver={onDragOver}
@@ -543,6 +590,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           disabled: true,
         }}
       >
+        <UseDragScroll />
         <BoardListBase
           ref={refBase}
           {...scrollContainerCustomAttributes}

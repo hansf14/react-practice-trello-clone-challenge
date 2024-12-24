@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { styled } from "styled-components";
+import { CSSProperties, styled } from "styled-components";
 import { GripVertical } from "react-bootstrap-icons";
 import {
   CardContext,
@@ -267,6 +267,8 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       // <CardContextProvider value={cardContextValue}>
       <Draggable draggableId={childItem.id} index={index}>
         {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
+          // const { pointerEvents, ...style } = (draggableProvided.draggableProps
+          //   .style ?? {}) as CSSProperties;
           return (
             <CardInternalBase
               // ref={callbackRef}
@@ -275,6 +277,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
               {...draggableProvided.draggableProps}
               {...draggableProvided.dragHandleProps}
               {...draggableCustomAttributes}
+              // style={style}
               {...otherProps}
             >
               {children}

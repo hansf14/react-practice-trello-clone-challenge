@@ -1,7 +1,13 @@
 import { css, CSSProperties, styled } from "styled-components";
 import { StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { useCallback, useImperativeHandle, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
 import {
   BoardContextValue,
   BoardContextProvider,
@@ -65,14 +71,20 @@ export type BoardProps = {
   boardListId: string;
   parentItem: ParentItem;
   index: number;
+  onUnmount?: () => void;
 } & StyledComponentProps<"div">;
 
 export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
   Component: (
-    { boardListId, parentItem, index, children, ...otherProps },
+    { boardListId, parentItem, index, children, onUnmount, ...otherProps },
     ref,
   ) => {
+    useEffect(() => {
+      return () => {
+        onUnmount?.();
+      };
+    }, [onUnmount]);
     // const sortableConfig = useMemo<UseSortableArguments>(
     //   () => ({
     //     id: parentItem.id,
