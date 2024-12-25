@@ -1,8 +1,8 @@
-const supportedEventName: string = ((): string => {
-  const base = 'visibilitychange';
+export const supportedEventName: string = ((): string => {
+  const base = "visibilitychange";
 
   // Server side rendering
-  if (typeof document === 'undefined') {
+  if (typeof document === "undefined") {
     return base;
   }
 
@@ -21,5 +21,3 @@ const supportedEventName: string = ((): string => {
 
   return supported || base;
 })();
-
-export default supportedEventName;

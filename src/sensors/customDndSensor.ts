@@ -6,14 +6,19 @@ import {
   SensorAPI,
 } from "@hello-pangea/dnd";
 import { Position } from "css-box-model";
+import invariant from "tiny-invariant";
 import {
   AnyEventBinding,
   EventBinding,
   EventOptions,
-  MouseEventBinding,
+  PointerEventBinding,
 } from "./event-types";
-import * as keyCodes from './key-codes';
-import invariant from "tiny-invariant";
+import * as keyCodes from "./key-codes";
+import preventStandardKeyEvents from "./prevent-standard-key-events";
+import { supportedEventName as supportedPageVisibilityEventName } from "./supported-page-visibility-event-name";
+import { DraggableOptions } from "./types";
+import bindEvents from "./bind-events";
+import { useDeviceDetector } from "@/hooks/useDeviceDetector";
 
 interface Idle {
   type: "IDLE";
@@ -55,208 +60,272 @@ function isSloppyClickThresholdExceeded(
 export const primaryButton = 0;
 export const sloppyClickThreshold = 5;
 
-function getCaptureBindings({
-  cancel,
-  completed,
-  getPhase,
-  setPhase,
-}: GetCaptureArgs): AnyEventBinding[] {
-  return [
-    {
-      eventName: "pointermove" as keyof HTMLElementEventMap,
-      fn: (event: PointerEvent) => {
-        const { button, clientX, clientY } = event;
-        if (button !== primaryButton) {
-          return;
-        }
-
-        const point: Position = {
-          x: clientX,
-          y: clientY,
-        };
-
-        const phase: Phase = getPhase();
-
-        // Already dragging
-        if (phase.type === "DRAGGING") {
-          // preventing default as we are using this event
-          event.preventDefault();
-          phase.actions.move(point);
-          return;
-        }
-
-        // There should be a pending drag at this point
-        invariant(phase.type === "PENDING", "Cannot be IDLE");
-        const pending: Position = phase.point;
-
-        // threshold not yet exceeded
-        if (!isSloppyClickThresholdExceeded(pending, point)) {
-          return;
-        }
-
-        // preventing default as we are using this event
-        event.preventDefault();
-
-        // Lifting at the current point to prevent the draggable item from
-        // jumping by the sloppyClickThreshold
-        const actions: FluidDragActions = phase.actions.fluidLift(point);
-
-        setPhase({
-          type: "DRAGGING",
-          actions,
-        });
-      },
-    },
-    {
-      eventName: "mouseup",
-      fn: (event: MouseEvent) => {
-        const phase: Phase = getPhase();
-
-        if (phase.type !== "DRAGGING") {
-          cancel();
-          return;
-        }
-
-        // preventing default as we are using this event
-        event.preventDefault();
-        phase.actions.drop({ shouldBlockNextClick: true });
-        completed();
-      },
-    },
-    {
-      eventName: "mousedown",
-      fn: (event: MouseEvent) => {
-        // this can happen during a drag when the user clicks a button
-        // other than the primary mouse button
-        if (getPhase().type === "DRAGGING") {
-          event.preventDefault();
-        }
-
-        cancel();
-      },
-    },
-    {
-      eventName: "keydown",
-      fn: (event: KeyboardEvent) => {
-        const phase: Phase = getPhase();
-        // Abort if any keystrokes while a drag is pending
-        if (phase.type === "PENDING") {
-          cancel();
-          return;
-        }
-
-        // cancelling a drag
-        if (event.keyCode === keyCodes.escape) {
-          event.preventDefault();
-          cancel();
-          return;
-        }
-
-        preventStandardKeyEvents(event);
-      },
-    },
-    {
-      eventName: "resize",
-      fn: cancel,
-    },
-    {
-      eventName: "scroll",
-      // kill a pending drag if there is a window scroll
-      options: { passive: true, capture: false },
-      fn: () => {
-        if (getPhase().type === "PENDING") {
-          cancel();
-        }
-      },
-    },
-
-    // Need to opt out of dragging if the user is a force press
-    // Only for safari which has decided to introduce its own custom way of doing things
-    // https://developer.apple.com/library/content/documentation/AppleApplications/Conceptual/SafariJSProgTopics/RespondingtoForceTouchEventsfromJavaScript.html
-    {
-      eventName: "webkitmouseforcedown",
-      // it is considered a indirect cancel so we do not
-      // prevent default in any situation.
-      fn: (event: Event) => {
-        const phase: Phase = getPhase();
-        invariant(phase.type !== "IDLE", "Unexpected phase");
-
-        if (phase.actions.shouldRespectForcePress()) {
-          cancel();
-          return;
-        }
-
-        // This technically doesn't do anything.
-        // It won't do anything if `webkitmouseforcewillbegin` is prevented.
-        // But it is a good signal that we want to opt out of this
-
-        event.preventDefault();
-      },
-    },
-    // Cancel on page visibility change
-    {
-      eventName: supportedPageVisibilityEventName,
-      fn: cancel,
-    },
-  ];
-}
-
-export const useCustomTouchSensor = (api: SensorAPI) => {
+export const useCustomDndSensor = (api: SensorAPI) => {
   const phaseRef = useRef<Phase>(idle);
   const unbindEventsRef = useRef<() => void>(() => null);
 
-  const getPhase = useCallback(function getPhase(): Phase {
-    return phaseRef.current;
-  }, []);
+  const { getDeviceDetector } = useDeviceDetector();
+  const { getIsTouchDevice } = getDeviceDetector();
 
-  const setPhase = useCallback(function setPhase(phase: Phase) {
-    phaseRef.current = phase;
-  }, []);
-
-  const startCaptureBinding = useMemo(
+  const startCaptureBinding: PointerEventBinding = useMemo(
     () => ({
-      eventName: "touchstart" as keyof HTMLElementEventMap,
-      fn: function onTouchStart(event: TouchEvent) {
+      eventName: "pointerdown" as keyof HTMLElementEventMap,
+      fn: function onPointerDown(event: PointerEvent) {
+        // Event already used
         if (event.defaultPrevented) {
+          return;
+        }
+
+        // TODO: touch device
+        // only starting a drag if dragging with the primary mouse button
+        // if (!getIsTouchDevice() && event.button !== primaryButton) {
+        //   return;
+        // }
+
+        // Do not start a drag if any modifier key is pressed
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
           return;
         }
 
         const draggableId: DraggableId | null =
           api.findClosestDraggableId(event);
+
         if (!draggableId) {
           return;
         }
 
         const actions: PreDragActions | null = api.tryGetLock(
           draggableId,
-          // eslint-disable-next-line no-use-before-define
+          // stop is defined later
+          // eslint-disable-next-line @typescript-eslint/no-use-before-define
           stop,
           { sourceEvent: event },
         );
+
         if (!actions) {
           return;
         }
 
-        const touch: Touch = event.touches[0];
-        const { clientX, clientY } = touch;
+        // consuming the event
+        event.preventDefault();
+
         const point: Position = {
-          x: clientX,
-          y: clientY,
+          x: event.clientX,
+          y: event.clientY,
         };
 
-        const dragHandleId = api.findClosestDraggableId(event);
-        if (!dragHandleId) {
-          throw Error("Custom sensor unable to find drag dragHandleId");
-        }
-        const handle: HTMLElement | null = document.querySelector(
-          `[data-rfd-drag-handle-draggable-id='${dragHandleId}']`,
-        );
-        if (!handle) {
-          throw Error("Touch sensor unable to find drag handle");
+        // unbind this listener
+        unbindEventsRef.current();
+        // using this function before it is defined as their is a circular usage pattern
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        startPendingDrag(actions, point);
+      },
+    }),
+    // not including startPendingDrag as it is not defined initially
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [api],
+  );
+
+  const getCaptureBindings = useCallback(
+    ({
+      cancel,
+      completed,
+      getPhase,
+      setPhase,
+    }: GetCaptureArgs): AnyEventBinding[] => {
+      return [
+        {
+          eventName: "pointermove" as keyof HTMLElementEventMap,
+          fn: (event: PointerEvent) => {
+            const { button, clientX, clientY } = event;
+            // TODO: touch device
+            // if (!getIsTouchDevice() && button !== primaryButton) {
+            //   return;
+            // }
+
+            const point: Position = {
+              x: clientX,
+              y: clientY,
+            };
+
+            const phase: Phase = getPhase();
+
+            // Already dragging
+            if (phase.type === "DRAGGING") {
+              // preventing default as we are using this event
+              event.preventDefault();
+
+              const scrollContainer = document.querySelector(
+                "[data-scroll-container-id='category-task-board']",
+              );
+              if (!scrollContainer) {
+                // fallback
+                phase.actions.move(point);
+                return;
+              }
+
+              console.log("DOH!");
+              // Option A: Convert the pointer to "container local" coords, then add scroll offset
+              // So: (relative pointer) + (container scroll)
+              // This is one pattern:
+              const rect = scrollContainer.getBoundingClientRect();
+              const offsetX = clientX - rect.left; //+ scrollContainer.scrollLeft;
+              const offsetY = clientY - rect.top; //+ scrollContainer.scrollTop;
+
+              // Now pass that offset to the library
+              phase.actions.move({ x: offsetX, y: offsetY });
+              return;
+            }
+
+            // Must be PENDING
+            // There should be a pending drag at this point
+            invariant(phase.type === "PENDING", "Cannot be IDLE");
+            const pending: Position = phase.point;
+
+            // threshold not yet exceeded
+            if (!isSloppyClickThresholdExceeded(pending, point)) {
+              return;
+            }
+
+            // preventing default as we are using this event
+            event.preventDefault();
+
+            // Lifting at the current point to prevent the draggable item from
+            // jumping by the sloppyClickThreshold
+            const actions: FluidDragActions = phase.actions.fluidLift(point);
+
+            setPhase({
+              type: "DRAGGING",
+              actions,
+            });
+          },
+        },
+        {
+          eventName: "pointerup" as keyof HTMLElementEventMap,
+          fn: (event: PointerEvent) => {
+            const phase: Phase = getPhase();
+
+            if (phase.type !== "DRAGGING") {
+              cancel();
+              return;
+            }
+
+            // preventing default as we are using this event
+            event.preventDefault();
+            phase.actions.drop({ shouldBlockNextClick: true });
+            completed();
+          },
+        },
+        {
+          eventName: "pointerdown" as keyof HTMLElementEventMap,
+          fn: (event: PointerEvent) => {
+            // this can happen during a drag when the user clicks a button
+            // other than the primary mouse button
+            if (getPhase().type === "DRAGGING") {
+              event.preventDefault();
+            }
+
+            cancel();
+          },
+        },
+        {
+          eventName: "keydown" as keyof HTMLElementEventMap,
+          fn: (event: KeyboardEvent) => {
+            const phase: Phase = getPhase();
+            // Abort if any keystrokes while a drag is pending
+            if (phase.type === "PENDING") {
+              cancel();
+              return;
+            }
+
+            // cancelling a drag
+            if (event.keyCode === keyCodes.escape) {
+              event.preventDefault();
+              cancel();
+              return;
+            }
+
+            preventStandardKeyEvents(event);
+          },
+        },
+        {
+          eventName: "resize" as keyof HTMLElementEventMap,
+          fn: cancel,
+        },
+        {
+          eventName: "scroll" as keyof HTMLElementEventMap,
+          // kill a pending drag if there is a window scroll
+          options: { passive: true, capture: false },
+          fn: () => {
+            if (getPhase().type === "PENDING") {
+              cancel();
+            }
+          },
+        },
+
+        // Need to opt out of dragging if the user is a force press
+        // Only for safari which has decided to introduce its own custom way of doing things
+        // https://developer.apple.com/library/content/documentation/AppleApplications/Conceptual/SafariJSProgTopics/RespondingtoForceTouchEventsfromJavaScript.html
+        {
+          eventName: "webkitmouseforcedown" as keyof HTMLElementEventMap,
+          // it is considered a indirect cancel so we do not
+          // prevent default in any situation.
+          fn: (event: Event) => {
+            const phase: Phase = getPhase();
+            invariant(phase.type !== "IDLE", "Unexpected phase");
+
+            if (phase.actions.shouldRespectForcePress()) {
+              cancel();
+              return;
+            }
+
+            // This technically doesn't do anything.
+            // It won't do anything if `webkitmouseforcewillbegin` is prevented.
+            // But it is a good signal that we want to opt out of this
+
+            event.preventDefault();
+          },
+        },
+        // Cancel on page visibility change
+        {
+          eventName: supportedPageVisibilityEventName,
+          fn: cancel,
+        },
+      ];
+    },
+    [getIsTouchDevice],
+  );
+
+  const preventForcePressBinding: EventBinding = useMemo(
+    () => ({
+      eventName: "webkitmouseforcewillbegin",
+      fn: (event: Event) => {
+        if (event.defaultPrevented) {
+          return;
         }
 
-        unbindEventsRef.current();
-        startPendingDrag(actions, point, handle);
+        const id: DraggableId | null = api.findClosestDraggableId(event);
+
+        if (!id) {
+          return;
+        }
+
+        const options: DraggableOptions | null =
+          api.findOptionsForDraggable(id);
+
+        if (!options) {
+          return;
+        }
+
+        if (options.shouldRespectForcePress) {
+          return;
+        }
+
+        if (!api.canGetLock(id)) {
+          return;
+        }
+
+        event.preventDefault();
       },
     }),
     [api],
@@ -264,35 +333,31 @@ export const useCustomTouchSensor = (api: SensorAPI) => {
 
   const listenForCapture = useCallback(
     function listenForCapture() {
-      const options = {
-        capture: true,
+      const options: EventOptions = {
         passive: false,
+        capture: true,
       };
 
       unbindEventsRef.current = bindEvents(
         window,
-        [startCaptureBinding],
+        [preventForcePressBinding, startCaptureBinding],
         options,
       );
     },
-    [startCaptureBinding],
+    [preventForcePressBinding, startCaptureBinding],
   );
 
   const stop = useCallback(() => {
-    const { current } = phaseRef;
+    const current: Phase = phaseRef.current;
     if (current.type === "IDLE") {
       return;
     }
 
-    if (current.type === "PENDING") {
-      clearTimeout(current.longPressTimerId);
-    }
-
-    setPhase(idle);
+    phaseRef.current = idle;
     unbindEventsRef.current();
 
     listenForCapture();
-  }, [listenForCapture, setPhase]);
+  }, [listenForCapture]);
 
   const cancel = useCallback(() => {
     const phase: Phase = phaseRef.current;
@@ -306,91 +371,61 @@ export const useCustomTouchSensor = (api: SensorAPI) => {
   }, [stop]);
 
   const bindCapturingEvents = useCallback(
-    (target: HTMLElement) => {
+    function bindCapturingEvents() {
       const options = { capture: true, passive: false };
-      const args: GetBindingArgs = {
+      const bindings: AnyEventBinding[] = getCaptureBindings({
         cancel,
         completed: stop,
-        getPhase,
-      };
+        getPhase: () => phaseRef.current,
+        setPhase: (phase: Phase) => {
+          phaseRef.current = phase;
+        },
+      });
 
-      const unbindTarget = bindEvents(target, getHandleBindings(args), options);
-      const unbindTargetWindow = bindEvents(
-        window,
-        getHandleBindings(args),
-        options,
-      );
-      const unbindWindow = bindEvents(window, getWindowBindings(args), options);
-
-      unbindEventsRef.current = function unbindAll() {
-        unbindTarget();
-        unbindTargetWindow();
-        unbindWindow();
-      };
+      unbindEventsRef.current = bindEvents(window, bindings, options);
     },
-    [cancel, getPhase, stop],
+    [cancel, stop],
   );
 
-  const startDragging = useCallback(() => {
-    const phase: Phase = getPhase();
-    if (phase.type !== "PENDING") {
-      throw Error(`Cannot start dragging from phase ${phase.type}`);
-    }
-
-    const actions: FluidDragActions = phase.actions.fluidLift(phase.point);
-    setPhase({
-      type: "DRAGGING",
-      actions,
-      hasMoved: false,
-    });
-  }, [getPhase, setPhase]);
-
   const startPendingDrag = useCallback(
-    (actions: PreDragActions, point: Position, target: HTMLElement) => {
-      if (getPhase().type !== "IDLE") {
-        throw Error("Expected to move from IDLE to PENDING drag");
-      }
-
-      const longPressTimerId = setTimeout(startDragging, timeForLongPress);
-      setPhase({
+    function startPendingDrag(actions: PreDragActions, point: Position) {
+      invariant(
+        phaseRef.current.type === "IDLE",
+        "Expected to move from IDLE to PENDING drag",
+      );
+      phaseRef.current = {
         type: "PENDING",
         point,
         actions,
-        longPressTimerId,
-      });
-
-      bindCapturingEvents(target);
+      };
+      bindCapturingEvents();
     },
-    [bindCapturingEvents, getPhase, setPhase, startDragging],
+    [bindCapturingEvents],
   );
 
   useLayoutEffect(
     function mount() {
       listenForCapture();
 
+      // kill any pending window events when unmounting
       return function unmount() {
         unbindEventsRef.current();
-        const phase: Phase = getPhase();
-        if (phase.type === "PENDING") {
-          clearTimeout(phase.longPressTimerId);
-          setPhase(idle);
-        }
       };
     },
-    [getPhase, listenForCapture, setPhase],
+    [listenForCapture],
   );
+};
 
-  useLayoutEffect(function webkitHack() {
-    const unbind = bindEvents(window, [
-      {
-        eventName: "touchmove",
-        fn: () => {
-          return;
-        },
-        options: { capture: false, passive: false },
-      },
-    ]);
+// The @hello-pangea/dnd sensors prop expects an array of sensor creators (functions). It will call each creator once, passing in sensorAPI, and that creator should return either:
 
-    return unbind;
-  }, []);
+// 1. A cleanup function (for older versions), or
+// 2. A React component / null (for the newer approach).
+// If you directly pass useCustomDndSensor into sensors, nothing happens. You must wrap your hook in a sensor-creator function.
+
+export const CustomDndSensor = (api: SensorAPI) => {
+  // Use your custom hook
+  useCustomDndSensor(api);
+
+  // Return null so that the DragDropContext knows we have no special UI
+  return null;
 };

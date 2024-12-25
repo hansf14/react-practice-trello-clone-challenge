@@ -364,14 +364,6 @@ export const checkHasScrollbar = ({
   return false;
 };
 
-export type ObserveUserAgentChangeCb = ({
-  prevUserAgent,
-  curUserAgent,
-}: {
-  prevUserAgent: string;
-  curUserAgent: string;
-}) => void;
-
 export function getClosestScrollableParent({
   element,
   scrollbarCondition = "or",
@@ -397,6 +389,14 @@ export function getClosestScrollableParent({
   }
   return parent;
 }
+
+export type ObserveUserAgentChangeCb = ({
+  prevUserAgent,
+  curUserAgent,
+}: {
+  prevUserAgent: string;
+  curUserAgent: string;
+}) => void;
 
 let lastUserAgent = navigator.userAgent;
 export function observeUserAgentChange({
@@ -951,6 +951,11 @@ export function getRectIntersectionRatio({
 
 // @hello-pangea/dnd/dist/dnd.d.ts
 export type RecursivePartial<T> = {
-  [P in keyof T]?: T[P] extends (infer U)[] ? RecursivePartial<U>[] : T[P] extends (...args: any) => any ? T[P] | undefined : T[P] extends object ? RecursivePartial<T[P]> : T[P];
+  [P in keyof T]?: T[P] extends (infer U)[]
+    ? RecursivePartial<U>[]
+    : T[P] extends (...args: any) => any
+      ? T[P] | undefined
+      : T[P] extends object
+        ? RecursivePartial<T[P]>
+        : T[P];
 };
-

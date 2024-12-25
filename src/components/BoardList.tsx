@@ -52,8 +52,7 @@ import {
   useMouseSensor,
   useTouchSensor,
 } from "@hello-pangea/dnd";
-import useCustomTouchSensor from "@/customDndSensorExample";
-import createHorizontalScrollSensor from "@/customDndSensor";
+import { CustomDndSensor } from "@/sensors/customDndSensor";
 
 // // https://github.com/clauderic/dnd-kit/issues/477#issuecomment-985194908
 // https://github.com/clauderic/dnd-kit/discussions/1493
@@ -515,43 +514,43 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       return parentItems.map((parentItem) => parentItem.id);
     }, [parentItems]);
 
-    // const { addDragScrollConfig, removeDragScrollConfig } = useDragScroll({
-    //   isDragging,
-    // });
+    const { addDragScrollConfig, removeDragScrollConfig } = useDragScroll({
+      isDragging,
+    });
 
-    // useEffect(() => {
-    //   addDragScrollConfig({
-    //     boardListId,
-    //     scrollContainerId: boardListId,
-    //     config: horizontalDragScrollConfig,
-    //   });
-    //   parentItemIdList.forEach((parentItemId) => {
-    //     addDragScrollConfig({
-    //       boardListId,
-    //       scrollContainerId: parentItemId,
-    //       config: verticalDragScrollConfig,
-    //     });
-    //   });
-    //   return () => {
-    //     removeDragScrollConfig({
-    //       boardListId,
-    //       scrollContainerId: boardListId,
-    //     });
-    //     parentItemIdList.forEach((parentItemId) => {
-    //       removeDragScrollConfig({
-    //         boardListId,
-    //         scrollContainerId: parentItemId,
-    //       });
-    //     });
-    //   };
-    // }, [
-    //   boardListId,
-    //   parentItemIdList,
-    //   horizontalDragScrollConfig,
-    //   verticalDragScrollConfig,
-    //   addDragScrollConfig,
-    //   removeDragScrollConfig,
-    // ]);
+    useEffect(() => {
+      addDragScrollConfig({
+        boardListId,
+        scrollContainerId: boardListId,
+        config: horizontalDragScrollConfig,
+      });
+      parentItemIdList.forEach((parentItemId) => {
+        addDragScrollConfig({
+          boardListId,
+          scrollContainerId: parentItemId,
+          config: verticalDragScrollConfig,
+        });
+      });
+      return () => {
+        removeDragScrollConfig({
+          boardListId,
+          scrollContainerId: boardListId,
+        });
+        parentItemIdList.forEach((parentItemId) => {
+          removeDragScrollConfig({
+            boardListId,
+            scrollContainerId: parentItemId,
+          });
+        });
+      };
+    }, [
+      boardListId,
+      parentItemIdList,
+      horizontalDragScrollConfig,
+      verticalDragScrollConfig,
+      addDragScrollConfig,
+      removeDragScrollConfig,
+    ]);
 
     const onDragStart = useCallback<OnDragStartResponder>(
       (start, responderProvided) => {
@@ -805,13 +804,8 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         autoScrollerOptions={{
           disabled: true,
         }}
-        enableDefaultSensors={true}
-        sensors={[
-          createHorizontalScrollSensor,
-          // useMouseSensor,
-          // useTouchSensor,
-          // useCustomTouchSensor,
-        ]}
+        enableDefaultSensors={false}
+        sensors={[CustomDndSensor]}
       >
         <UseDragScroll />
         {a}
