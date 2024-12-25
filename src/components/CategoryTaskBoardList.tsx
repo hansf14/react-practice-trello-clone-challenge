@@ -145,6 +145,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                         boardListId={boardListId}
                         childItem={childItem}
                         index={childItemIndex}
+                        droppableId={parentItem.id}
                         // onUpdateChildItem={onUpdateChildItem}
                       />
                     );

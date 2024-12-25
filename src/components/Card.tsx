@@ -113,6 +113,7 @@ export type CardProps = {
   boardListId: string;
   childItem: ChildItem;
   index: number;
+  droppableId: string;
   onEditStartItem?: OnEditStart;
   onEditCancelItem?: OnEditCancel;
   onEditChangeItem?: OnEditChange;
@@ -126,6 +127,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       boardListId,
       childItem,
       index,
+      droppableId,
       onEditStartItem,
       onEditCancelItem,
       onEditChangeItem,
@@ -214,6 +216,8 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
       "data-draggable-id": childItem.id,
+      "data-draggable-index": index.toString(),
+      "data-droppable-id": droppableId,
     };
 
     const {
@@ -265,8 +269,12 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       // <CardContextProvider value={cardContextValue}>
       <Draggable draggableId={childItem.id} index={index}>
         {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
-          // const { pointerEvents, ...style } = (draggableProvided.draggableProps
-          //   .style ?? {}) as CSSProperties;
+          // console.log(draggableStateSnapshot.isDragging);
+          // console.log(draggableStateSnapshot.draggingOver);
+          // console.log(draggableRubric.draggableId);
+          // console.log(draggableRubric.source);
+          // console.log(draggableRubric.type);
+
           return (
             <CardInternalBase
               // ref={callbackRef}
@@ -275,7 +283,6 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
               {...draggableProvided.draggableProps}
               {...draggableProvided.dragHandleProps}
               {...draggableCustomAttributes}
-              // style={style}
               {...otherProps}
             >
               {children}

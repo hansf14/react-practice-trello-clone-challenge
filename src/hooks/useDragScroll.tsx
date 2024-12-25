@@ -2,6 +2,7 @@ import {
   getDraggable,
   ScrollContainerCustomAttributesKvMapping,
 } from "@/components/BoardContext";
+import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { MultiMap } from "@/multimap";
 import {
@@ -28,6 +29,7 @@ export const PlaceholderContainer = styled.div.withConfig({
     !["gapHorizontalLength", "gapVerticalLength"].includes(prop),
 })<PlaceholderContainerProps>`
   // background: red;
+  flex-shrink: 0;
   ${({ gapHorizontalLength = 0, gapVerticalLength = 0 }) => {
     return css`
       margin: ${gapVerticalLength / -2}px ${gapHorizontalLength / -2}px;
@@ -48,14 +50,20 @@ export function getPlaceholder({
 } & PlaceholderContainerProps) {
   return (
     <PlaceholderContainer
-      ref={setPlaceholderRef<HTMLDivElement>({
-        boardListId,
-        droppableId,
-      })}
+      ref={
+        setPlaceholderRef<HTMLDivElement>({
+          boardListId,
+          droppableId,
+        }).refPlaceholderContainer
+      }
       gapHorizontalLength={gapHorizontalLength}
       gapVerticalLength={gapVerticalLength}
     >
       {React.cloneElement(placeholder as React.ReactElement, {
+        ref: setPlaceholderRef<HTMLDivElement>({
+          boardListId,
+          droppableId,
+        }).refPlaceholder,
         shouldAnimate: false,
       })}
     </PlaceholderContainer>
@@ -64,7 +72,10 @@ export function getPlaceholder({
 
 export const storeOfPlaceholderRefs = new MultiMap<
   string[],
-  React.MutableRefObject<HTMLElement | null>
+  {
+    refPlaceholderContainer: React.MutableRefObject<HTMLElement | null>;
+    refPlaceholder: React.MutableRefObject<any>;
+  }
 >();
 
 export const setPlaceholderRef = <
@@ -75,25 +86,31 @@ export const setPlaceholderRef = <
 }: {
   boardListId: string;
   droppableId: string;
-}): React.MutableRefObject<T> => {
-  let [refPlaceholder] =
+}) => {
+  let [refs] =
     storeOfPlaceholderRefs.get({ keys: [boardListId, droppableId] }) ?? [];
-  if (!refPlaceholder) {
-    refPlaceholder = React.createRef() as React.MutableRefObject<T | null>;
+  if (!refs) {
+    refs = {
+      refPlaceholderContainer:
+        React.createRef() as React.MutableRefObject<T | null>,
+      refPlaceholder: React.createRef() as React.MutableRefObject<any>,
+    };
+
     storeOfPlaceholderRefs.set({
       keys: [boardListId, droppableId],
-      value: [refPlaceholder],
+      value: [refs],
     });
   }
-  return refPlaceholder as React.MutableRefObject<T>;
+  return refs as {
+    refPlaceholderContainer: React.MutableRefObject<T | null>;
+    refPlaceholder: React.MutableRefObject<any>;
+  };
 };
 
 export type AdjustIfIntersectPlaceholderParamsCommon = {
   boardListId: string;
   draggableId: string;
-  scrollIntoViewOptions?: Parameters<
-    typeof document.documentElement.scrollIntoView
-  >[0];
+  scrollBehavior?: ScrollBehavior;
 };
 
 export function adjustIfIntersectPlaceholder(
@@ -118,9 +135,7 @@ export function adjustIfIntersectPlaceholder(
   const {
     boardListId,
     draggableId,
-    scrollIntoViewOptions = {
-      behavior: "smooth",
-    },
+    scrollBehavior = "smooth",
   } = params as AdjustIfIntersectPlaceholderParamsCommon;
 
   if (!src && !dst && (!srcDroppableId || !dstDroppableId)) {
@@ -141,19 +156,32 @@ export function adjustIfIntersectPlaceholder(
     return;
   }
 
-  const placeholder = storeOfPlaceholderRefs.get({
+  const placeholderContainer = storeOfPlaceholderRefs.get({
     keys: [boardListId, dstDroppableId],
-  })?.[0]?.current;
-  if (!placeholder) {
+  })?.[0]?.refPlaceholderContainer.current;
+  if (!placeholderContainer) {
     return;
   }
 
-  const intersectionRatio = getRectIntersectionRatio({
+  const { intersectionRatio, xOverlap, yOverlap } = getRectIntersectionRatio({
     rect1: draggable.getBoundingClientRect(),
-    rect2: placeholder.getBoundingClientRect(),
+    rect2: placeholderContainer.getBoundingClientRect(),
   });
+
+  // console.log(placeholderContainer);
+  // console.log(intersectionRatio);
+  // console.log(xOverlap);
+  // console.log(yOverlap);
+
   if (intersectionRatio > 0) {
-    placeholder.scrollIntoView(scrollIntoViewOptions);
+    placeholderContainer.scrollIntoView({
+      behavior: scrollBehavior,
+    });
+    // placeholder.scrollBy({
+    //   behavior: scrollBehavior,
+    //   left: xOverlap,
+    //   top: yOverlap,
+    // });
   }
 }
 
@@ -225,7 +253,7 @@ let isDragScrollAllowed: boolean = false;
 
 export const UseDragScroll = createGlobalStyle`
   [data-rfd-drag-handle-context-id] {
-    pointer-events: auto !important;
+    pointer-events: auto !important; // TODO: !important -> &&
   }
 `;
 
@@ -572,6 +600,22 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
                 }
               }
 
+              // console.group();
+              // console.log(
+              //   scrollContainer.getAttribute("data-scroll-container-id"),
+              // );
+              // console.log("shouldTriggerScroll:", shouldTriggerScroll);
+              // console.log("clientLeft", clientLeft);
+              // console.log(
+              //   "clientWidth - rightBufferLength:",
+              //   clientWidth - rightBufferLength,
+              // );
+              // console.log("clientWidth:", clientWidth);
+              // console.log("xNoScroll:", xNoScroll);
+              // console.log("xScroll:", xScroll);
+              // console.log("scrollWidth:", scrollContainer.scrollWidth);
+              // console.groupEnd();
+
               // console.log(scrollDirection);
 
               if (shouldTriggerScroll) {
@@ -606,14 +650,41 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
 
   const refConfigs = useRef<DragScrollConfigs>({});
 
+  const preventScroll = useCallback(
+    (event: MouseEvent | TouchEvent) => {
+      isDragging && event.preventDefault();
+    },
+    [isDragging],
+  );
+
   const addDragScrollConfig = useCallback(
     ({ boardListId, scrollContainerId, config }: AddDragScrollConfigParams) => {
       if (!refConfigs.current[boardListId]) {
         refConfigs.current[boardListId] = {};
       }
       refConfigs.current[boardListId][scrollContainerId] = config;
+
+      // const attrBoardListId =
+      //   ScrollContainerCustomAttributesKvMapping["data-board-list-id"];
+      // const attrScrollContainerId =
+      //   ScrollContainerCustomAttributesKvMapping["data-scroll-container-id"];
+
+      // const scrollContainer = document.querySelector(
+      //   `[${attrBoardListId}="${boardListId}"][${attrScrollContainerId}="${scrollContainerId}"]`,
+      // ) as HTMLElement | null;
+
+      // if (scrollContainer) {
+      //   scrollContainer.addEventListener("touchmove", preventScroll, {
+      //     passive: false,
+      //   });
+      //   scrollContainer.addEventListener("wheel", preventScroll, {
+      //     passive: false,
+      //   });
+      // }
     },
-    [],
+    [
+      // preventScroll
+    ],
   );
 
   const removeDragScrollConfig = useCallback(
@@ -622,8 +693,24 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
         return;
       }
       delete refConfigs.current[boardListId][scrollContainerId];
+
+      // const attrBoardListId =
+      //   ScrollContainerCustomAttributesKvMapping["data-board-list-id"];
+      // const attrScrollContainerId =
+      //   ScrollContainerCustomAttributesKvMapping["data-scroll-container-id"];
+
+      // const scrollContainer = document.querySelector(
+      //   `[${attrBoardListId}="${boardListId}"][${attrScrollContainerId}="${scrollContainerId}"]`,
+      // ) as HTMLElement | null;
+
+      // if (scrollContainer) {
+      //   scrollContainer.removeEventListener("touchmove", preventScroll);
+      //   scrollContainer.removeEventListener("wheel", preventScroll);
+      // }
     },
-    [],
+    [
+      // preventScroll
+    ],
   );
 
   // Update scroll on drag move

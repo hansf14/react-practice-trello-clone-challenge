@@ -13,6 +13,7 @@ import {
   BoardContextProvider,
   DraggableCustomAttributesKvObj,
   ParentItem,
+  DraggablesContainerCustomAttributesKvObj,
 } from "@/components/BoardContext";
 import { DndDataInterfaceCustomGeneric } from "@/components/BoardContext";
 import { Draggable } from "@hello-pangea/dnd";
@@ -49,7 +50,8 @@ const BoardBase = styled.div.withConfig({
       ${(isDragging ?? false)
         ? `
         border: 2px solid yellow;
-        opacity: 0.7;
+        opacity: 1;
+        background-color: cornflowerblue; //#526C97;
 
         // [data-draggable-handle-id] {
         //   background-color: red;
@@ -59,12 +61,6 @@ const BoardBase = styled.div.withConfig({
         : ""}
     `;
   }}
-
-  &[data-drag-overlay] {
-    opacity; 1;
-    background-color: cornflowerblue;
-    //#526C97;
-  }
 `;
 
 export type BoardProps = {
@@ -146,6 +142,8 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
       "data-draggable-id": parentItem.id,
+      "data-draggable-index": index.toString(),
+      "data-droppable-id": boardListId,
     };
 
     return (

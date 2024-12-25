@@ -31,13 +31,15 @@ import {
   useBoardContext,
   getDroppable,
   getDraggable,
+  getDraggables,
+  DraggablesContainerCustomAttributesKvObj,
+  getDraggablesContainer,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { createPortal } from "react-dom";
 import {
   adjustIfIntersectPlaceholder,
   DragScrollConfig,
-  DragScrollSpeed,
   UseDragScroll,
   useDragScroll,
 } from "@/hooks/useDragScroll";
@@ -47,7 +49,11 @@ import {
   OnDragEndResponder,
   OnDragStartResponder,
   OnDragUpdateResponder,
+  useMouseSensor,
+  useTouchSensor,
 } from "@hello-pangea/dnd";
+import useCustomTouchSensor from "@/customDndSensorExample";
+import createHorizontalScrollSensor from "@/customDndSensor";
 
 // // https://github.com/clauderic/dnd-kit/issues/477#issuecomment-985194908
 // https://github.com/clauderic/dnd-kit/discussions/1493
@@ -111,7 +117,10 @@ type BoardListDropAreaProps = {
 const BoardListDropArea = styled.div.withConfig({
   shouldForwardProp: (prop) => !["isDropTarget"].includes(prop),
 })<BoardListDropAreaProps>`
+  min-width: max-content;
   width: 100%;
+  // ㄴ min-width: max-content; width: 100%;
+  // ㄴ DropArea => 마치 max(max-content, 100%)처럼 가능함
   height: 100%;
 
   padding: 10px;
@@ -158,10 +167,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     const refDragOverlayReactElement = useRef<React.ReactElement | null>(null);
 
     const [isDragging, setIsDragging] = useState(false);
-
-    const { addDragScrollConfig, removeDragScrollConfig } = useDragScroll({
-      isDragging,
-    });
 
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
@@ -510,39 +515,43 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       return parentItems.map((parentItem) => parentItem.id);
     }, [parentItems]);
 
-    useEffect(() => {
-      addDragScrollConfig({
-        boardListId,
-        scrollContainerId: boardListId,
-        config: horizontalDragScrollConfig,
-      });
-      parentItemIdList.forEach((parentItemId) => {
-        addDragScrollConfig({
-          boardListId,
-          scrollContainerId: parentItemId,
-          config: verticalDragScrollConfig,
-        });
-      });
-      return () => {
-        removeDragScrollConfig({
-          boardListId,
-          scrollContainerId: boardListId,
-        });
-        parentItemIdList.forEach((parentItemId) => {
-          removeDragScrollConfig({
-            boardListId,
-            scrollContainerId: parentItemId,
-          });
-        });
-      };
-    }, [
-      boardListId,
-      parentItemIdList,
-      horizontalDragScrollConfig,
-      verticalDragScrollConfig,
-      addDragScrollConfig,
-      removeDragScrollConfig,
-    ]);
+    // const { addDragScrollConfig, removeDragScrollConfig } = useDragScroll({
+    //   isDragging,
+    // });
+
+    // useEffect(() => {
+    //   addDragScrollConfig({
+    //     boardListId,
+    //     scrollContainerId: boardListId,
+    //     config: horizontalDragScrollConfig,
+    //   });
+    //   parentItemIdList.forEach((parentItemId) => {
+    //     addDragScrollConfig({
+    //       boardListId,
+    //       scrollContainerId: parentItemId,
+    //       config: verticalDragScrollConfig,
+    //     });
+    //   });
+    //   return () => {
+    //     removeDragScrollConfig({
+    //       boardListId,
+    //       scrollContainerId: boardListId,
+    //     });
+    //     parentItemIdList.forEach((parentItemId) => {
+    //       removeDragScrollConfig({
+    //         boardListId,
+    //         scrollContainerId: parentItemId,
+    //       });
+    //     });
+    //   };
+    // }, [
+    //   boardListId,
+    //   parentItemIdList,
+    //   horizontalDragScrollConfig,
+    //   verticalDragScrollConfig,
+    //   addDragScrollConfig,
+    //   removeDragScrollConfig,
+    // ]);
 
     const onDragStart = useCallback<OnDragStartResponder>(
       (start, responderProvided) => {
@@ -554,33 +563,152 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       [],
     );
 
+    const [a, b] = useState<React.ReactElement | null>(null);
+
     const onDragUpdate = useCallback<OnDragUpdateResponder>(
       (update, responderProvided) => {
-        console.log("[onDragUpdate]");
-        console.log(update);
+        // console.log("[onDragUpdate]");
+        // console.log(update);
 
-        const { source, destination, type, draggableId } = update;
-        if (!destination) {
+        const {
+          source: src,
+          destination: dst,
+          type,
+          draggableId: srcDraggableId,
+        } = update;
+        if (!dst) {
+          // TODO: set null to c
           return;
         }
 
         adjustIfIntersectPlaceholder({
-          src: source,
-          dst: destination,
+          src: src,
+          dst: dst,
           boardListId,
-          draggableId,
+          draggableId: srcDraggableId,
         });
+
+        // const { droppableId: dstDroppableId, index: dstDraggableIndex } = dst;
+        // const { draggable: dstDraggable, draggableId: dstDraggableId } =
+        //   getDraggable({
+        //     boardListId,
+        //     droppableId: dstDroppableId,
+        //     draggableIndex: dstDraggableIndex,
+        //   });
+        // if (!dstDraggable) {
+        //   return;
+        // }
+        // let c = parse(dstDraggable.outerHTML) as React.ReactElement;
+        // const clientRect = dstDraggable.getBoundingClientRect();
+        // c = React.cloneElement(c, {
+        //   style: {
+        //     position: "fixed",
+        //     top: clientRect.top,
+        //     left: clientRect.left,
+        //     width: clientRect.width,
+        //     height: clientRect.height,
+        //   },
+        // });
+        // b(c);
+
+        const { droppableId: srcDroppableId, index: srcDraggableIndex } = src;
+        const { droppableId: dstDroppableId, index: dstDraggableIndex } = dst;
+        const { draggable: srcDraggable } = getDraggable({
+          boardListId,
+          draggableId: srcDraggableId,
+        });
+        if (!srcDraggable) {
+          return;
+        }
+        const { droppable: dstDroppable } = getDroppable({
+          boardListId,
+          droppableId: dstDroppableId,
+        });
+        if (!dstDroppable) {
+          return;
+        }
+        const { draggables: srcDraggables } = getDraggables({
+          boardListId,
+          droppableId: srcDroppableId,
+        });
+        const { draggables: dstDraggables } = getDraggables({
+          boardListId,
+          droppableId: dstDroppableId,
+        });
+
+        const dstDraggablesContainerId = dstDroppableId;
+        const { draggablesContainer: dstDraggablesContainer } =
+          getDraggablesContainer({
+            boardListId,
+            draggablesContainerId: dstDraggablesContainerId,
+          });
+        if (!dstDraggablesContainer) {
+          return;
+        }
+
+        const activeDraggable = srcDraggables[srcDraggableIndex];
+
+        srcDraggables.splice(srcDraggableIndex, 1);
+
+        const updatedDraggables = [
+          ...dstDraggables.slice(0, dstDraggableIndex),
+          activeDraggable,
+          ...dstDraggables.slice(dstDraggableIndex + 1),
+        ];
+        // console.log(updatedDraggables); // TODO: clientX (horizontal)
+
+        const clientY =
+          parseFloat(window.getComputedStyle(dstDroppable).paddingTop) +
+          updatedDraggables.slice(0, dstDraggableIndex).reduce((acc, cur) => {
+            const style: React.CSSProperties =
+              (cur as any).currentStyle ?? window.getComputedStyle(cur);
+            const marginTop = parseFloat((style.marginTop ?? 0).toString());
+            const marginBottom = parseFloat(
+              (style.marginBottom ?? 0).toString(),
+            );
+            return acc + marginTop + cur.clientHeight + marginBottom;
+          }, 0);
+        // console.log(clientY);
+
+        const activeDraggableClone = activeDraggable.cloneNode(
+          true,
+        ) as HTMLElement;
+
+        // Remove all `data-*` attributes
+        Array.from(activeDraggableClone.attributes).forEach((attr) => {
+          if (attr.name.startsWith("data-")) {
+            activeDraggableClone.removeAttribute(attr.name);
+          }
+        });
+
+        const { clientHeight, clientWidth } = srcDraggable;
+        let c = parse(activeDraggableClone.outerHTML) as React.ReactElement;
+        c = React.cloneElement(c, {
+          style: {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            transform: `translate3d(${parseFloat(window.getComputedStyle(dstDroppable).paddingLeft)}px, ${clientY}px, 0)`,
+            width: clientWidth,
+            height: clientHeight,
+            opacity: 0.7,
+          },
+        });
+
+        c = createPortal(c, dstDraggablesContainer);
+        b(c);
       },
-      [],
+      [boardListId],
     );
 
     const onDragEnd = useCallback<OnDragEndResponder>(
       (result, responderProvided) => {
-        console.log("[onDragEnd]");
+        // console.log("[onDragEnd]");
         // console.log(result);
         // console.log(responderProvided);
 
         setIsDragging(false);
+        b(null);
 
         const { source, destination, type } = result;
         if (!destination) {
@@ -620,8 +748,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
             const newBoardListContextIndexer = new BoardListContextIndexer(
               curBoardListContext.indexer,
             );
-            console.log(newBoardListContextIndexer.parentItems[0].items);
-            console.log(newBoardListContextIndexer.parentItems[1].items);
             newBoardListContextIndexer.moveChild({
               parentIdFrom: srcDroppableId,
               parentIdTo: dstDroppableId,
@@ -629,8 +755,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
               indexTo: dstDraggableIndex,
               shouldKeepRef: false,
             });
-            console.log(newBoardListContextIndexer.parentItems[0].items);
-            console.log(newBoardListContextIndexer.parentItems[1].items);
             return {
               boardListId,
               indexer: newBoardListContextIndexer,
@@ -667,43 +791,69 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       }),
     };
 
+    const draggablesContainerCustomAttributes: DraggablesContainerCustomAttributesKvObj =
+      {
+        "data-board-list-id": boardListId,
+        "data-draggables-container-id": boardListId,
+      };
+
     return (
       <DragDropContext
         onDragStart={onDragStart}
         onDragUpdate={onDragUpdate}
         onDragEnd={onDragEnd}
         autoScrollerOptions={{
-          // disabled: true,
-          maxPixelScroll: 0,
+          disabled: true,
         }}
+        enableDefaultSensors={true}
+        sensors={[
+          createHorizontalScrollSensor,
+          // useMouseSensor,
+          // useTouchSensor,
+          // useCustomTouchSensor,
+        ]}
       >
         <UseDragScroll />
-        <BoardListBase
-          ref={refBase}
-          {...scrollContainerCustomAttributes}
-          {...otherProps}
+        {a}
+
+        <Droppable
+          droppableId={boardListId}
+          direction="horizontal"
+          // type="parent"
         >
-          <Droppable
-            droppableId={boardListId}
-            direction="horizontal"
-            type="parent"
-          >
-            {(droppableProvided, droppableStateSnapshot) => {
-              return (
+          {(droppableProvided, droppableStateSnapshot) => {
+            return (
+              <BoardListBase
+                // ref={refBase} // TODO:
+                ref={droppableProvided.innerRef}
+                {...droppableProvided.droppableProps}
+                style={{
+                  backgroundColor: droppableStateSnapshot.isDraggingOver
+                    ? "rgba(0, 0, 0, 0.3)"
+                    : "",
+                }}
+                {...droppableCustomAttributes}
+                {...scrollContainerCustomAttributes}
+                {...otherProps}
+              >
                 <BoardListDropArea
-                  ref={droppableProvided.innerRef}
-                  {...droppableProvided.droppableProps}
-                  {...droppableCustomAttributes}
+                  style={{
+                    backgroundColor: droppableStateSnapshot.isDraggingOver
+                      ? "rgba(0, 0, 0, 0.3)"
+                      : "",
+                  }}
                 >
-                  <BoardListDropAreaMinusMargin>
+                  <BoardListDropAreaMinusMargin
+                    {...draggablesContainerCustomAttributes}
+                  >
                     {children}
                     {droppableProvided.placeholder}
                   </BoardListDropAreaMinusMargin>
                 </BoardListDropArea>
-              );
-            }}
-          </Droppable>
-        </BoardListBase>
+              </BoardListBase>
+            );
+          }}
+        </Droppable>
       </DragDropContext>
     );
   },

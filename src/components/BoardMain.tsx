@@ -18,6 +18,7 @@ import { Input } from "antd";
 import { CssScrollbar } from "@/csses/scrollbar";
 import {
   ChildItem,
+  DraggablesContainerCustomAttributesKvObj,
   DroppableCustomAttributesKvObj,
   ParentItem,
   ScrollContainerCustomAttributesKvObj,
@@ -26,7 +27,7 @@ import {
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { Droppable } from "@hello-pangea/dnd";
 import { MultiMap } from "@/multimap";
-import { getPlaceholder } from "@/hooks/useDragScroll";
+import { getPlaceholder, storeOfPlaceholderRefs } from "@/hooks/useDragScroll";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
@@ -61,6 +62,7 @@ const BoardMainContent = styled.div`
 `;
 
 const BoardMainContentMinusMargin = styled.div`
+  position: relative;
   margin: -5px 10px -5px 0;
   height: 100%;
 
@@ -296,6 +298,12 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
       }),
     };
 
+    const draggablesContainerCustomAttributes: DraggablesContainerCustomAttributesKvObj =
+      {
+        "data-board-list-id": boardListId,
+        "data-draggables-container-id": parentItem.id,
+      };
+
     return (
       <BoardMainBase ref={ref} {...otherProps}>
         <BoardMainContentContainer>
@@ -303,8 +311,41 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
             droppableId={parentItem.id}
             direction="vertical"
             type="child"
+            ignoreContainerClipping={true}
+            // ㄴ Allows the droppable to accept draggables even if the draggable is outside the visible bounds of the droppable container.
+            // ㄴ Use Case: for scenarios where items might extend outside the container (e.g., nested scroll areas).
+
+            // getContainerForClone={() => document.body}
+            // ㄴ Specifies a custom DOM node where the clone of the draggable will be rendered. By default, the clone is rendered in the body.
+            // ㄴUseful for scenarios where you need the clone to stay inside a specific container for styling or context isolation.
+
+            // renderClone={(
+            //   draggableProvided,
+            //   draggableStateSnapshot,
+            //   draggableRubric,
+            // ) => {
+            //   return (
+            //     <div
+            //       ref={draggableProvided.innerRef}
+            //       {...draggableProvided.draggableProps}
+            //       {...draggableProvided.dragHandleProps}
+            //     >
+            //       Custom Overlay
+            //     </div>
+            //   );
+            // }}
           >
             {(droppableProvided, droppableStateSnapshot) => {
+              // console.log(droppableStateSnapshot.draggingFromThisWith);
+              // ㄴ This property in the snapshot object indicates the draggableId of the item being dragged from this droppable. It is null if no item is currently being dragged from this droppable.
+              // ㄴ Use this to detect when a drag starts from the current droppable and customize behavior or appearance accordingly.
+
+              // console.log(droppableStateSnapshot.draggingOverWith); // The `draggableId` of the item currently being dragged over the droppable.
+
+              // console.log(droppableStateSnapshot.isDraggingOver); // true if a draggable is currently over the droppable area.
+
+              // console.log(droppableStateSnapshot.isUsingPlaceholder);
+
               return (
                 <BoardMainContent
                   ref={droppableProvided.innerRef}
@@ -312,7 +353,9 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                   {...droppableCustomAttributes}
                   {...scrollContainerCustomAttributes}
                 >
-                  <BoardMainContentMinusMargin>
+                  <BoardMainContentMinusMargin
+                    {...draggablesContainerCustomAttributes}
+                  >
                     {children}
                     {getPlaceholder({
                       boardListId,
@@ -320,36 +363,6 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                       placeholder: droppableProvided.placeholder,
                       gapVerticalLength: 10,
                     })}
-                    {/* <div
-                      style={{
-                        margin: "-5px 0",
-                        background: "red",
-                      }}
-                    >
-                      {React.cloneElement(
-                        droppableProvided.placeholder as React.ReactElement,
-                        {
-                          ref: a<HTMLDivElement>({
-                            boardListId,
-                            droppableId: parentItem.id,
-                          }),
-
-                          shouldAnimate: false,
-                        },
-                      )}
-                    </div> */}
-                    {/* <div
-                      ref={a<HTMLDivElement>({
-                        boardListId,
-                        droppableId: parentItem.id,
-                      })}
-                      style={{
-                        margin: "-5px 0",
-                        background: "red",
-                      }}
-                    >
-                      {droppableProvided.placeholder}
-                    </div> */}
                   </BoardMainContentMinusMargin>
                 </BoardMainContent>
               );

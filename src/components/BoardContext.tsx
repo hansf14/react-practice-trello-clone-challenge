@@ -1,4 +1,4 @@
-import { createContext, useMemo } from "react";
+import { createContext, useEffect, useMemo } from "react";
 import {
   atomFamily,
   RecoilRoot,
@@ -297,17 +297,80 @@ export function getDroppable({
   return { droppable };
 }
 
-export function getDraggable({
+export function getDraggables({
   boardListId,
-  draggableId,
+  droppableId,
 }: {
   boardListId: string;
-  draggableId: string;
+  droppableId: string;
 }) {
-  const draggable = document.querySelector(
-    `[${DraggableCustomAttributesKvMapping["data-board-list-id"]}=${boardListId}][${DraggableCustomAttributesKvMapping["data-draggable-id"]}="${draggableId}"]`,
+  const draggables = [
+    ...document.querySelectorAll(
+      `[${DraggableCustomAttributesKvMapping["data-board-list-id"]}="${boardListId}"][${DraggableCustomAttributesKvMapping["data-droppable-id"]}="${droppableId}"][${DraggableCustomAttributesKvMapping["data-draggable-id"]}][${DraggableCustomAttributesKvMapping["data-draggable-index"]}]`,
+    ),
+  ] as HTMLElement[];
+  return { draggables };
+}
+
+export function getDraggablesContainer({
+  boardListId,
+  draggablesContainerId,
+}: {
+  boardListId: string;
+  draggablesContainerId: string;
+}) {
+  const draggablesContainer = document.querySelector(
+    `[${DraggablesContainerCustomAttributesKvMapping["data-board-list-id"]}="${boardListId}"][${DraggablesContainerCustomAttributesKvMapping["data-draggables-container-id"]}="${draggablesContainerId}"]`,
   ) as HTMLElement | null;
-  return { draggable };
+  return { draggablesContainer };
+}
+
+export function getDraggable(
+  params:
+    | {
+        boardListId: string;
+        draggableId: string;
+      }
+    | {
+        boardListId: string;
+        droppableId: string;
+        draggableIndex: number;
+      },
+): {
+  draggable: HTMLElement | null;
+  draggableId: string | null;
+} {
+  const { boardListId, draggableId, droppableId, draggableIndex } = params as {
+    boardListId: string;
+    draggableId: string;
+  } & {
+    boardListId: string;
+    droppableId: string;
+    draggableIndex: number;
+  };
+  if ("draggableId" in params) {
+    const draggable = document.querySelector(
+      `[${DraggableCustomAttributesKvMapping["data-board-list-id"]}="${boardListId}"][${DraggableCustomAttributesKvMapping["data-draggable-id"]}="${draggableId}"]`,
+    ) as HTMLElement | null;
+    return {
+      draggable,
+      draggableId,
+    };
+  } else if ("droppableId" in params && "draggableIndex" in params) {
+    const draggable = document.querySelector(
+      `[${DraggableCustomAttributesKvMapping["data-board-list-id"]}="${boardListId}"][${DraggableCustomAttributesKvMapping["data-droppable-id"]}="${droppableId}"][${DraggableCustomAttributesKvMapping["data-draggable-index"]}="${draggableIndex}"]`,
+    ) as HTMLElement | null;
+    const draggableId = !draggable
+      ? null
+      : draggable.getAttribute(
+          DraggableCustomAttributesKvMapping["data-draggable-id"],
+        );
+    return {
+      draggable,
+      draggableId,
+    };
+  }
+  return { draggable: null, draggableId: null };
 }
 
 export function getDndContextInfoFromData({
@@ -664,6 +727,8 @@ export function deserializeAllowedTypes({
 export const DraggableCustomAttributes = [
   "data-board-list-id",
   "data-draggable-id",
+  "data-draggable-index",
+  "data-droppable-id",
 ] as const;
 export type DraggableCustomAttributeType =
   (typeof DraggableCustomAttributes)[number];
@@ -675,6 +740,28 @@ export type DraggableCustomAttributesKvObj = SmartMerge<
     [P in (typeof DraggableCustomAttributesKvMapping)["data-board-list-id"]]: string;
   } & {
     [P in (typeof DraggableCustomAttributesKvMapping)["data-draggable-id"]]: string;
+  } & {
+    [P in (typeof DraggableCustomAttributesKvMapping)["data-draggable-index"]]: string;
+  } & {
+    [P in (typeof DraggableCustomAttributesKvMapping)["data-droppable-id"]]: string;
+  }
+>;
+
+export const DraggablesContainerCustomAttributes = [
+  "data-board-list-id",
+  "data-draggables-container-id",
+] as const;
+export type DraggablesContainerCustomAttributeType =
+  (typeof DraggablesContainerCustomAttributes)[number];
+export const DraggablesContainerCustomAttributesKvMapping =
+  createKeyValueMapping({
+    arr: DraggablesContainerCustomAttributes,
+  });
+export type DraggablesContainerCustomAttributesKvObj = SmartMerge<
+  {
+    [P in (typeof DraggablesContainerCustomAttributesKvMapping)["data-board-list-id"]]: string;
+  } & {
+    [P in (typeof DraggablesContainerCustomAttributesKvMapping)["data-draggables-container-id"]]: string;
   }
 >;
 

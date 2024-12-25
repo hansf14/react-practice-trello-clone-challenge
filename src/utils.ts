@@ -927,7 +927,7 @@ export function getRectIntersectionRatio({
 }: {
   rect1: DOMRect;
   rect2: DOMRect;
-}): number {
+}) {
   const xOverlap = Math.max(
     0,
     Math.min(rect1.right, rect2.right) - Math.max(rect1.left, rect2.left),
@@ -940,5 +940,17 @@ export function getRectIntersectionRatio({
   const intersectionArea = xOverlap * yOverlap;
   const rect1Area = rect1.width * rect1.height;
 
-  return rect1Area > 0 ? intersectionArea / rect1Area : 0;
+  const intersectionRatio = rect1Area > 0 ? intersectionArea / rect1Area : 0;
+
+  return {
+    xOverlap,
+    yOverlap,
+    intersectionRatio,
+  };
 }
+
+// @hello-pangea/dnd/dist/dnd.d.ts
+export type RecursivePartial<T> = {
+  [P in keyof T]?: T[P] extends (infer U)[] ? RecursivePartial<U>[] : T[P] extends (...args: any) => any ? T[P] | undefined : T[P] extends object ? RecursivePartial<T[P]> : T[P];
+};
+
