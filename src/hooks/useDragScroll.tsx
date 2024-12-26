@@ -1,4 +1,5 @@
 import {
+  CurrentActiveCustomAttributesKvMapping,
   getDraggable,
   ScrollContainerCustomAttributesKvMapping,
 } from "@/components/BoardContext";
@@ -368,13 +369,13 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
       let isOffTheElementOrInvalid = false;
       const intervalId = setInterval(() => {
         if (isOffTheElementOrInvalid) {
+          endDragScroll({ scrollContainer });
           return;
         }
         const rafId = requestAnimationFrame(() => {
           const event = getCurPointerEvent();
           if (!event) {
             isOffTheElementOrInvalid = true; // Invalid
-            endDragScroll({ scrollContainer });
             return;
           }
           const cursorOffset = getCursorScrollOffsetOnElement({
@@ -384,7 +385,6 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
           });
           if (!cursorOffset) {
             isOffTheElementOrInvalid = true; // Invalid
-            endDragScroll({ scrollContainer });
             return;
           }
 
@@ -394,7 +394,6 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
             typeof yNoScroll === "undefined"
           ) {
             isOffTheElementOrInvalid = true; // Invalid
-            endDragScroll({ scrollContainer });
             return;
           }
           if (
@@ -410,7 +409,6 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
             // );
 
             isOffTheElementOrInvalid = true; // Off the element
-            endDragScroll({ scrollContainer });
             return;
           }
 
@@ -442,7 +440,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
 
           if (!isDragScrollAllowed) {
             isOffTheElementOrInvalid = true; // Invalid
-            endDragScroll({ scrollContainer });
+            return;
           }
         });
         refScrollRafIdMap.current.set(scrollContainer, rafId);
@@ -650,13 +648,6 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
 
   const refConfigs = useRef<DragScrollConfigs>({});
 
-  const preventScroll = useCallback(
-    (event: MouseEvent | TouchEvent) => {
-      isDragging && event.preventDefault();
-    },
-    [isDragging],
-  );
-
   const addDragScrollConfig = useCallback(
     ({ boardListId, scrollContainerId, config }: AddDragScrollConfigParams) => {
       if (!refConfigs.current[boardListId]) {
@@ -759,7 +750,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
       }
 
       const isDragScrollNeededForThisScrollContainer = await dragScroll({
-        scrollContainer: scrollContainer,
+        scrollContainer,
         desiredFps: 60,
         ...config,
       });
@@ -767,7 +758,25 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
       // console.log(isDragScrollNeededForThisScrollContainer);
       // console.log(scrollContainerId);
       // console.groupEnd();
+
+      // const attrIsCurrentActiveScrollContainer =
+      //   CurrentActiveCustomAttributesKvMapping["data-active-scroll-container"];
       if (isDragScrollNeededForThisScrollContainer) {
+        // const prevActiveScrollContainers = [
+        //   ...document.querySelectorAll(
+        //     `[${attrIsCurrentActiveScrollContainer}="true"]`,
+        //   ),
+        // ] as HTMLElement[];
+        // prevActiveScrollContainers.forEach((prevActiveScrollContainer) => {
+        //   prevActiveScrollContainer.removeAttribute(
+        //     attrIsCurrentActiveScrollContainer,
+        //   );
+        // });
+
+        // scrollContainer.setAttribute(
+        //   attrIsCurrentActiveScrollContainer,
+        //   "true",
+        // );
         return;
       }
     }

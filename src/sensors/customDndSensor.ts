@@ -19,6 +19,7 @@ import { supportedEventName as supportedPageVisibilityEventName } from "./suppor
 import { DraggableOptions } from "./types";
 import bindEvents from "./bind-events";
 import { useDeviceDetector } from "@/hooks/useDeviceDetector";
+import { CurrentActiveCustomAttributesKvMapping } from "@/components/BoardContext";
 
 interface Idle {
   type: "IDLE";
@@ -155,25 +156,36 @@ export const useCustomDndSensor = (api: SensorAPI) => {
               // preventing default as we are using this event
               event.preventDefault();
 
-              const scrollContainer = document.querySelector(
-                "[data-scroll-container-id='category-task-board']",
-              );
-              if (!scrollContainer) {
-                // fallback
-                phase.actions.move(point);
-                return;
-              }
+              // const attrIsCurrentActiveScrollContainer =
+              //   CurrentActiveCustomAttributesKvMapping[
+              //     "data-active-scroll-container"
+              //   ];
+              // const scrollContainer = document.querySelector(
+              //   `[${attrIsCurrentActiveScrollContainer}="true"]`,
+              // );
+              // if (!scrollContainer) {
+              //   // fallback
+              //   phase.actions.move(point);
+              //   return;
+              // }
 
-              console.log("DOH!");
               // Option A: Convert the pointer to "container local" coords, then add scroll offset
               // So: (relative pointer) + (container scroll)
               // This is one pattern:
-              const rect = scrollContainer.getBoundingClientRect();
-              const offsetX = clientX - rect.left; //+ scrollContainer.scrollLeft;
-              const offsetY = clientY - rect.top; //+ scrollContainer.scrollTop;
+              // const rect = scrollContainer.getBoundingClientRect();
+              // const offsetX = clientX - rect.left + scrollContainer.scrollLeft;
+              // const offsetY = clientY - rect.top + scrollContainer.scrollTop;
+
+              // const offsetX = clientX; //+ scrollContainer.scrollLeft;
+              // const offsetY = clientY; //+ scrollContainer.scrollTop;
+
+
+              const offsetX = event.pageX;
+              const offsetY = event.pageY;
 
               // Now pass that offset to the library
               phase.actions.move({ x: offsetX, y: offsetY });
+              
               return;
             }
 
@@ -256,7 +268,12 @@ export const useCustomDndSensor = (api: SensorAPI) => {
           eventName: "scroll" as keyof HTMLElementEventMap,
           // kill a pending drag if there is a window scroll
           options: { passive: true, capture: false },
-          fn: () => {
+          // options: { passive: true, capture: false },
+          fn: (event: UIEvent) => {
+            // const target = event.target as HTMLElement;
+            // console.log(target.scrollTop, target.scrollLeft);
+            // console.log(target);
+
             if (getPhase().type === "PENDING") {
               cancel();
             }

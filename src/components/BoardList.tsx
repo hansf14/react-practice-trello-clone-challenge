@@ -576,6 +576,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           draggableId: srcDraggableId,
         } = update;
         if (!dst) {
+          b(null);
           // TODO: set null to c
           return;
         }
@@ -820,12 +821,12 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
               <BoardListBase
                 // ref={refBase} // TODO:
                 ref={droppableProvided.innerRef}
-                {...droppableProvided.droppableProps}
                 style={{
                   backgroundColor: droppableStateSnapshot.isDraggingOver
                     ? "rgba(0, 0, 0, 0.3)"
                     : "",
                 }}
+                {...droppableProvided.droppableProps}
                 {...droppableCustomAttributes}
                 {...scrollContainerCustomAttributes}
                 {...otherProps}
