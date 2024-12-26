@@ -1,70 +1,90 @@
 // navigator.maxTouchPoints is always = 1 on dev tool simulation mode
 
-import { useCallback } from "react";
+import { observeUserAgentChange, ObserveUserAgentChangeCb } from "@/utils";
+import { useCallback, useEffect, useState } from "react";
 
-export const getDeviceDetector = () => {
-  const userAgent =
-    typeof navigator === "undefined" ? "SSR" : navigator.userAgent;
-  // console.log(userAgent);
+export type DeviceEnvironmentChangeCb = ObserveUserAgentChangeCb;
 
-  const getIsSSR = () => Boolean(userAgent.match(/SSR/i));
-  const isSSR = getIsSSR();
+export const useDeviceDetector = (params?: {
+  cb?: DeviceEnvironmentChangeCb;
+}) => {
+  const [stateUserAgent, setStateUserAgent] = useState<string>(() =>
+    typeof navigator === "undefined" ? "SSR" : navigator.userAgent,
+  );
 
-  const getIsAndroid = () =>
-    !isSSR &&
-    Boolean(userAgent.match(/Android/i)) &&
-    navigator?.maxTouchPoints !== 1;
-  const getIsIos = () =>
-    !isSSR &&
-    Boolean(userAgent.match(/iPhone|iPad|iPod/i)) &&
-    navigator?.maxTouchPoints !== 1;
-  const getIsOperaMini = () => Boolean(userAgent.match(/Opera Mini/i));
-  const getIsWindowsPhone = () =>
-    !isSSR &&
-    Boolean(userAgent.match(/IEMobile|windows phone/i)) &&
-    navigator?.maxTouchPoints !== 1;
-  const getIsBlackberryPhone = () =>
-    !isSSR &&
-    Boolean(userAgent.match(/blackberry/i)) &&
-    navigator?.maxTouchPoints !== 1;
+  useEffect(() => {
+    const disconnect = observeUserAgentChange({
+      cb: ({ prevUserAgent, curUserAgent }) => {
+        setStateUserAgent(curUserAgent);
+        params?.cb?.({ prevUserAgent, curUserAgent });
+      },
+    });
 
-  const getIsEmulatorWebkit = () => userAgent.indexOf("Mobile") !== -1;
+    return () => {
+      disconnect();
+    };
+  }, [params, params?.cb]);
 
-  const getIsMobile = () =>
-    !isSSR &&
-    (getIsAndroid() ||
-      getIsIos() ||
-      getIsOperaMini() ||
-      getIsWindowsPhone() ||
-      getIsBlackberryPhone());
-  const getIsTablet = () =>
-    !isSSR &&
-    Boolean(
-      userAgent.match(/(ipad|tablet|playbook|silk)|(android(?!.*mobile))/i),
-    ) &&
-    navigator?.maxTouchPoints !== 1;
+  const getDeviceDetector = useCallback(() => {
+    const getIsSSR = () => Boolean(stateUserAgent.match(/SSR/i));
+    const isSSR = getIsSSR();
 
-  const getIsDesktop = () =>
-    (!isSSR && !getIsMobile() && !getIsTablet()) || getIsEmulatorWebkit();
-  const getIsTouchDevice = () =>
-    !isSSR && (getIsMobile() || getIsTablet() || getIsEmulatorWebkit());
+    const getIsAndroid = () =>
+      !isSSR &&
+      Boolean(stateUserAgent.match(/Android/i)) &&
+      navigator?.maxTouchPoints !== 1;
+    const getIsIos = () =>
+      !isSSR &&
+      Boolean(stateUserAgent.match(/iPhone|iPad|iPod/i)) &&
+      navigator?.maxTouchPoints !== 1;
+    const getIsOperaMini = () => Boolean(stateUserAgent.match(/Opera Mini/i));
+    const getIsWindowsPhone = () =>
+      !isSSR &&
+      Boolean(stateUserAgent.match(/IEMobile|windows phone/i)) &&
+      navigator?.maxTouchPoints !== 1;
+    const getIsBlackberryPhone = () =>
+      !isSSR &&
+      Boolean(stateUserAgent.match(/blackberry/i)) &&
+      navigator?.maxTouchPoints !== 1;
 
-  return {
-    getIsSSR,
-    getIsAndroid,
-    getIsIos,
-    getIsOperaMini,
-    getIsWindowsPhone,
-    getIsBlackberryPhone,
-    getIsEmulatorWebkit,
-    getIsMobile,
-    getIsTablet,
-    getIsDesktop,
-    getIsTouchDevice,
-  };
-};
+    const getIsEmulatorWebkit = () => stateUserAgent.indexOf("Mobile") !== -1;
 
-export const useDeviceDetector = () => {
+    const getIsMobile = () =>
+      !isSSR &&
+      (getIsAndroid() ||
+        getIsIos() ||
+        getIsOperaMini() ||
+        getIsWindowsPhone() ||
+        getIsBlackberryPhone());
+    const getIsTablet = () =>
+      !isSSR &&
+      Boolean(
+        stateUserAgent.match(
+          /(ipad|tablet|playbook|silk)|(android(?!.*mobile))/i,
+        ),
+      ) &&
+      navigator?.maxTouchPoints !== 1;
+
+    const getIsDesktop = () =>
+      (!isSSR && !getIsMobile() && !getIsTablet()) || getIsEmulatorWebkit();
+    const getIsTouchDevice = () =>
+      !isSSR && (getIsMobile() || getIsTablet() || getIsEmulatorWebkit());
+
+    return {
+      getIsSSR,
+      getIsAndroid,
+      getIsIos,
+      getIsOperaMini,
+      getIsWindowsPhone,
+      getIsBlackberryPhone,
+      getIsEmulatorWebkit,
+      getIsMobile,
+      getIsTablet,
+      getIsDesktop,
+      getIsTouchDevice,
+    };
+  }, [stateUserAgent]);
+
   // const [detector, setDetector] = useState<ReturnType<typeof getDetector>>(
   //   getDetector(userAgent)
   // );

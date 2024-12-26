@@ -1,8 +1,10 @@
 import {
   CurrentActiveCustomAttributesKvMapping,
   getDraggable,
+  getScrollContainer,
   ScrollContainerCustomAttributesKvMapping,
 } from "@/components/BoardContext";
+import { useDeviceDetector } from "@/hooks/useDeviceDetector";
 import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { MultiMap } from "@/multimap";
@@ -11,6 +13,7 @@ import {
   getCursorScrollOffsetOnElement,
   getRectIntersectionRatio,
   memoizeCallback,
+  scrollContainerToElement,
   SmartMerge,
   SmartOmit,
   SmartPick,
@@ -108,52 +111,47 @@ export const setPlaceholderRef = <
   };
 };
 
-export type AdjustIfIntersectPlaceholderParamsCommon = {
-  boardListId: string;
-  draggableId: string;
-  scrollBehavior?: ScrollBehavior;
+export type ScrollContainerToElementConfig = SmartPick<
+  Parameters<typeof scrollContainerToElement>["0"],
+  | "containerHorizontalAlign"
+  | "containerVerticalAlign"
+  | "elementHorizontalAlign"
+  | "elementVerticalAlign"
+>;
+
+export type ScrollContainerToElementConfigs = {
+  fallback: ScrollContainerToElementConfig;
+  custom: {
+    [scrollContainerId: string]: ScrollContainerToElementConfig;
+  };
 };
 
-export function adjustIfIntersectPlaceholder(
-  params:
-    | ({
-        srcDroppableId: string;
-        dstDroppableId: string;
-      } & AdjustIfIntersectPlaceholderParamsCommon)
-    | ({
-        src: DraggableLocation<string>;
-        dst: DraggableLocation<string> | null;
-      } & AdjustIfIntersectPlaceholderParamsCommon),
-) {
-  let { srcDroppableId, dstDroppableId } = params as {
-    srcDroppableId: string;
-    dstDroppableId: string;
-  };
-  const { src, dst } = params as {
-    src: DraggableLocation<string>;
-    dst: DraggableLocation<string> | null;
-  };
-  const {
-    boardListId,
-    draggableId,
-    scrollBehavior = "smooth",
-  } = params as AdjustIfIntersectPlaceholderParamsCommon;
-
-  if (!src && !dst && (!srcDroppableId || !dstDroppableId)) {
-    console.warn("[adjustIfIntersectPlaceholder] invalid params.");
-    return;
-  }
-  if (src && dst) {
-    srcDroppableId = src.droppableId;
-    dstDroppableId = dst.droppableId;
-  }
-
+export function scrollToPlaceholderWhenIntersect({
+  boardListId,
+  srcDraggableId,
+  srcDroppableId,
+  dstDroppableId,
+  scrollContainerToElementConfigs,
+  dstScrollContainerId = dstDroppableId,
+  fallbackScrollContainer = document.documentElement,
+}: {
+  boardListId: string;
+  srcDroppableId: string;
+  srcDraggableId: string;
+  dstDroppableId: string;
+  scrollContainerToElementConfigs: ScrollContainerToElementConfigs;
+  dstScrollContainerId?: string;
+  fallbackScrollContainer?: HTMLElement;
+}) {
   if (srcDroppableId === dstDroppableId) {
     return;
   }
 
-  const { draggable } = getDraggable({ boardListId, draggableId });
-  if (!draggable) {
+  const { draggable: srcDraggable } = getDraggable({
+    boardListId,
+    draggableId: srcDraggableId,
+  });
+  if (!srcDraggable) {
     return;
   }
 
@@ -164,25 +162,34 @@ export function adjustIfIntersectPlaceholder(
     return;
   }
 
-  const { intersectionRatio, xOverlap, yOverlap } = getRectIntersectionRatio({
-    rect1: draggable.getBoundingClientRect(),
+  const { intersectionRatio } = getRectIntersectionRatio({
+    rect1: srcDraggable.getBoundingClientRect(),
     rect2: placeholderContainer.getBoundingClientRect(),
   });
 
-  // console.log(placeholderContainer);
-  // console.log(intersectionRatio);
-  // console.log(xOverlap);
-  // console.log(yOverlap);
-
   if (intersectionRatio > 0) {
-    placeholderContainer.scrollIntoView({
-      behavior: scrollBehavior,
-    });
-    // placeholder.scrollBy({
+    // placeholderContainer.scrollIntoView({
     //   behavior: scrollBehavior,
-    //   left: xOverlap,
-    //   top: yOverlap,
     // });
+    // ㄴ Forces the screen to view this WHOLE element as if focused, so not applicable.
+
+    const { scrollContainer: _scrollContainer } = getScrollContainer({
+      boardListId,
+      scrollContainerId: dstScrollContainerId,
+    });
+    const isFallback = !_scrollContainer;
+    const scrollContainer = !_scrollContainer
+      ? fallbackScrollContainer
+      : _scrollContainer;
+
+    const config = isFallback
+      ? scrollContainerToElementConfigs.fallback
+      : scrollContainerToElementConfigs.custom[dstScrollContainerId];
+    scrollContainerToElement({
+      container: scrollContainer,
+      element: placeholderContainer,
+      ...config,
+    });
   }
 }
 
@@ -276,6 +283,82 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
   const onPointerUp = useCallback(() => {
     isDragScrollAllowed = false;
   }, []);
+
+  const { getDeviceDetector } = useDeviceDetector();
+  const { getIsTouchDevice } = getDeviceDetector();
+
+  const preventDefaultScrollOnDragInTouchDevice = useCallback(
+    (event: TouchEvent) => {
+      const isTouchDevice = getIsTouchDevice();
+      if (isTouchDevice && isDragging) {
+        event.preventDefault();
+      }
+    },
+    [getIsTouchDevice, isDragging],
+  );
+
+  const preventContextMenuAndWheelOnDrag = useCallback(
+    (event: MouseEvent) => {
+      const isTouchDevice = getIsTouchDevice();
+      if (isTouchDevice && isDragging) {
+        event.preventDefault();
+      }
+    },
+    [getIsTouchDevice, isDragging],
+  );
+
+  // Touch device dragging support
+  useEffect(() => {
+    // document.body.addEventListener(
+    //   "touchstart",
+    //   (event: TouchEvent) => {
+    //     event.preventDefault();
+    //   },
+    //   { passive: false },
+    // );
+    // ㄴ onClick event will not trigger
+    // https://stackoverflow.com/a/13720649/11941803
+
+    document.body.addEventListener(
+      "touchmove",
+      preventDefaultScrollOnDragInTouchDevice,
+      {
+        passive: false,
+      },
+    );
+
+    document.body.addEventListener(
+      "contextmenu",
+      preventContextMenuAndWheelOnDrag,
+      {
+        passive: false,
+      },
+    );
+
+    document.body.addEventListener("wheel", preventContextMenuAndWheelOnDrag, {
+      passive: false,
+    });
+
+    return () => {
+      document.body.removeEventListener(
+        "touchmove",
+        preventDefaultScrollOnDragInTouchDevice,
+      );
+
+      document.body.removeEventListener(
+        "contextmenu",
+        preventContextMenuAndWheelOnDrag,
+      );
+
+      document.body.removeEventListener(
+        "wheel",
+        preventContextMenuAndWheelOnDrag,
+      );
+    };
+  }, [
+    preventDefaultScrollOnDragInTouchDevice,
+    preventContextMenuAndWheelOnDrag,
+  ]);
 
   useEffect(() => {
     if (!isOnPointerDownAttached) {
@@ -654,28 +737,8 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
         refConfigs.current[boardListId] = {};
       }
       refConfigs.current[boardListId][scrollContainerId] = config;
-
-      // const attrBoardListId =
-      //   ScrollContainerCustomAttributesKvMapping["data-board-list-id"];
-      // const attrScrollContainerId =
-      //   ScrollContainerCustomAttributesKvMapping["data-scroll-container-id"];
-
-      // const scrollContainer = document.querySelector(
-      //   `[${attrBoardListId}="${boardListId}"][${attrScrollContainerId}="${scrollContainerId}"]`,
-      // ) as HTMLElement | null;
-
-      // if (scrollContainer) {
-      //   scrollContainer.addEventListener("touchmove", preventScroll, {
-      //     passive: false,
-      //   });
-      //   scrollContainer.addEventListener("wheel", preventScroll, {
-      //     passive: false,
-      //   });
-      // }
     },
-    [
-      // preventScroll
-    ],
+    [],
   );
 
   const removeDragScrollConfig = useCallback(
@@ -684,24 +747,8 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
         return;
       }
       delete refConfigs.current[boardListId][scrollContainerId];
-
-      // const attrBoardListId =
-      //   ScrollContainerCustomAttributesKvMapping["data-board-list-id"];
-      // const attrScrollContainerId =
-      //   ScrollContainerCustomAttributesKvMapping["data-scroll-container-id"];
-
-      // const scrollContainer = document.querySelector(
-      //   `[${attrBoardListId}="${boardListId}"][${attrScrollContainerId}="${scrollContainerId}"]`,
-      // ) as HTMLElement | null;
-
-      // if (scrollContainer) {
-      //   scrollContainer.removeEventListener("touchmove", preventScroll);
-      //   scrollContainer.removeEventListener("wheel", preventScroll);
-      // }
     },
-    [
-      // preventScroll
-    ],
+    [],
   );
 
   // Update scroll on drag move
@@ -729,8 +776,10 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
 
     const scrollContainers = underlyingElements.filter((underlyingElement) => {
       return (
-        underlyingElement.hasAttribute(boardListIdAttribute) &&
-        underlyingElement.hasAttribute(scrollContainerIdAttribute)
+        (underlyingElement.hasAttribute(boardListIdAttribute) &&
+          underlyingElement.hasAttribute(scrollContainerIdAttribute)) ||
+        underlyingElement === document.body ||
+        document.documentElement
       );
     });
     // console.log(scrollContainers);
@@ -759,24 +808,8 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
       // console.log(scrollContainerId);
       // console.groupEnd();
 
-      // const attrIsCurrentActiveScrollContainer =
-      //   CurrentActiveCustomAttributesKvMapping["data-active-scroll-container"];
       if (isDragScrollNeededForThisScrollContainer) {
-        // const prevActiveScrollContainers = [
-        //   ...document.querySelectorAll(
-        //     `[${attrIsCurrentActiveScrollContainer}="true"]`,
-        //   ),
-        // ] as HTMLElement[];
-        // prevActiveScrollContainers.forEach((prevActiveScrollContainer) => {
-        //   prevActiveScrollContainer.removeAttribute(
-        //     attrIsCurrentActiveScrollContainer,
-        //   );
-        // });
-
-        // scrollContainer.setAttribute(
-        //   attrIsCurrentActiveScrollContainer,
-        //   "true",
-        // );
+        console.log(scrollContainer);
         return;
       }
     }

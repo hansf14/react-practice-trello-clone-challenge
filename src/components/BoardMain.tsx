@@ -62,7 +62,6 @@ const BoardMainContent = styled.div`
 `;
 
 const BoardMainContentMinusMargin = styled.div`
-  position: relative;
   margin: -5px 10px -5px 0;
   height: 100%;
 
@@ -355,6 +354,9 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                 >
                   <BoardMainContentMinusMargin
                     {...draggablesContainerCustomAttributes}
+                    style={{
+                      position: "relative",
+                    }}
                   >
                     {children}
                     {getPlaceholder({

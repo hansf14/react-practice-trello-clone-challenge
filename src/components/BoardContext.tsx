@@ -10,6 +10,19 @@ import { useIsomorphicLayoutEffect } from "usehooks-ts";
 import { NestedIndexer, NestedIndexerBaseItem } from "@/indexer";
 import { createKeyValueMapping, SmartMerge } from "@/utils";
 
+export function getScrollContainer({
+  boardListId,
+  scrollContainerId,
+}: {
+  boardListId: string;
+  scrollContainerId: string;
+}) {
+  const scrollContainer = document.querySelector(
+    `[${ScrollContainerCustomAttributesKvMapping["data-board-list-id"]}=${boardListId}][${ScrollContainerCustomAttributesKvMapping["data-scroll-container-id"]}="${scrollContainerId}"]`,
+  ) as HTMLElement | null;
+  return { scrollContainer };
+}
+
 export function getDroppable({
   boardListId,
   droppableId,

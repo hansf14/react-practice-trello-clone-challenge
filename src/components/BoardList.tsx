@@ -38,13 +38,16 @@ import {
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { createPortal } from "react-dom";
 import {
-  adjustIfIntersectPlaceholder,
+  scrollToPlaceholderWhenIntersect,
   DragScrollConfig,
   UseDragScroll,
   useDragScroll,
+  ScrollContainerToElementConfigs,
+  ScrollContainerToElementConfig,
 } from "@/hooks/useDragScroll";
 import {
   DragDropContext,
+  DragUpdate,
   Droppable,
   OnDragEndResponder,
   OnDragStartResponder,
@@ -52,62 +55,15 @@ import {
   useMouseSensor,
   useTouchSensor,
 } from "@hello-pangea/dnd";
-import { CustomDndSensor } from "@/sensors/customDndSensor";
-
-// // https://github.com/clauderic/dnd-kit/issues/477#issuecomment-985194908
-// https://github.com/clauderic/dnd-kit/discussions/1493
-// export class MouseSensor extends MouseSensorBase {
-//   static activators = [
-//     {
-//       eventName: "onMouseDown" as const,
-//       handler: (
-//         { nativeEvent: event }: React.MouseEvent,
-//         { onActivation }: MouseSensorOptions,
-//       ) => {
-//         return shouldHandleEvent(event.target as HTMLElement);
-//       },
-//     },
-//   ];
-// }
-// // export class KeyboardSensor extends LibKeyboardSensor {
-// //   static activators = [
-// //     {
-// //       eventName: 'onKeyDown' as const,
-// //       handler: ({ nativeEvent: event }: KeyboardEvent<Element>) => {
-// //         return shouldHandleEvent(event.target as HTMLElement)
-// //       }
-// //     }
-// //   ]
-// // }
-// function shouldHandleEvent(element: HTMLElement | null) {
-//   let cur = element;
-//   while (cur) {
-//     if (cur.hasAttribute("data-no-dnd")) {
-//       return false;
-//     }
-//     // if (cur.dataset && cur.dataset.noDnd) {
-//     //   return false;
-//     // }
-//     cur = cur.parentElement;
-//   }
-//   return true;
-// }
+import { useStateWithCb } from "@/hooks/useStateWithCb";
 
 const BoardListBase = styled.div`
   ${CssScrollbar}
-
-  overflow-x: auto;
-  overflow-y: hidden;
-
   max-width: 100dvw;
   width: 100%;
   height: 100%;
   padding: 10px;
 `;
-// touch-action: none;
-// touch-action: manipulation;
-// https://docs.dndkit.com/api-documentation/sensors/pointer#touch-action
-// https://docs.dndkit.com/api-documentation/sensors/touch#touch-action
 
 type BoardListDropAreaProps = {
   isDropTarget?: boolean;
@@ -144,10 +100,6 @@ const BoardListDropAreaMinusMargin = styled.div`
   border-radius: 10px;
 `;
 
-/* &.${boardClassNameKvMapping["board-sortable-handle"]} {
-    cursor: grab;
-  } */
-
 export type BoardListProps = BoardListContextParams &
   StyledComponentProps<"div">;
 
@@ -159,20 +111,12 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     { boardListId, parentKeyName, childKeyName, children, ...otherProps },
     ref,
   ) => {
-    const [stateActiveParentItem, setStateActiveParentItem] =
-      useState<ParentItem | null>(null);
-    const [stateActiveChildItem, setStateActiveChildItem] =
-      useState<ChildItem | null>(null);
-    const refDragOverlayReactElement = useRef<React.ReactElement | null>(null);
-
     const [isDragging, setIsDragging] = useState(false);
 
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
-
-    const refDroppable = useRef<HTMLDivElement | null>(null);
 
     const boardListContextParams = useMemo(
       () => ({
@@ -187,205 +131,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       stateBoardListContext,
       setStateBoardListContext,
     } = useBoardContext(boardListContextParams);
-
-    // const onDragStart = useCallback(
-    //   (event: DragStartEvent) => {
-    //     // console.log("[onDragStart]");
-    //     // console.log(event);
-
-    //     setIsDragging(true);
-
-    //     if (event.active.data.current) {
-    //       const activator = event.activatorEvent.target as HTMLElement | null;
-    //       if (!activator) {
-    //         return;
-    //       }
-
-    //       const { draggableElement: draggable } =
-    //         getDndContextInfoFromActivator({
-    //           boardListId,
-    //           activator,
-    //         });
-    //       if (!draggable) {
-    //         return;
-    //       }
-
-    //       const draggableClone = draggable.cloneNode(true) as HTMLElement;
-    //       draggableClone.setAttribute(
-    //         DragOverlayCustomAttributesKvMapping["data-drag-overlay"],
-    //         "true",
-    //       );
-    //       // console.log(draggableClone);
-
-    //       refDragOverlayReactElement.current = parse(
-    //         draggableClone.outerHTML,
-    //       ) as React.ReactElement;
-    //       refDragOverlayReactElement.current = React.cloneElement(
-    //         refDragOverlayReactElement.current,
-    //         {
-    //           style: {
-    //             width: draggable.offsetWidth,
-    //             height: draggable.offsetHeight,
-    //             cursor: "grabbing",
-    //             opacity: "1",
-    //           } satisfies React.CSSProperties,
-    //         },
-    //       );
-
-    //       const activeDataUnknown = event.active.data
-    //         .current as DndDataInterfaceCustom;
-    //       if (isParentItemData(activeDataUnknown)) {
-    //         const activeDataParent = activeDataUnknown;
-    //         setStateActiveParentItem(activeDataParent.customData.item);
-    //       } else if (isChildItemData(activeDataUnknown)) {
-    //         const activeDataChild = activeDataUnknown;
-    //         setStateActiveChildItem(activeDataChild.customData.item);
-    //       } else {
-    //         console.warn("[onDragStart] invalid dndData.type");
-    //       }
-    //     }
-    //   },
-    //   [boardListId],
-    // );
-
-    // const onDragOver = useCallback(
-    //   (event: DragOverEvent) => {
-    //     console.log("[onDragOver]");
-
-    //     const { active, over } = event;
-    //     // console.log("active:", active);
-    //     // console.log("over:", over);
-    //     if (!over) {
-    //       return;
-    //     }
-    //     const activeId = active.id;
-    //     const overId = over.id;
-    //     if (typeof activeId !== "string" || typeof overId !== "string") {
-    //       console.warn("[onDragOver] id should only be string.");
-    //       return;
-    //     }
-    //     if (activeId === overId) {
-    //       return;
-    //     }
-    //     console.log(activeId, overId);
-
-    //     const activeData = isCustomItemData(active.data.current)
-    //       ? active.data.current
-    //       : null;
-    //     if (!activeData) {
-    //       return;
-    //     }
-    //     const overData = isCustomItemData(over.data.current)
-    //       ? over.data.current
-    //       : null;
-    //     if (!overData) {
-    //       return;
-    //     }
-    //     const {
-    //       draggableId: activeDraggableId,
-    //       droppableId: activeDroppableId,
-    //       indexOfDraggable: indexFrom,
-    //     } = getDndContextInfoFromData({
-    //       boardListContext: stateBoardListContext,
-    //       data: activeData,
-    //     });
-    //     let {
-    //       draggableId: overDraggableId,
-    //       droppableId: overDroppableId,
-    //       indexOfDraggable: indexTo,
-    //       parentAsDroppableOfChild,
-    //     } = getDndContextInfoFromData({
-    //       boardListContext: stateBoardListContext,
-    //       data: overData,
-    //     });
-
-    //     // console.group();
-    //     // console.log(activeDraggableId);
-    //     // console.log(activeDroppableId);
-    //     // console.log(indexFrom);
-    //     // console.log(overDraggableId);
-    //     // console.log(overDroppableId);
-    //     // console.log(indexTo);
-    //     // console.log(parentAsDroppableOfChild);
-    //     // console.groupEnd();
-
-    //     if (
-    //       (!isParentItemData(activeData) && !isChildItemData(activeData)) ||
-    //       (!isParentItemData(overData) && !isChildItemData(overData)) ||
-    //       !activeDraggableId ||
-    //       !activeDroppableId ||
-    //       indexFrom < 0 ||
-    //       !overDraggableId ||
-    //       !overDroppableId ||
-    //       indexTo < 0 ||
-    //       (isParentItemData(overData) && !parentAsDroppableOfChild)
-    //     ) {
-    //       return;
-    //     }
-
-    //     if (isParentItemData(activeData) && isParentItemData(overData)) {
-    //       // https://github.com/clauderic/dnd-kit/issues/900#issuecomment-1845035824
-    //       // `startTransition` didn't work for 'Maximum update depth exceeded' error.
-    //       requestAnimationFrame(() => {
-    //         setStateBoardListContext((curBoardListContext) => {
-    //           const newBoardListContextIndexer = new BoardListContextIndexer(
-    //             curBoardListContext.indexer,
-    //           );
-    //           newBoardListContextIndexer.moveParent({
-    //             indexFrom,
-    //             indexTo,
-    //           });
-    //           return {
-    //             boardListId,
-    //             indexer: newBoardListContextIndexer,
-    //           };
-    //         });
-    //       });
-    //       return;
-    //     }
-
-    //     if (isParentItemData(overData)) {
-    //       if (!parentAsDroppableOfChild) {
-    //         return;
-    //       }
-    //       overDroppableId = parentAsDroppableOfChild.droppableId;
-    //       indexTo = parentAsDroppableOfChild.droppableLength;
-    //       if (!overDroppableId || indexTo < 0) {
-    //         return;
-    //       }
-    //     }
-
-    //     // console.group();
-    //     // console.log(
-    //     //   `Active: ${activeDraggableId} ${activeDroppableId} ${indexFrom}`,
-    //     // );
-    //     // console.log(`Over: ${overDraggableId} ${overDroppableId} ${indexTo}`);
-    //     // console.log((activeData as any).sortable.items);
-    //     // console.groupEnd();
-
-    //     if (activeDroppableId !== overDroppableId) {
-    //       requestAnimationFrame(() => {
-    //         setStateBoardListContext((curBoardListContext) => {
-    //           const newBoardListContextIndexer = new BoardListContextIndexer(
-    //             curBoardListContext.indexer,
-    //           );
-    //           newBoardListContextIndexer.moveChild({
-    //             parentIdFrom: activeDroppableId,
-    //             parentIdTo: overDroppableId,
-    //             indexFrom: indexFrom,
-    //             indexTo: indexTo,
-    //             shouldKeepRef: false,
-    //           });
-    //           return {
-    //             boardListId,
-    //             indexer: newBoardListContextIndexer,
-    //           };
-    //         });
-    //       });
-    //     }
-    //   },
-    //   [boardListId, stateBoardListContext, setStateBoardListContext],
-    // );
 
     // function handleDragOver(event) {
     //   const { active, over, draggingRect } = event;
@@ -443,63 +188,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     //     };
     //   });
     // }
-
-    // const onDragEnd = useCallback(
-    //   (event: DragEndEvent) => {
-    //     console.log("[onDragEnd]");
-
-    //     setIsDragging(false);
-
-    //     setStateActiveParentItem(null);
-    //     setStateActiveChildItem(null);
-    //     refDragOverlayReactElement.current = null;
-
-    //     // const { active, over } = event;
-    //     // // console.log(event);
-    //     // // console.log("active:", active);
-    //     // // console.log("over:", over);
-
-    //     // if (!over) {
-    //     //   return;
-    //     // }
-
-    //     // const activeId = active.id;
-    //     // const overId = over.id;
-    //     // if (typeof activeId !== "string" || typeof overId !== "string") {
-    //     //   console.warn("[onDragOver] id should only be string.");
-    //     //   return;
-    //     // }
-
-    //     // const activeDataUnknown = active.data
-    //     //   .current as DndDataInterfaceUnknown;
-    //     // const overDataUnknown = over.data.current as DndDataInterfaceUnknown;
-    //     // if (!activeDataUnknown || !overDataUnknown || activeId === overId) {
-    //     //   return;
-    //     // }
-
-    //     // if (
-    //     //   isParentItemData(activeDataUnknown) &&
-    //     //   isParentItemData(overDataUnknown)
-    //     // ) {
-    //     //   const activeData = activeDataUnknown;
-    //     //   const overData = overDataUnknown;
-
-    //     //   const idxFrom = activeData.sortable.index;
-    //     //   const idxTo = overData.sortable.index;
-    //     //   setStateNestedIndexer((curNestedIndexer) => {
-    //     //     const newNestedIndexer = new NestedIndexer<ParentItem, ChildItem>(
-    //     //       curNestedIndexer,
-    //     //     );
-    //     //     newNestedIndexer.moveParent({
-    //     //       idxFrom,
-    //     //       idxTo,
-    //     //     });
-    //     //     return newNestedIndexer;
-    //     //   });
-    //     // }
-    //   },
-    //   [setStateBoardListContext],
-    // );
 
     const horizontalDragScrollConfig = useMemo(
       () => ({ scrollSpeed: 6 }) satisfies DragScrollConfig,
@@ -562,55 +250,21 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       [],
     );
 
-    const [a, b] = useState<React.ReactElement | null>(null);
+    const [stateDragPositionPreview, setStateDragPositionPreview] =
+      useState<React.ReactElement | null>(null);
 
-    const onDragUpdate = useCallback<OnDragUpdateResponder>(
-      (update, responderProvided) => {
-        // console.log("[onDragUpdate]");
-        // console.log(update);
-
-        const {
-          source: src,
-          destination: dst,
-          type,
-          draggableId: srcDraggableId,
-        } = update;
-        if (!dst) {
-          b(null);
-          // TODO: set null to c
-          return;
-        }
-
-        adjustIfIntersectPlaceholder({
-          src: src,
-          dst: dst,
-          boardListId,
-          draggableId: srcDraggableId,
-        });
-
-        // const { droppableId: dstDroppableId, index: dstDraggableIndex } = dst;
-        // const { draggable: dstDraggable, draggableId: dstDraggableId } =
-        //   getDraggable({
-        //     boardListId,
-        //     droppableId: dstDroppableId,
-        //     draggableIndex: dstDraggableIndex,
-        //   });
-        // if (!dstDraggable) {
-        //   return;
-        // }
-        // let c = parse(dstDraggable.outerHTML) as React.ReactElement;
-        // const clientRect = dstDraggable.getBoundingClientRect();
-        // c = React.cloneElement(c, {
-        //   style: {
-        //     position: "fixed",
-        //     top: clientRect.top,
-        //     left: clientRect.left,
-        //     width: clientRect.width,
-        //     height: clientRect.height,
-        //   },
-        // });
-        // b(c);
-
+    const setDragPositionPreview = useCallback(
+      ({
+        src,
+        srcDraggableId,
+        dst,
+        direction,
+      }: {
+        src: DragUpdate["source"];
+        srcDraggableId: string;
+        dst: NonNullable<DragUpdate["destination"]>;
+        direction: "horizontal" | "vertical";
+      }) => {
         const { droppableId: srcDroppableId, index: srcDraggableIndex } = src;
         const { droppableId: dstDroppableId, index: dstDraggableIndex } = dst;
         const { draggable: srcDraggable } = getDraggable({
@@ -657,18 +311,50 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         ];
         // console.log(updatedDraggables); // TODO: clientX (horizontal)
 
+        const dstDroppableComputedStyle = window.getComputedStyle(dstDroppable);
+        const dstDroppablePaddingLeft = parseFloat(
+          dstDroppableComputedStyle.paddingLeft,
+        );
+        const dstDroppablePaddingTop = parseFloat(
+          dstDroppableComputedStyle.paddingTop,
+        );
+
+        const clientX =
+          direction === "horizontal"
+            ? dstDroppablePaddingLeft +
+              updatedDraggables
+                .slice(0, dstDraggableIndex)
+                .reduce((acc, cur) => {
+                  const style: React.CSSProperties =
+                    (cur as any).currentStyle ?? window.getComputedStyle(cur);
+                  const marginLeft = parseFloat(
+                    (style.marginLeft ?? 0).toString(),
+                  );
+                  const marginRight = parseFloat(
+                    (style.marginRight ?? 0).toString(),
+                  );
+                  return acc + marginLeft + cur.clientHeight + marginRight;
+                }, 0)
+            : dstDroppablePaddingLeft;
+
         const clientY =
-          parseFloat(window.getComputedStyle(dstDroppable).paddingTop) +
-          updatedDraggables.slice(0, dstDraggableIndex).reduce((acc, cur) => {
-            const style: React.CSSProperties =
-              (cur as any).currentStyle ?? window.getComputedStyle(cur);
-            const marginTop = parseFloat((style.marginTop ?? 0).toString());
-            const marginBottom = parseFloat(
-              (style.marginBottom ?? 0).toString(),
-            );
-            return acc + marginTop + cur.clientHeight + marginBottom;
-          }, 0);
-        // console.log(clientY);
+          direction === "vertical"
+            ? dstDroppablePaddingTop +
+              updatedDraggables
+                .slice(0, dstDraggableIndex)
+                .reduce((acc, cur) => {
+                  const style: React.CSSProperties =
+                    (cur as any).currentStyle ?? window.getComputedStyle(cur);
+                  const marginTop = parseFloat(
+                    (style.marginTop ?? 0).toString(),
+                  );
+                  const marginBottom = parseFloat(
+                    (style.marginBottom ?? 0).toString(),
+                  );
+                  return acc + marginTop + cur.clientHeight + marginBottom;
+                }, 0)
+            : dstDroppablePaddingTop;
+        console.log(clientY);
 
         const activeDraggableClone = activeDraggable.cloneNode(
           true,
@@ -682,23 +368,84 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         });
 
         const { clientHeight, clientWidth } = srcDraggable;
-        let c = parse(activeDraggableClone.outerHTML) as React.ReactElement;
-        c = React.cloneElement(c, {
+        let dragPositionPreview = parse(
+          activeDraggableClone.outerHTML,
+        ) as React.ReactElement;
+        dragPositionPreview = React.cloneElement(dragPositionPreview, {
           style: {
             position: "absolute",
             top: 0,
             left: 0,
-            transform: `translate3d(${parseFloat(window.getComputedStyle(dstDroppable).paddingLeft)}px, ${clientY}px, 0)`,
+            transform: `translate3d(${clientX}px, ${clientY}px, 0)`,
             width: clientWidth,
             height: clientHeight,
             opacity: 0.7,
           },
         });
 
-        c = createPortal(c, dstDraggablesContainer);
-        b(c);
+        dragPositionPreview = createPortal(
+          dragPositionPreview,
+          dstDraggablesContainer,
+        );
+        setStateDragPositionPreview(dragPositionPreview);
       },
       [boardListId],
+    );
+
+    const onDragUpdate = useCallback<OnDragUpdateResponder>(
+      (update, responderProvided) => {
+        // console.log("[onDragUpdate]");
+        // console.log(update);
+
+        const {
+          source: src,
+          destination: dst,
+          type,
+          draggableId: srcDraggableId,
+        } = update;
+        if (!dst) {
+          setStateDragPositionPreview(null);
+          return;
+        }
+
+        const scrollContainerToElementConfigs: ScrollContainerToElementConfigs =
+          {
+            fallback: {
+              containerHorizontalAlign: "right",
+              elementHorizontalAlign: "right",
+            },
+            custom: parentItemIdList.reduce<
+              ScrollContainerToElementConfigs["custom"]
+            >((acc, parentItemId) => {
+              return {
+                ...acc,
+                [parentItemId]: {
+                  containerVerticalAlign: "bottom",
+                  elementVerticalAlign: "bottom",
+                },
+              };
+            }, {}),
+          };
+
+        const { droppableId: srcDroppableId } = src;
+        const { droppableId: dstDroppableId } = dst;
+
+        scrollToPlaceholderWhenIntersect({
+          boardListId,
+          srcDraggableId,
+          srcDroppableId,
+          dstDroppableId,
+          scrollContainerToElementConfigs,
+        });
+
+        setDragPositionPreview({
+          src,
+          srcDraggableId,
+          dst,
+          direction: "vertical",
+        });
+      },
+      [boardListId, parentItemIdList, setDragPositionPreview],
     );
 
     const onDragEnd = useCallback<OnDragEndResponder>(
@@ -708,7 +455,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         // console.log(responderProvided);
 
         setIsDragging(false);
-        b(null);
+        setStateDragPositionPreview(null);
 
         const { source, destination, type } = result;
         if (!destination) {
@@ -805,11 +552,9 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         autoScrollerOptions={{
           disabled: true,
         }}
-        enableDefaultSensors={false}
-        sensors={[CustomDndSensor]}
       >
         <UseDragScroll />
-        {a}
+        {stateDragPositionPreview}
 
         <Droppable
           droppableId={boardListId}
@@ -828,7 +573,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                 }}
                 {...droppableProvided.droppableProps}
                 {...droppableCustomAttributes}
-                {...scrollContainerCustomAttributes}
                 {...otherProps}
               >
                 <BoardListDropArea
@@ -840,6 +584,9 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                 >
                   <BoardListDropAreaMinusMargin
                     {...draggablesContainerCustomAttributes}
+                    style={{
+                      position: "relative",
+                    }}
                   >
                     {children}
                     {droppableProvided.placeholder}

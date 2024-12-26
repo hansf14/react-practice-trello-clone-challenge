@@ -959,3 +959,59 @@ export type RecursivePartial<T> = {
         ? RecursivePartial<T[P]>
         : T[P];
 };
+
+// Calculating the scroll distance
+// 1. Distance of the target’s top relative to the container
+// - target.offsetTop is the vertical position relative to its offset parent. If the container is the offset parent, this works directly.
+// - In some setups, you might need to subtract container.offsetTop (or accumulate offsets) if the container is not the direct offset parent.
+// 2. Add the target’s height
+// - target.offsetHeight is how tall the element is.
+// 3. Subtract the container’s client height
+// - container.clientHeight is the visible height of the container.
+// cf> const scrollTo = target.offsetTop + target.offsetHeight - container.clientHeight;
+
+// window.abc = (a,b) => {
+
+//   // a.scrollTop =
+// }
+
+export function scrollContainerToElement({
+  container,
+  element,
+  containerHorizontalAlign = "keep",
+  containerVerticalAlign = "keep",
+  elementHorizontalAlign = "left",
+  elementVerticalAlign = "top",
+}: {
+  container: HTMLElement;
+  element: HTMLElement;
+  containerHorizontalAlign?: "left" | "right" | "keep";
+  containerVerticalAlign?: "top" | "bottom" | "keep";
+  elementHorizontalAlign?: "left" | "right";
+  elementVerticalAlign?: "top" | "bottom";
+}) {
+  const { x: totalOffsetLeftOfContainer, y: totalOffsetTopOfContainer } =
+    getElementOffsetOnDocument({
+      element: container,
+    });
+  const { x: totalOffsetLeftOfElement, y: totalOffsetTopOfElement } =
+    getElementOffsetOnDocument({
+      element,
+    });
+
+  if (containerHorizontalAlign !== "keep") {
+    container.scrollLeft =
+      totalOffsetLeftOfElement -
+      totalOffsetLeftOfContainer +
+      (elementHorizontalAlign === "right" ? element.offsetWidth : 0) -
+      (containerHorizontalAlign === "right" ? container.clientWidth : 0);
+  }
+
+  if (containerVerticalAlign !== "keep") {
+    container.scrollTop =
+      totalOffsetTopOfElement -
+      totalOffsetTopOfContainer +
+      (elementVerticalAlign === "bottom" ? element.offsetHeight : 0) -
+      (containerVerticalAlign === "bottom" ? container.clientHeight : 0);
+  }
+}
