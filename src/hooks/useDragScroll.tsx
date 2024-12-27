@@ -235,14 +235,13 @@ export type DragScrollParams = {
   scrollBufferZone?: DragScrollBufferZone;
   scrollSpeed?: DragScrollSpeed | number;
   desiredFps?: number;
+  scrollBehavior?: ScrollBehavior;
 };
 
 export type StartDragScrollParams = SmartMerge<
-  SmartPick<
-    DragScrollParams,
-    "scrollContainer" | "scrollSpeed" | "desiredFps"
-  > & {
+  SmartOmit<DragScrollParams, "scrollBufferZone" | "desiredFps"> & {
     scrollDirection: { x: 1 | 0 | -1; y: 1 | 0 | -1 };
+    desiredFps: number;
   }
 >;
 
@@ -431,6 +430,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
       scrollSpeed,
       scrollDirection,
       desiredFps = 60,
+      scrollBehavior = "auto",
     }: StartDragScrollParams) => {
       // console.log(scrollDirection);
 
@@ -520,8 +520,15 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
           const verticalSpeed =
             scrollDirectionY === -1 ? scrollSpeedTop : scrollSpeedBottom;
 
-          scrollContainer.scrollTop += verticalSpeed * scrollDirectionY;
-          scrollContainer.scrollLeft += horizontalSpeed * scrollDirectionX;
+          // scrollContainer.scrollTop += verticalSpeed * scrollDirectionY;
+          // scrollContainer.scrollLeft += horizontalSpeed * scrollDirectionX;
+
+          scrollContainer.scrollTo({
+            top: scrollContainer.scrollTop + verticalSpeed * scrollDirectionY,
+            left:
+              scrollContainer.scrollLeft + horizontalSpeed * scrollDirectionX,
+            behavior: scrollBehavior,
+          });
 
           // console.group();
           // console.log(scrollDirection);
@@ -561,6 +568,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
       scrollBufferZone,
       scrollSpeed,
       desiredFps = 60,
+      scrollBehavior,
     }: DragScrollParams) =>
       memoizeCallback({
         id: idDragScroll,
@@ -725,6 +733,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
                   scrollSpeed,
                   scrollDirection,
                   desiredFps,
+                  scrollBehavior,
                 });
                 resolve(true);
                 return;
@@ -741,6 +750,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
           scrollBufferZone,
           scrollSpeed,
           desiredFps,
+          scrollBehavior,
           idDragScroll,
           startDragScroll,
           endDragScroll,
@@ -830,7 +840,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
 
       // TODO:
       if (isDragScrollNeededForThisScrollContainer) {
-        // console.log(scrollContainer);
+        console.log(isDragScrollNeededForThisScrollContainer);
         return;
       }
     }

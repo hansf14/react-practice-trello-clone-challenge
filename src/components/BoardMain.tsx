@@ -329,9 +329,6 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                 >
                   <BoardMainContentMinusMargin
                     {...draggablesContainerCustomAttributes}
-                    // style={{
-                    //   position: "relative",
-                    // }}
                   >
                     {children}
                     {getPlaceholder({

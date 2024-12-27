@@ -36,6 +36,7 @@ import {
   useDragScroll,
   ScrollContainerToElementConfigs,
   getPlaceholderRef,
+  getPlaceholder,
 } from "@/hooks/useDragScroll";
 import {
   DragDropContext,
@@ -135,69 +136,16 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       setStateBoardListContext,
     } = useBoardListContext(boardListContextParams);
 
-    // function handleDragOver(event) {
-    //   const { active, over, draggingRect } = event;
-    //   const { id } = active;
-    //   let overId;
-    //   if (over) {
-    //     overId = over.id;
-    //   }
-
-    //   const overParent = findParent(overId);
-    //   const overIsContainer = isContainer(overId);
-    //   const activeIsContainer = isContainer(activeId);
-    //   if (overIsContainer) {
-    //     const overIsRow = isRow(overId);
-    //     const activeIsRow = isRow(activeId);
-    //     // only columns to be added to rows
-    //     if (overIsRow) {
-    //       if (activeIsRow) {
-    //         return;
-    //       }
-
-    //       if (!activeIsContainer) {
-    //         return;
-    //       }
-    //     } else if (activeIsContainer) {
-    //       return;
-    //     }
-    //   }
-
-    //   setData((prev) => {
-    //     const activeIndex = data.items.findIndex((item) => item.id === id);
-    //     const overIndex = data.items.findIndex((item) => item.id === overId);
-
-    //     let newIndex = overIndex;
-    //     const isBelowLastItem =
-    //       over &&
-    //       overIndex === prev.items.length - 1 &&
-    //       draggingRect.offsetTop > over.rect.offsetTop + over.rect.height;
-
-    //     const modifier = isBelowLastItem ? 1 : 0;
-
-    //     newIndex =
-    //       overIndex >= 0 ? overIndex + modifier : prev.items.length + 1;
-
-    //     let nextParent;
-    //     if (overId) {
-    //       nextParent = overIsContainer ? overId : overParent;
-    //     }
-
-    //     prev.items[activeIndex].parent = nextParent;
-    //     const nextItems = arrayMove(prev.items, activeIndex, newIndex);
-
-    //     return {
-    //       items: nextItems,
-    //     };
-    //   });
-    // }
-
     const horizontalDragScrollConfig = useMemo(
       () => ({ scrollSpeed: 6 }) satisfies DragScrollConfig,
       [],
     );
     const verticalDragScrollConfig = useMemo(
-      () => ({ scrollSpeed: 3 }) satisfies DragScrollConfig,
+      () =>
+        ({
+          scrollSpeed: 3,
+          // scrollBehavior: "smooth",
+        }) satisfies DragScrollConfig,
       [],
     );
 
@@ -259,24 +207,16 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     const setDragPositionPreview = useCallback(
       ({
         src,
-        srcDraggableId,
         dst,
         direction,
       }: {
         src: DragUpdate["source"];
-        srcDraggableId: string;
         dst: NonNullable<DragUpdate["destination"]>;
         direction: "horizontal" | "vertical";
       }) => {
         const { droppableId: srcDroppableId, index: srcDraggableIndex } = src;
         const { droppableId: dstDroppableId, index: dstDraggableIndex } = dst;
-        const { droppable: dstDroppable } = getDroppable({
-          boardListId,
-          droppableId: dstDroppableId,
-        });
-        if (!dstDroppable) {
-          return;
-        }
+
         const { draggables: srcDraggables } = getDraggables({
           boardListId,
           droppableId: srcDroppableId,
@@ -288,19 +228,35 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 
         const activeDraggable = srcDraggables[srcDraggableIndex];
 
+        let offsetXStart = 0;
         let offsetYStart = 0;
-
         let offsetDraggables: HTMLElement[] = [];
-        if (srcDroppableId === dstDroppableId) {
-          offsetYStart =
-            dstDraggableIndex === dstDraggables.length
-              ? 0
-              : -activeDraggable.offsetHeight;
 
+        if (direction === "horizontal") {
+          if (srcDroppableId === dstDroppableId) {
+            offsetXStart =
+              dstDraggableIndex === dstDraggables.length
+                ? 0
+                : -activeDraggable.offsetWidth;
+          } else {
+            offsetXStart = -activeDraggable.offsetWidth;
+          }
+        }
+
+        if (direction === "vertical") {
+          if (srcDroppableId === dstDroppableId) {
+            offsetYStart =
+              dstDraggableIndex === dstDraggables.length
+                ? 0
+                : -activeDraggable.offsetHeight;
+          } else {
+            offsetYStart = -activeDraggable.offsetHeight;
+          }
+        }
+
+        if (srcDroppableId === dstDroppableId) {
           offsetDraggables = [...dstDraggables.slice(dstDraggableIndex + 1)];
         } else {
-          offsetYStart = -activeDraggable.offsetHeight;
-
           offsetDraggables =
             dstDraggableIndex === dstDraggables.length
               ? []
@@ -309,7 +265,22 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                   ...dstDraggables.slice(dstDraggableIndex + 1),
                 ];
         }
-        // console.log(updatedDraggables);
+
+        const x =
+          direction === "horizontal"
+            ? offsetXStart -
+              offsetDraggables.reduce((acc, cur) => {
+                const style: React.CSSProperties =
+                  (cur as any).currentStyle ?? window.getComputedStyle(cur);
+                const marginLeft = parseFloat(
+                  (style.marginLeft ?? 0).toString(),
+                );
+                const marginRight = parseFloat(
+                  (style.marginRight ?? 0).toString(),
+                );
+                return acc + marginLeft + cur.offsetHeight + marginRight;
+              }, 0)
+            : offsetXStart;
 
         const y =
           direction === "vertical"
@@ -321,166 +292,16 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                 const marginBottom = parseFloat(
                   (style.marginBottom ?? 0).toString(),
                 );
-                // console.log(acc, marginTop, cur.offsetHeight, marginBottom);
                 return acc + marginTop + cur.offsetHeight + marginBottom;
               }, 0)
             : offsetYStart;
-        console.log(y);
-
-        // let offsetParent: HTMLElement | null = null;
-        // const dstDroppableComputedStyle = window.getComputedStyle(dstDroppable);
-        // const dstDroppablePaddingLeft = parseFloat(
-        //   dstDroppableComputedStyle.paddingLeft,
-        // );
-        // const dstDroppablePaddingTop = parseFloat(
-        //   dstDroppableComputedStyle.paddingTop,
-        // );
-
-        // const refsPlaceholder = getPlaceholderRef({
-        //   boardListId,
-        //   droppableId: dstDroppableId,
-        // });
-        // if (!refsPlaceholder) {
-        //   console.warn("[setDragPositionPreview] !refsPlaceholder");
-        //   return;
-        // }
-        // const { refPlaceholderContainer } = refsPlaceholder;
-        // if (!refPlaceholderContainer.current) {
-        //   console.warn("[setDragPositionPreview] !refPlaceholderContainer");
-        //   return;
-        // }
-
-        // if (dstDraggableIndex === dstDraggables.length) {
-        //   offsetParent = refPlaceholderContainer.current;
-        // } else {
-        //   offsetParent = dstDraggables[dstDraggableIndex].parentElement;
-        // }
-
-        // if (!offsetParent) {
-        //   console.warn("[setDragPositionPreview] !offsetParent");
-        //   return;
-        // }
-        // console.log(offsetParent);
-
-        // const { offsetLeft, offsetTop } = refPlaceholderContainer.current;
-        // console.log("Placeholder:", offsetLeft, offsetTop);
-
-        // const { offsetLeft, offsetTop } = dstDraggables[dstDraggableIndex];
-        // console.log(offsetLeft, offsetTop);
-        // const { offsetLeft = 0, offsetTop = 0 } = offsetParent ?? {};
-        // console.log(offsetLeft, offsetTop);
-
-        const { scrollContainer } =
-          getScrollContainer({
-            boardListId,
-            scrollContainerId: dstDroppableId,
-          }) ?? document.documentElement;
-
-        const { scrollTop } = scrollContainer as HTMLElement;
-
-        // const x =
-        //   direction === "horizontal"
-        //     ? offsetLeft +
-        //       +offsetDraggables
-        //         .slice(0, dstDraggableIndex)
-        //         .reduce((acc, cur) => {
-        //           const style: React.CSSProperties =
-        //             (cur as any).currentStyle ?? window.getComputedStyle(cur);
-        //           const marginLeft = parseFloat(
-        //             (style.marginLeft ?? 0).toString(),
-        //           );
-        //           const marginRight = parseFloat(
-        //             (style.marginRight ?? 0).toString(),
-        //           );
-        //           // console.log(marginLeft);
-
-        //           // console.log(acc, offsetLeft, prevElementWidth);
-        //           return acc + marginLeft + cur.offsetWidth + marginRight;
-
-        //           // const style: React.CSSProperties =
-        //           //   (cur as any).currentStyle ?? window.getComputedStyle(cur);
-        //           // const marginLeft = parseFloat(
-        //           //   (style.marginLeft ?? 0).toString(),
-        //           // );
-        //           // const marginRight = parseFloat(
-        //           //   (style.marginRight ?? 0).toString(),
-        //           // );
-        //           // return acc + marginLeft + cur.clientHeight + marginRight;
-        //         }, 0)
-        //     : offsetLeft;
-        // console.log(x);
-
-        // const clientX =
-        //   direction === "horizontal"
-        //     ? dstDroppablePaddingLeft +
-        //       updatedDraggables
-        //         .slice(0, dstDraggableIndex)
-        //         .reduce((acc, cur) => {
-        //           const style: React.CSSProperties =
-        //             (cur as any).currentStyle ?? window.getComputedStyle(cur);
-        //           const marginLeft = parseFloat(
-        //             (style.marginLeft ?? 0).toString(),
-        //           );
-        //           const marginRight = parseFloat(
-        //             (style.marginRight ?? 0).toString(),
-        //           );
-        //           return acc + marginLeft + cur.clientHeight + marginRight;
-        //         }, 0)
-        //     : dstDroppablePaddingLeft;
-
-        // const y =
-        //   direction === "vertical"
-        //     ? offsetTop +
-        //       +updatedDraggables
-        //         .slice(0, dstDraggableIndex)
-        //         .reduce((acc, cur) => {
-        //           const style: React.CSSProperties =
-        //             (cur as any).currentStyle ?? window.getComputedStyle(cur);
-        //           const marginTop = parseFloat(
-        //             (style.marginTop ?? 0).toString(),
-        //           );
-        //           const marginBottom = parseFloat(
-        //             (style.marginBottom ?? 0).toString(),
-        //           );
-        //           console.log(acc, marginTop, cur.offsetHeight, marginBottom);
-
-        //           // console.log(acc, offsetLeft, prevElementWidth);
-        //           return acc + marginTop + cur.offsetHeight + marginBottom;
-
-        //           // const style: React.CSSProperties =
-        //           //   (cur as any).currentStyle ?? window.getComputedStyle(cur);
-        //           // const marginLeft = parseFloat(
-        //           //   (style.marginLeft ?? 0).toString(),
-        //           // );
-        //           // const marginRight = parseFloat(
-        //           //   (style.marginRight ?? 0).toString(),
-        //           // );
-        //           // return acc + marginLeft + cur.clientHeight + marginRight;
-        //         }, 0)
-        //     : offsetTop;
-
-        // const y =
-        //   direction === "vertical"
-        //     ? dstDroppablePaddingTop +
-        //       updatedDraggables
-        //         .slice(0, dstDraggableIndex)
-        //         .reduce((acc, cur) => {
-        //           const style: React.CSSProperties =
-        //             (cur as any).currentStyle ?? window.getComputedStyle(cur);
-        //           const marginTop = parseFloat(
-        //             (style.marginTop ?? 0).toString(),
-        //           );
-        //           const marginBottom = parseFloat(
-        //             (style.marginBottom ?? 0).toString(),
-        //           );
-        //           return acc + marginTop + cur.clientHeight + marginBottom;
-        //         }, 0)
-        //     : dstDroppablePaddingTop;
         // console.log(y);
 
         const activeDraggableClone = activeDraggable.cloneNode(
           true,
         ) as HTMLElement;
+        const { offsetHeight, offsetWidth } = activeDraggable;
+        console.log(offsetWidth, offsetHeight);
 
         // Remove all `data-*` attributes
         Array.from(activeDraggableClone.attributes).forEach((attr) => {
@@ -489,22 +310,17 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           }
         });
 
-        const { clientHeight, clientWidth } = activeDraggable;
         let dragPositionPreview = parse(
           activeDraggableClone.outerHTML,
         ) as React.ReactElement;
         dragPositionPreview = React.cloneElement(dragPositionPreview, {
           style: {
-            // position: "absolute",
-            // position: "absolute",
             position: "relative",
             top: 0,
             left: 0,
-            transform: `translate3d(0, ${y}px, 0)`,
-            // transform: `translate3d(${x}px, ${y}px, 0)`,
-            // margin: `-50px 0`, // TODO:
-            // width: clientWidth,
-            // height: clientHeight,
+            transform: `translate3d(${x}px, ${y}px, 0)`,
+            width: offsetWidth,
+            height: offsetHeight,
             opacity: 0.7,
           },
         });
@@ -576,9 +392,8 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 
         setDragPositionPreview({
           src,
-          srcDraggableId,
           dst,
-          direction: "vertical",
+          direction: "horizontal",
         });
       },
       [boardListId, parentItemIdList, setDragPositionPreview],
@@ -708,14 +523,14 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                 >
                   <BoardListDropAreaMinusMargin
                     {...draggablesContainerCustomAttributes}
-                    style={
-                      {
-                        // position: "relative",
-                      }
-                    }
                   >
                     {children}
-                    {droppableProvided.placeholder}
+                    {getPlaceholder({
+                      boardListId,
+                      droppableId: boardListId,
+                      placeholder: droppableProvided.placeholder,
+                      gapHorizontalLength: 10,
+                    })}
                   </BoardListDropAreaMinusMargin>
                 </BoardListDropArea>
               </BoardListBase>
