@@ -582,16 +582,6 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
                 return;
               }
 
-              // const intervalId =
-              //   refScrollIntervalIdMap.current.get(scrollContainer);
-              // const rafId = refScrollRafIdMap.current.get(scrollContainer);
-              // if (intervalId || rafId) {
-              //   resolve(true);
-              //   return;
-              // }
-
-              // console.log("[dragScroll]");
-
               const { clientTop, clientLeft, clientHeight, clientWidth } =
                 scrollContainer;
 
@@ -838,9 +828,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
       // console.log(scrollContainerId);
       // console.groupEnd();
 
-      // TODO:
       if (isDragScrollNeededForThisScrollContainer) {
-        console.log(isDragScrollNeededForThisScrollContainer);
         return;
       }
     }

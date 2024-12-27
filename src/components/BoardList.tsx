@@ -7,7 +7,6 @@ import React, {
   useState,
 } from "react";
 import { styled } from "styled-components";
-import parse from "html-react-parser";
 import { CssScrollbar } from "@/csses/scrollbar";
 import {
   getElementOffsetOnDocument,
@@ -46,6 +45,10 @@ import {
   OnDragStartResponder,
   OnDragUpdateResponder,
 } from "@hello-pangea/dnd";
+import {
+  DragPositionPreviewConfig,
+  useDragPositionPreview,
+} from "@/hooks/useDragPositionPreview";
 
 const BoardListBase = styled.div`
   ${CssScrollbar}
@@ -136,6 +139,14 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       setStateBoardListContext,
     } = useBoardListContext(boardListContextParams);
 
+    const parentItemIdList = useMemo(() => {
+      return parentItems.map((parentItem) => parentItem.id);
+    }, [parentItems]);
+
+    const { addDragScrollConfig, removeDragScrollConfig } = useDragScroll({
+      isDragging,
+    });
+
     const horizontalDragScrollConfig = useMemo(
       () => ({ scrollSpeed: 6 }) satisfies DragScrollConfig,
       [],
@@ -148,14 +159,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         }) satisfies DragScrollConfig,
       [],
     );
-
-    const parentItemIdList = useMemo(() => {
-      return parentItems.map((parentItem) => parentItem.id);
-    }, [parentItems]);
-
-    const { addDragScrollConfig, removeDragScrollConfig } = useDragScroll({
-      isDragging,
-    });
 
     useEffect(() => {
       addDragScrollConfig({
@@ -191,7 +194,68 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       removeDragScrollConfig,
     ]);
 
+    const horizontalDragPositionPreviewConfig = useMemo(
+      () =>
+        ({
+          direction: "horizontal",
+          shouldUseTransform: false,
+        }) satisfies DragPositionPreviewConfig,
+      [],
+    );
+
+    const verticalDragPositionPreviewConfig = useMemo(
+      () =>
+        ({
+          direction: "vertical",
+          shouldUseTransform: true,
+        }) satisfies DragPositionPreviewConfig,
+      [],
+    );
+
+    const {
+      dragPositionPreview,
+      addDragPositionPreviewConfig,
+      removeDragPositionPreviewConfig,
+      showDragPositionPreview,
+      hideDragPositionPreview,
+    } = useDragPositionPreview();
+
+    useEffect(() => {
+      addDragPositionPreviewConfig({
+        boardListId,
+        droppableId: boardListId,
+        config: horizontalDragPositionPreviewConfig,
+      });
+      parentItemIdList.forEach((parentItemId) => {
+        addDragPositionPreviewConfig({
+          boardListId,
+          droppableId: parentItemId,
+          config: verticalDragPositionPreviewConfig,
+        });
+      });
+      return () => {
+        removeDragPositionPreviewConfig({
+          boardListId,
+          droppableId: boardListId,
+        });
+        parentItemIdList.forEach((parentItemId) => {
+          removeDragPositionPreviewConfig({
+            boardListId,
+            droppableId: parentItemId,
+          });
+        });
+      };
+    }, [
+      boardListId,
+      parentItemIdList,
+      horizontalDragPositionPreviewConfig,
+      verticalDragPositionPreviewConfig,
+      addDragPositionPreviewConfig,
+      removeDragPositionPreviewConfig,
+    ]);
+
     const onDragStart = useCallback<OnDragStartResponder>(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (start, responderProvided) => {
         // console.log(start);
         // console.log(responderProvided);
@@ -201,159 +265,8 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       [],
     );
 
-    const [stateDragPositionPreview, setStateDragPositionPreview] =
-      useState<React.ReactElement | null>(null);
-
-    const setDragPositionPreview = useCallback(
-      ({
-        src,
-        dst,
-        direction,
-      }: {
-        src: DragUpdate["source"];
-        dst: NonNullable<DragUpdate["destination"]>;
-        direction: "horizontal" | "vertical";
-      }) => {
-        const { droppableId: srcDroppableId, index: srcDraggableIndex } = src;
-        const { droppableId: dstDroppableId, index: dstDraggableIndex } = dst;
-
-        const { draggables: srcDraggables } = getDraggables({
-          boardListId,
-          droppableId: srcDroppableId,
-        });
-        const { draggables: dstDraggables } = getDraggables({
-          boardListId,
-          droppableId: dstDroppableId,
-        });
-
-        const activeDraggable = srcDraggables[srcDraggableIndex];
-
-        // if (direction === "horizontal") {
-        //   if (srcDroppableId === dstDroppableId) {
-        //     offsetXStart =
-        //       dstDraggableIndex === dstDraggables.length
-        //         ? 0
-        //         : -activeDraggable.offsetWidth;
-
-        //     // offsetXStart = -activeDraggable.offsetWidth;
-        //   } else {
-        //     offsetXStart = -activeDraggable.offsetWidth;
-        //   }
-        // }
-
-        const offsetDraggables =
-          srcDroppableId === dstDroppableId
-            ? [...dstDraggables.slice(dstDraggableIndex)]
-            : [activeDraggable, ...dstDraggables.slice(dstDraggableIndex)];
-
-        let offsets: {
-          left: number;
-          right: number;
-          width: number;
-          height: number;
-          top: number;
-          bottom: number;
-        }[] = offsetDraggables.map((dstDraggable) => {
-          const style: React.CSSProperties =
-            (dstDraggable as any).currentStyle ??
-            window.getComputedStyle(dstDraggable);
-          const marginLeft = parseFloat((style.marginLeft ?? 0).toString());
-          const marginRight = parseFloat((style.marginRight ?? 0).toString());
-          const marginTop = parseFloat((style.marginTop ?? 0).toString());
-          const marginBottom = parseFloat((style.marginBottom ?? 0).toString());
-
-          return {
-            left: marginLeft,
-            right: marginRight,
-            top: marginTop,
-            bottom: marginBottom,
-            width: dstDraggable.offsetWidth,
-            height: dstDraggable.offsetHeight,
-          };
-        });
-
-        const [marginLeft, marginRight] =
-          direction === "horizontal"
-            ? offsets.reduceRight(
-                (acc, cur, index, arr) => {
-                  const isLast = index === arr.length - 1;
-                  const marginLeft = cur.left;
-                  const marginRight = isLast
-                    ? -cur.width + cur.left
-                    : acc[1] - cur.width - arr[index + 1].left - cur.right;
-                  // Last: (-cur.w + cur.marginLeft)
-                  // Not last: (acc -cur.w - prev.marginLeft - cur.marginRight)
-                  return [marginLeft, marginRight];
-                },
-                [0, 0],
-              )
-            : [offsets[0].left, offsets[0].right];
-        // console.log([marginLeft, marginRight]);
-
-        const [marginTop, marginBottom] =
-          direction === "vertical"
-            ? offsets.reduceRight(
-                (acc, cur, index, arr) => {
-                  const isLast = index === arr.length - 1;
-                  const marginTop = cur.top;
-                  const marginBottom = isLast
-                    ? -cur.height + cur.left
-                    : acc[1] - cur.height - arr[index + 1].top - cur.bottom;
-                  return [marginTop, marginBottom];
-                },
-                [0, 0],
-              )
-            : [offsets[0].top, offsets[0].bottom];
-
-        const activeDraggableClone = activeDraggable.cloneNode(
-          true,
-        ) as HTMLElement;
-
-        // Remove all `data-*` attributes
-        Array.from(activeDraggableClone.attributes).forEach((attr) => {
-          if (attr.name.startsWith("data-")) {
-            activeDraggableClone.removeAttribute(attr.name);
-          }
-        });
-
-        let dragPositionPreview = parse(
-          activeDraggableClone.outerHTML,
-        ) as React.ReactElement;
-        dragPositionPreview = React.cloneElement(dragPositionPreview, {
-          style: {
-            position: "relative",
-            top: 0,
-            left: 0,
-            // margin: `${marginTop}px ${marginLeft}px ${marginBottom}px ${marginRight}px`,
-            // margin: `0 5px 0 -295px`,
-            // transform: `translate3d(${x}px, ${y}px, 0)`,
-            transform: `translate3d(${marginLeft}px, ${marginBottom}px, 0)`,
-            // width: offsetWidth,
-            // height: offsetHeight,
-            opacity: 0.7,
-          },
-        });
-
-        const { draggablesContainer: dstDraggablesContainer } =
-          getDraggablesContainer({
-            boardListId,
-            draggablesContainerId: dstDroppableId,
-          });
-        if (!dstDraggablesContainer) {
-          console.warn("[setDragPositionPreview] !dstDraggablesContainer");
-          return;
-        }
-
-        dragPositionPreview = createPortal(
-          dragPositionPreview,
-          dstDraggablesContainer,
-        );
-        setStateDragPositionPreview(dragPositionPreview);
-      },
-      [boardListId],
-    );
-
     const onDragUpdate = useCallback<OnDragUpdateResponder>(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (update, responderProvided) => {
         // console.log("[onDragUpdate]");
         // console.log(update);
@@ -361,11 +274,11 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         const {
           source: src,
           destination: dst,
-          type,
+          // type,
           draggableId: srcDraggableId,
         } = update;
         if (!dst) {
-          setStateDragPositionPreview(null);
+          hideDragPositionPreview();
           return;
         }
 
@@ -399,23 +312,29 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           scrollContainerToElementConfigs,
         });
 
-        setDragPositionPreview({
+        showDragPositionPreview({
+          boardListId,
           src,
           dst,
-          direction: "vertical",
         });
       },
-      [boardListId, parentItemIdList, setDragPositionPreview],
+      [
+        boardListId,
+        parentItemIdList,
+        showDragPositionPreview,
+        hideDragPositionPreview,
+      ],
     );
 
     const onDragEnd = useCallback<OnDragEndResponder>(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (result, responderProvided) => {
         // console.log("[onDragEnd]");
         // console.log(result);
         // console.log(responderProvided);
 
         setIsDragging(false);
-        // setStateDragPositionPreview(null);
+        hideDragPositionPreview();
 
         const { source, destination, type } = result;
         if (!destination) {
@@ -469,7 +388,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           });
         }
       },
-      [boardListId, setStateBoardListContext],
+      [boardListId, setStateBoardListContext, hideDragPositionPreview],
     );
 
     const childItemIdList = useMemo(() => {
@@ -502,7 +421,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         }}
       >
         <UseDragScroll />
-        {stateDragPositionPreview}
+        {dragPositionPreview}
 
         <Droppable
           droppableId={boardListId}
