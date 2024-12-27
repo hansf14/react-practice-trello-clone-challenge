@@ -228,80 +228,86 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 
         const activeDraggable = srcDraggables[srcDraggableIndex];
 
-        let offsetXStart = 0;
-        let offsetYStart = 0;
-        let offsetDraggables: HTMLElement[] = [];
+        // if (direction === "horizontal") {
+        //   if (srcDroppableId === dstDroppableId) {
+        //     offsetXStart =
+        //       dstDraggableIndex === dstDraggables.length
+        //         ? 0
+        //         : -activeDraggable.offsetWidth;
 
-        if (direction === "horizontal") {
-          if (srcDroppableId === dstDroppableId) {
-            offsetXStart =
-              dstDraggableIndex === dstDraggables.length
-                ? 0
-                : -activeDraggable.offsetWidth;
-          } else {
-            offsetXStart = -activeDraggable.offsetWidth;
-          }
-        }
+        //     // offsetXStart = -activeDraggable.offsetWidth;
+        //   } else {
+        //     offsetXStart = -activeDraggable.offsetWidth;
+        //   }
+        // }
 
-        if (direction === "vertical") {
-          if (srcDroppableId === dstDroppableId) {
-            offsetYStart =
-              dstDraggableIndex === dstDraggables.length
-                ? 0
-                : -activeDraggable.offsetHeight;
-          } else {
-            offsetYStart = -activeDraggable.offsetHeight;
-          }
-        }
+        const offsetDraggables =
+          srcDroppableId === dstDroppableId
+            ? [...dstDraggables.slice(dstDraggableIndex)]
+            : [activeDraggable, ...dstDraggables.slice(dstDraggableIndex)];
 
-        if (srcDroppableId === dstDroppableId) {
-          offsetDraggables = [...dstDraggables.slice(dstDraggableIndex + 1)];
-        } else {
-          offsetDraggables =
-            dstDraggableIndex === dstDraggables.length
-              ? []
-              : [
-                  activeDraggable,
-                  ...dstDraggables.slice(dstDraggableIndex + 1),
-                ];
-        }
+        let offsets: {
+          left: number;
+          right: number;
+          width: number;
+          height: number;
+          top: number;
+          bottom: number;
+        }[] = offsetDraggables.map((dstDraggable) => {
+          const style: React.CSSProperties =
+            (dstDraggable as any).currentStyle ??
+            window.getComputedStyle(dstDraggable);
+          const marginLeft = parseFloat((style.marginLeft ?? 0).toString());
+          const marginRight = parseFloat((style.marginRight ?? 0).toString());
+          const marginTop = parseFloat((style.marginTop ?? 0).toString());
+          const marginBottom = parseFloat((style.marginBottom ?? 0).toString());
 
-        const x =
+          return {
+            left: marginLeft,
+            right: marginRight,
+            top: marginTop,
+            bottom: marginBottom,
+            width: dstDraggable.offsetWidth,
+            height: dstDraggable.offsetHeight,
+          };
+        });
+
+        const [marginLeft, marginRight] =
           direction === "horizontal"
-            ? offsetXStart -
-              offsetDraggables.reduce((acc, cur) => {
-                const style: React.CSSProperties =
-                  (cur as any).currentStyle ?? window.getComputedStyle(cur);
-                const marginLeft = parseFloat(
-                  (style.marginLeft ?? 0).toString(),
-                );
-                const marginRight = parseFloat(
-                  (style.marginRight ?? 0).toString(),
-                );
-                return acc + marginLeft + cur.offsetHeight + marginRight;
-              }, 0)
-            : offsetXStart;
+            ? offsets.reduceRight(
+                (acc, cur, index, arr) => {
+                  const isLast = index === arr.length - 1;
+                  const marginLeft = cur.left;
+                  const marginRight = isLast
+                    ? -cur.width + cur.left
+                    : acc[1] - cur.width - arr[index + 1].left - cur.right;
+                  // Last: (-cur.w + cur.marginLeft)
+                  // Not last: (acc -cur.w - prev.marginLeft - cur.marginRight)
+                  return [marginLeft, marginRight];
+                },
+                [0, 0],
+              )
+            : [offsets[0].left, offsets[0].right];
+        // console.log([marginLeft, marginRight]);
 
-        const y =
+        const [marginTop, marginBottom] =
           direction === "vertical"
-            ? offsetYStart -
-              offsetDraggables.reduce((acc, cur) => {
-                const style: React.CSSProperties =
-                  (cur as any).currentStyle ?? window.getComputedStyle(cur);
-                const marginTop = parseFloat((style.marginTop ?? 0).toString());
-                const marginBottom = parseFloat(
-                  (style.marginBottom ?? 0).toString(),
-                );
-                return acc + marginTop + cur.offsetHeight + marginBottom;
-              }, 0)
-            : offsetYStart;
-        // console.log(y);
+            ? offsets.reduceRight(
+                (acc, cur, index, arr) => {
+                  const isLast = index === arr.length - 1;
+                  const marginTop = cur.top;
+                  const marginBottom = isLast
+                    ? -cur.height + cur.left
+                    : acc[1] - cur.height - arr[index + 1].top - cur.bottom;
+                  return [marginTop, marginBottom];
+                },
+                [0, 0],
+              )
+            : [offsets[0].top, offsets[0].bottom];
 
         const activeDraggableClone = activeDraggable.cloneNode(
           true,
         ) as HTMLElement;
-        const { offsetHeight, offsetWidth } = activeDraggable;
-        console.log(offsetWidth, offsetHeight);
 
         // Remove all `data-*` attributes
         Array.from(activeDraggableClone.attributes).forEach((attr) => {
@@ -318,9 +324,12 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
             position: "relative",
             top: 0,
             left: 0,
-            transform: `translate3d(${x}px, ${y}px, 0)`,
-            width: offsetWidth,
-            height: offsetHeight,
+            // margin: `${marginTop}px ${marginLeft}px ${marginBottom}px ${marginRight}px`,
+            // margin: `0 5px 0 -295px`,
+            // transform: `translate3d(${x}px, ${y}px, 0)`,
+            transform: `translate3d(${marginLeft}px, ${marginBottom}px, 0)`,
+            // width: offsetWidth,
+            // height: offsetHeight,
             opacity: 0.7,
           },
         });
@@ -393,7 +402,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         setDragPositionPreview({
           src,
           dst,
-          direction: "horizontal",
+          direction: "vertical",
         });
       },
       [boardListId, parentItemIdList, setDragPositionPreview],
