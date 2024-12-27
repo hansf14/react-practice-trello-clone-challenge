@@ -5,14 +5,11 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { CSSProperties, styled } from "styled-components";
+import { styled } from "styled-components";
 import { GripVertical } from "react-bootstrap-icons";
 import {
   CardContext,
-  CardContextValue,
-  CardContextProvider,
   ChildItem,
-  DndDataInterfaceCustomGeneric,
   DraggableCustomAttributesKvObj,
   DraggableHandleCustomAttributesKvObj,
 } from "@/components/BoardContext";
@@ -221,10 +218,10 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     };
 
     const {
-      stateIsEditMode,
-      setStateIsEditMode,
-      onEditModeEnabled,
-      onEditModeDisabled,
+      // stateIsEditMode,
+      // setStateIsEditMode,
+      // onEditModeEnabled,
+      // onEditModeDisabled,
       onEditStart,
       onEditCancel,
       onEditChange,
@@ -268,6 +265,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     return (
       // <CardContextProvider value={cardContextValue}>
       <Draggable draggableId={childItem.id} index={index}>
+        {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
         {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
           // console.log(draggableStateSnapshot.isDragging);
           // console.log(draggableStateSnapshot.draggingOver);

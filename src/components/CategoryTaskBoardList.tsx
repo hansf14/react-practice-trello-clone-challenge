@@ -5,12 +5,13 @@ import {
   BoardListExtendProps,
   BoardList,
   BoardListProps,
+  BoardListInternalProps,
 } from "@/components/BoardList";
-import { memoizeCallback } from "@/utils";
+import { memoizeCallback, SmartOmit } from "@/utils";
 import {
   ParentItem,
   BoardListContextProvider,
-  useBoardContext,
+  useBoardListContext,
   BoardListContextValue,
   UseBoardContextParams,
 } from "@/components/BoardContext";
@@ -23,7 +24,7 @@ import { OnEditFinish, OnEditStart } from "@/components/TextArea";
 
 const CategoryTaskBoardListInternalBase = styled(BoardList)``;
 
-export type CategoryBoardListInternalProps = BoardListProps;
+export type CategoryBoardListInternalProps = BoardListInternalProps;
 
 export const CategoryTaskBoardListInternal = withMemoAndRef<
   "div",
@@ -43,7 +44,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       parentItems__Immutable: parentItems,
       stateBoardListContext,
       setStateBoardListContext,
-    } = useBoardContext(boardListContextParams);
+    } = useBoardListContext(boardListContextParams);
 
     // const onUpdateChildItem = useCallback<OnUpdateChildItem>(
     //   ({ event, oldChildItem, newChildItem }) => {
@@ -120,6 +121,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         boardListId={boardListId}
         parentKeyName={parentKeyName}
         childKeyName={childKeyName}
+        direction="horizontal"
       >
         {parentItems.map((parentItem, parentItemIndex) => {
           // console.log(parentItems.map((item) => item.id));
@@ -136,7 +138,11 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                 onEditStartItem={onEditStartParentItem}
                 onEditFinishItem={onEditFinishParentItem({ parentItem })}
               />
-              <BoardMain boardListId={boardListId} parentItem={parentItem}>
+              <BoardMain
+                boardListId={boardListId}
+                parentItem={parentItem}
+                direction="vertical"
+              >
                 {parentItems[parentItemIndex].items?.map(
                   (childItem, childItemIndex) => {
                     return (

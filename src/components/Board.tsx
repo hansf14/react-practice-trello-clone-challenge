@@ -1,21 +1,11 @@
-import { css, CSSProperties, styled } from "styled-components";
+import { css, styled } from "styled-components";
 import { StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
+import { useImperativeHandle, useRef } from "react";
 import {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-} from "react";
-import {
-  BoardContextValue,
-  BoardContextProvider,
   DraggableCustomAttributesKvObj,
   ParentItem,
-  DraggablesContainerCustomAttributesKvObj,
 } from "@/components/BoardContext";
-import { DndDataInterfaceCustomGeneric } from "@/components/BoardContext";
 import { Draggable } from "@hello-pangea/dnd";
 
 type BoardBaseProps = {
@@ -67,45 +57,14 @@ export type BoardProps = {
   boardListId: string;
   parentItem: ParentItem;
   index: number;
-  onUnmount?: () => void;
 } & StyledComponentProps<"div">;
 
 export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
   Component: (
-    { boardListId, parentItem, index, children, onUnmount, ...otherProps },
+    { boardListId, parentItem, index, children, ...otherProps },
     ref,
   ) => {
-    useEffect(() => {
-      return () => {
-        onUnmount?.();
-      };
-    }, [onUnmount]);
-    // const sortableConfig = useMemo<UseSortableArguments>(
-    //   () => ({
-    //     id: parentItem.id,
-    //
-    //     data: {
-    //       customData: {
-    //         boardListId,
-    //         type: "parent",
-    //         item: parentItem,
-    //       },
-    //     } satisfies DndDataInterfaceCustomGeneric<"parent">,
-    //   }),
-    //   [boardListId, parentItem],
-    // );
-
-    // const {
-    //   isDragging,
-    //   setNodeRef,
-    //   setActivatorNodeRef,
-    //   attributes: draggableHandleAttributes,
-    //   listeners: draggableHandleListeners,
-    //   transform,
-    //   transition,
-    // } = useSortable(sortableConfig);
-
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
@@ -152,6 +111,7 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
         index={index}
         // disabled // TODO: isEditMode
       >
+        {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
         {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
           return (
             <BoardBase

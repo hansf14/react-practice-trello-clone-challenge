@@ -1,11 +1,9 @@
 import {
-  CurrentActiveCustomAttributesKvMapping,
   getDraggable,
   getScrollContainer,
   ScrollContainerCustomAttributesKvMapping,
 } from "@/components/BoardContext";
 import { useDeviceDetector } from "@/hooks/useDeviceDetector";
-import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { MultiMap } from "@/multimap";
 import {
@@ -18,7 +16,7 @@ import {
   SmartOmit,
   SmartPick,
 } from "@/utils";
-import { DraggableLocation, DroppableProvided } from "@hello-pangea/dnd";
+import { DroppableProvided } from "@hello-pangea/dnd";
 import { throttle } from "lodash-es";
 import React, { createRef, useCallback, useEffect, useRef } from "react";
 import styled, { createGlobalStyle, css } from "styled-components";
@@ -76,10 +74,11 @@ export function getPlaceholder({
 
 export const storeOfPlaceholderRefs = new MultiMap<
   string[],
-  {
-    refPlaceholderContainer: React.MutableRefObject<HTMLElement | null>;
-    refPlaceholder: React.MutableRefObject<any>;
-  }
+  | {
+      refPlaceholderContainer: React.MutableRefObject<HTMLElement | null>;
+      refPlaceholder: React.MutableRefObject<any>;
+    }
+  | undefined
 >();
 
 export const setPlaceholderRef = <
@@ -99,6 +98,8 @@ export const setPlaceholderRef = <
         React.createRef() as React.MutableRefObject<T | null>,
       refPlaceholder: React.createRef() as React.MutableRefObject<any>,
     };
+    refs.refPlaceholderContainer.current = null;
+    refs.refPlaceholder.current = null;
 
     storeOfPlaceholderRefs.set({
       keys: [boardListId, droppableId],
@@ -109,6 +110,25 @@ export const setPlaceholderRef = <
     refPlaceholderContainer: React.MutableRefObject<T | null>;
     refPlaceholder: React.MutableRefObject<any>;
   };
+};
+
+export const getPlaceholderRef = <
+  T extends HTMLElement | null = HTMLElement | null,
+>({
+  boardListId,
+  droppableId,
+}: {
+  boardListId: string;
+  droppableId: string;
+}) => {
+  let [refs] = storeOfPlaceholderRefs.get({
+    keys: [boardListId, droppableId],
+  }) ?? [null];
+  refs ??= null;
+  return refs as {
+    refPlaceholderContainer: React.MutableRefObject<T | null>;
+    refPlaceholder: React.MutableRefObject<any>;
+  } | null;
 };
 
 export type ScrollContainerToElementConfig = SmartPick<
@@ -808,8 +828,9 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
       // console.log(scrollContainerId);
       // console.groupEnd();
 
+      // TODO:
       if (isDragScrollNeededForThisScrollContainer) {
-        console.log(scrollContainer);
+        // console.log(scrollContainer);
         return;
       }
     }

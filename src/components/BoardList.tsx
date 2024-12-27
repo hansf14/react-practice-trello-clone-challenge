@@ -1,5 +1,4 @@
 import React, {
-  startTransition,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -7,33 +6,26 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { css, styled } from "styled-components";
+import { styled } from "styled-components";
 import parse from "html-react-parser";
 import { CssScrollbar } from "@/csses/scrollbar";
-import { getEmptyArray, getMemoizedArray, StyledComponentProps } from "@/utils";
 import {
-  ParentItem,
-  ChildItem,
+  getElementOffsetOnDocument,
+  SmartMerge,
+  StyledComponentProps,
+} from "@/utils";
+import {
   DroppableCustomAttributesKvObj,
-  isParentItemData,
-  DndDataInterfaceCustom,
-  isChildItemData,
-  serializeAllowedTypes,
   ScrollContainerCustomAttributesKvObj,
-  ScrollContainerCustomAttributesKvMapping,
-  getDndContextInfoFromActivator,
-  DragOverlayCustomAttributesKvMapping,
-  getDndContextInfoFromData,
-  isCustomItemData,
   BoardListContextIndexer,
   BoardListContextValue,
   BoardListContextParams,
-  useBoardContext,
+  useBoardListContext,
   getDroppable,
-  getDraggable,
   getDraggables,
   DraggablesContainerCustomAttributesKvObj,
   getDraggablesContainer,
+  getScrollContainer,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { createPortal } from "react-dom";
@@ -43,7 +35,7 @@ import {
   UseDragScroll,
   useDragScroll,
   ScrollContainerToElementConfigs,
-  ScrollContainerToElementConfig,
+  getPlaceholderRef,
 } from "@/hooks/useDragScroll";
 import {
   DragDropContext,
@@ -52,10 +44,7 @@ import {
   OnDragEndResponder,
   OnDragStartResponder,
   OnDragUpdateResponder,
-  useMouseSensor,
-  useTouchSensor,
 } from "@hello-pangea/dnd";
-import { useStateWithCb } from "@/hooks/useStateWithCb";
 
 const BoardListBase = styled.div`
   ${CssScrollbar}
@@ -100,7 +89,14 @@ const BoardListDropAreaMinusMargin = styled.div`
   border-radius: 10px;
 `;
 
-export type BoardListProps = BoardListContextParams &
+export type BoardListProps = SmartMerge<
+  BoardListContextParams & {
+    direction: "horizontal" | "vertical";
+  }
+> &
+  StyledComponentProps<"div">;
+
+export type BoardListInternalProps = BoardListContextParams &
   StyledComponentProps<"div">;
 
 export type BoardListExtendProps = BoardListContextValue;
@@ -108,7 +104,14 @@ export type BoardListExtendProps = BoardListContextValue;
 export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
   displayName: "BoardList",
   Component: (
-    { boardListId, parentKeyName, childKeyName, children, ...otherProps },
+    {
+      boardListId,
+      parentKeyName,
+      childKeyName,
+      direction,
+      children,
+      ...otherProps
+    },
     ref,
   ) => {
     const [isDragging, setIsDragging] = useState(false);
@@ -130,7 +133,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       parentItems__Immutable: parentItems,
       stateBoardListContext,
       setStateBoardListContext,
-    } = useBoardContext(boardListContextParams);
+    } = useBoardListContext(boardListContextParams);
 
     // function handleDragOver(event) {
     //   const { active, over, draggingRect } = event;
@@ -267,13 +270,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       }) => {
         const { droppableId: srcDroppableId, index: srcDraggableIndex } = src;
         const { droppableId: dstDroppableId, index: dstDraggableIndex } = dst;
-        const { draggable: srcDraggable } = getDraggable({
-          boardListId,
-          draggableId: srcDraggableId,
-        });
-        if (!srcDraggable) {
-          return;
-        }
         const { droppable: dstDroppable } = getDroppable({
           boardListId,
           droppableId: dstDroppableId,
@@ -290,71 +286,197 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           droppableId: dstDroppableId,
         });
 
-        const dstDraggablesContainerId = dstDroppableId;
-        const { draggablesContainer: dstDraggablesContainer } =
-          getDraggablesContainer({
-            boardListId,
-            draggablesContainerId: dstDraggablesContainerId,
-          });
-        if (!dstDraggablesContainer) {
-          return;
-        }
-
         const activeDraggable = srcDraggables[srcDraggableIndex];
 
-        srcDraggables.splice(srcDraggableIndex, 1);
+        let offsetYStart = 0;
 
-        const updatedDraggables = [
-          ...dstDraggables.slice(0, dstDraggableIndex),
-          activeDraggable,
-          ...dstDraggables.slice(dstDraggableIndex + 1),
-        ];
-        // console.log(updatedDraggables); // TODO: clientX (horizontal)
+        let offsetDraggables: HTMLElement[] = [];
+        if (srcDroppableId === dstDroppableId) {
+          offsetYStart =
+            dstDraggableIndex === dstDraggables.length
+              ? 0
+              : -activeDraggable.offsetHeight;
 
-        const dstDroppableComputedStyle = window.getComputedStyle(dstDroppable);
-        const dstDroppablePaddingLeft = parseFloat(
-          dstDroppableComputedStyle.paddingLeft,
-        );
-        const dstDroppablePaddingTop = parseFloat(
-          dstDroppableComputedStyle.paddingTop,
-        );
+          offsetDraggables = [...dstDraggables.slice(dstDraggableIndex + 1)];
+        } else {
+          offsetYStart = -activeDraggable.offsetHeight;
 
-        const clientX =
-          direction === "horizontal"
-            ? dstDroppablePaddingLeft +
-              updatedDraggables
-                .slice(0, dstDraggableIndex)
-                .reduce((acc, cur) => {
-                  const style: React.CSSProperties =
-                    (cur as any).currentStyle ?? window.getComputedStyle(cur);
-                  const marginLeft = parseFloat(
-                    (style.marginLeft ?? 0).toString(),
-                  );
-                  const marginRight = parseFloat(
-                    (style.marginRight ?? 0).toString(),
-                  );
-                  return acc + marginLeft + cur.clientHeight + marginRight;
-                }, 0)
-            : dstDroppablePaddingLeft;
+          offsetDraggables =
+            dstDraggableIndex === dstDraggables.length
+              ? []
+              : [
+                  activeDraggable,
+                  ...dstDraggables.slice(dstDraggableIndex + 1),
+                ];
+        }
+        // console.log(updatedDraggables);
 
-        const clientY =
+        const y =
           direction === "vertical"
-            ? dstDroppablePaddingTop +
-              updatedDraggables
-                .slice(0, dstDraggableIndex)
-                .reduce((acc, cur) => {
-                  const style: React.CSSProperties =
-                    (cur as any).currentStyle ?? window.getComputedStyle(cur);
-                  const marginTop = parseFloat(
-                    (style.marginTop ?? 0).toString(),
-                  );
-                  const marginBottom = parseFloat(
-                    (style.marginBottom ?? 0).toString(),
-                  );
-                  return acc + marginTop + cur.clientHeight + marginBottom;
-                }, 0)
-            : dstDroppablePaddingTop;
-        console.log(clientY);
+            ? offsetYStart -
+              offsetDraggables.reduce((acc, cur) => {
+                const style: React.CSSProperties =
+                  (cur as any).currentStyle ?? window.getComputedStyle(cur);
+                const marginTop = parseFloat((style.marginTop ?? 0).toString());
+                const marginBottom = parseFloat(
+                  (style.marginBottom ?? 0).toString(),
+                );
+                // console.log(acc, marginTop, cur.offsetHeight, marginBottom);
+                return acc + marginTop + cur.offsetHeight + marginBottom;
+              }, 0)
+            : offsetYStart;
+        console.log(y);
+
+        // let offsetParent: HTMLElement | null = null;
+        // const dstDroppableComputedStyle = window.getComputedStyle(dstDroppable);
+        // const dstDroppablePaddingLeft = parseFloat(
+        //   dstDroppableComputedStyle.paddingLeft,
+        // );
+        // const dstDroppablePaddingTop = parseFloat(
+        //   dstDroppableComputedStyle.paddingTop,
+        // );
+
+        // const refsPlaceholder = getPlaceholderRef({
+        //   boardListId,
+        //   droppableId: dstDroppableId,
+        // });
+        // if (!refsPlaceholder) {
+        //   console.warn("[setDragPositionPreview] !refsPlaceholder");
+        //   return;
+        // }
+        // const { refPlaceholderContainer } = refsPlaceholder;
+        // if (!refPlaceholderContainer.current) {
+        //   console.warn("[setDragPositionPreview] !refPlaceholderContainer");
+        //   return;
+        // }
+
+        // if (dstDraggableIndex === dstDraggables.length) {
+        //   offsetParent = refPlaceholderContainer.current;
+        // } else {
+        //   offsetParent = dstDraggables[dstDraggableIndex].parentElement;
+        // }
+
+        // if (!offsetParent) {
+        //   console.warn("[setDragPositionPreview] !offsetParent");
+        //   return;
+        // }
+        // console.log(offsetParent);
+
+        // const { offsetLeft, offsetTop } = refPlaceholderContainer.current;
+        // console.log("Placeholder:", offsetLeft, offsetTop);
+
+        // const { offsetLeft, offsetTop } = dstDraggables[dstDraggableIndex];
+        // console.log(offsetLeft, offsetTop);
+        // const { offsetLeft = 0, offsetTop = 0 } = offsetParent ?? {};
+        // console.log(offsetLeft, offsetTop);
+
+        const { scrollContainer } =
+          getScrollContainer({
+            boardListId,
+            scrollContainerId: dstDroppableId,
+          }) ?? document.documentElement;
+
+        const { scrollTop } = scrollContainer as HTMLElement;
+
+        // const x =
+        //   direction === "horizontal"
+        //     ? offsetLeft +
+        //       +offsetDraggables
+        //         .slice(0, dstDraggableIndex)
+        //         .reduce((acc, cur) => {
+        //           const style: React.CSSProperties =
+        //             (cur as any).currentStyle ?? window.getComputedStyle(cur);
+        //           const marginLeft = parseFloat(
+        //             (style.marginLeft ?? 0).toString(),
+        //           );
+        //           const marginRight = parseFloat(
+        //             (style.marginRight ?? 0).toString(),
+        //           );
+        //           // console.log(marginLeft);
+
+        //           // console.log(acc, offsetLeft, prevElementWidth);
+        //           return acc + marginLeft + cur.offsetWidth + marginRight;
+
+        //           // const style: React.CSSProperties =
+        //           //   (cur as any).currentStyle ?? window.getComputedStyle(cur);
+        //           // const marginLeft = parseFloat(
+        //           //   (style.marginLeft ?? 0).toString(),
+        //           // );
+        //           // const marginRight = parseFloat(
+        //           //   (style.marginRight ?? 0).toString(),
+        //           // );
+        //           // return acc + marginLeft + cur.clientHeight + marginRight;
+        //         }, 0)
+        //     : offsetLeft;
+        // console.log(x);
+
+        // const clientX =
+        //   direction === "horizontal"
+        //     ? dstDroppablePaddingLeft +
+        //       updatedDraggables
+        //         .slice(0, dstDraggableIndex)
+        //         .reduce((acc, cur) => {
+        //           const style: React.CSSProperties =
+        //             (cur as any).currentStyle ?? window.getComputedStyle(cur);
+        //           const marginLeft = parseFloat(
+        //             (style.marginLeft ?? 0).toString(),
+        //           );
+        //           const marginRight = parseFloat(
+        //             (style.marginRight ?? 0).toString(),
+        //           );
+        //           return acc + marginLeft + cur.clientHeight + marginRight;
+        //         }, 0)
+        //     : dstDroppablePaddingLeft;
+
+        // const y =
+        //   direction === "vertical"
+        //     ? offsetTop +
+        //       +updatedDraggables
+        //         .slice(0, dstDraggableIndex)
+        //         .reduce((acc, cur) => {
+        //           const style: React.CSSProperties =
+        //             (cur as any).currentStyle ?? window.getComputedStyle(cur);
+        //           const marginTop = parseFloat(
+        //             (style.marginTop ?? 0).toString(),
+        //           );
+        //           const marginBottom = parseFloat(
+        //             (style.marginBottom ?? 0).toString(),
+        //           );
+        //           console.log(acc, marginTop, cur.offsetHeight, marginBottom);
+
+        //           // console.log(acc, offsetLeft, prevElementWidth);
+        //           return acc + marginTop + cur.offsetHeight + marginBottom;
+
+        //           // const style: React.CSSProperties =
+        //           //   (cur as any).currentStyle ?? window.getComputedStyle(cur);
+        //           // const marginLeft = parseFloat(
+        //           //   (style.marginLeft ?? 0).toString(),
+        //           // );
+        //           // const marginRight = parseFloat(
+        //           //   (style.marginRight ?? 0).toString(),
+        //           // );
+        //           // return acc + marginLeft + cur.clientHeight + marginRight;
+        //         }, 0)
+        //     : offsetTop;
+
+        // const y =
+        //   direction === "vertical"
+        //     ? dstDroppablePaddingTop +
+        //       updatedDraggables
+        //         .slice(0, dstDraggableIndex)
+        //         .reduce((acc, cur) => {
+        //           const style: React.CSSProperties =
+        //             (cur as any).currentStyle ?? window.getComputedStyle(cur);
+        //           const marginTop = parseFloat(
+        //             (style.marginTop ?? 0).toString(),
+        //           );
+        //           const marginBottom = parseFloat(
+        //             (style.marginBottom ?? 0).toString(),
+        //           );
+        //           return acc + marginTop + cur.clientHeight + marginBottom;
+        //         }, 0)
+        //     : dstDroppablePaddingTop;
+        // console.log(y);
 
         const activeDraggableClone = activeDraggable.cloneNode(
           true,
@@ -367,21 +489,35 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           }
         });
 
-        const { clientHeight, clientWidth } = srcDraggable;
+        const { clientHeight, clientWidth } = activeDraggable;
         let dragPositionPreview = parse(
           activeDraggableClone.outerHTML,
         ) as React.ReactElement;
         dragPositionPreview = React.cloneElement(dragPositionPreview, {
           style: {
-            position: "absolute",
+            // position: "absolute",
+            // position: "absolute",
+            position: "relative",
             top: 0,
             left: 0,
-            transform: `translate3d(${clientX}px, ${clientY}px, 0)`,
-            width: clientWidth,
-            height: clientHeight,
+            transform: `translate3d(0, ${y}px, 0)`,
+            // transform: `translate3d(${x}px, ${y}px, 0)`,
+            // margin: `-50px 0`, // TODO:
+            // width: clientWidth,
+            // height: clientHeight,
             opacity: 0.7,
           },
         });
+
+        const { draggablesContainer: dstDraggablesContainer } =
+          getDraggablesContainer({
+            boardListId,
+            draggablesContainerId: dstDroppableId,
+          });
+        if (!dstDraggablesContainer) {
+          console.warn("[setDragPositionPreview] !dstDraggablesContainer");
+          return;
+        }
 
         dragPositionPreview = createPortal(
           dragPositionPreview,
@@ -455,7 +591,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         // console.log(responderProvided);
 
         setIsDragging(false);
-        setStateDragPositionPreview(null);
+        // setStateDragPositionPreview(null);
 
         const { source, destination, type } = result;
         if (!destination) {
@@ -521,21 +657,9 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       }, []);
     }, [parentItems]);
 
-    const scrollContainerCustomAttributes: ScrollContainerCustomAttributesKvObj =
-      {
-        "data-board-list-id": boardListId,
-        "data-scroll-container-id": boardListId,
-        "data-scroll-container-allowed-types": serializeAllowedTypes({
-          allowedTypes: ["parent"],
-        }),
-      };
-
     const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
       "data-droppable-id": boardListId,
-      "data-droppable-allowed-types": serializeAllowedTypes({
-        allowedTypes: ["parent"],
-      }),
     };
 
     const draggablesContainerCustomAttributes: DraggablesContainerCustomAttributesKvObj =
@@ -558,7 +682,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 
         <Droppable
           droppableId={boardListId}
-          direction="horizontal"
+          direction={direction}
           // type="parent"
         >
           {(droppableProvided, droppableStateSnapshot) => {
@@ -584,9 +708,11 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                 >
                   <BoardListDropAreaMinusMargin
                     {...draggablesContainerCustomAttributes}
-                    style={{
-                      position: "relative",
-                    }}
+                    style={
+                      {
+                        // position: "relative",
+                      }
+                    }
                   >
                     {children}
                     {droppableProvided.placeholder}

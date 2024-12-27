@@ -1,9 +1,4 @@
-import React, {
-  useCallback,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-} from "react";
+import { useMemo } from "react";
 import { styled } from "styled-components";
 import { atom } from "recoil";
 import {
@@ -13,7 +8,7 @@ import {
   XCircleFill,
 } from "react-bootstrap-icons";
 import { SubmitHandler, useForm } from "react-hook-form";
-import { getEmptyArray, SmartOmit, StyledComponentProps } from "@/utils";
+import { getEmptyArray, StyledComponentProps } from "@/utils";
 import { Input } from "antd";
 import { CssScrollbar } from "@/csses/scrollbar";
 import {
@@ -22,12 +17,10 @@ import {
   DroppableCustomAttributesKvObj,
   ParentItem,
   ScrollContainerCustomAttributesKvObj,
-  serializeAllowedTypes,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { Droppable } from "@hello-pangea/dnd";
-import { MultiMap } from "@/multimap";
-import { getPlaceholder, storeOfPlaceholderRefs } from "@/hooks/useDragScroll";
+import { getPlaceholder } from "@/hooks/useDragScroll";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
@@ -67,22 +60,6 @@ const BoardMainContentMinusMargin = styled.div`
 
   display: flex;
   flex-direction: column;
-`;
-
-const BoardMainContentPlaceholderBase = styled.div`
-  flex-grow: 1;
-  height: 200px;
-
-  min-height: 0px;
-  // ㄴ 필수: 없으면 다른 Draggable Card 드래그시 DragGhost가 날라다닌다.
-
-  pointer-events: none;
-  touch-action: none;
-  -webkit-touch-callout: none;
-
-  &:not(:first-child) {
-    margin-top: -10px;
-  }
 `;
 
 const Toolbar = styled.div`
@@ -163,11 +140,15 @@ export interface FormData {
 export type BoardMainProps = {
   boardListId: string;
   parentItem: ParentItem;
+  direction: "horizontal" | "vertical";
 } & StyledComponentProps<"div">;
 
 export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
   displayName: "BoardMain",
-  Component: ({ boardListId, parentItem, children, ...otherProps }, ref) => {
+  Component: (
+    { boardListId, parentItem, direction, children, ...otherProps },
+    ref,
+  ) => {
     // const [stateNestedIndexer, setNestedStateIndexer] =
     //   useRecoilState(nestedIndexerAtom);
 
@@ -284,17 +265,11 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
       {
         "data-board-list-id": boardListId,
         "data-scroll-container-id": parentItem.id,
-        "data-scroll-container-allowed-types": serializeAllowedTypes({
-          allowedTypes: ["child"],
-        }),
       };
 
     const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
       "data-droppable-id": parentItem.id,
-      "data-droppable-allowed-types": serializeAllowedTypes({
-        allowedTypes: ["child"],
-      }),
     };
 
     const draggablesContainerCustomAttributes: DraggablesContainerCustomAttributesKvObj =
@@ -308,7 +283,7 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
         <BoardMainContentContainer>
           <Droppable
             droppableId={parentItem.id}
-            direction="vertical"
+            direction={direction}
             type="child"
             ignoreContainerClipping={true}
             // ㄴ Allows the droppable to accept draggables even if the draggable is outside the visible bounds of the droppable container.
@@ -354,9 +329,9 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                 >
                   <BoardMainContentMinusMargin
                     {...draggablesContainerCustomAttributes}
-                    style={{
-                      position: "relative",
-                    }}
+                    // style={{
+                    //   position: "relative",
+                    // }}
                   >
                     {children}
                     {getPlaceholder({
