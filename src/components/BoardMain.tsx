@@ -10,7 +10,7 @@ import {
 import { SubmitHandler, useForm } from "react-hook-form";
 import { getEmptyArray, StyledComponentProps } from "@/utils";
 import { Input } from "antd";
-import { CssScrollbar } from "@/csses/scrollbar";
+import { getCssScrollbar } from "@/csses/scrollbar";
 import {
   ChildItem,
   DraggablesContainerCustomAttributesKvObj,
@@ -45,7 +45,7 @@ const BoardMainContentContainer = styled.div`
 `;
 
 const BoardMainContent = styled.div`
-  ${CssScrollbar}
+  ${getCssScrollbar()}
 
   width: 100%;
   height: 100%;
@@ -82,6 +82,15 @@ const ChildItemAdderInput = styled(TextArea)`
 
     resize: none;
     transition: none;
+
+    background-color:rgb(204, 221, 223);
+    color: black;
+
+    &&::placeholder {
+      color: #777;
+    }
+
+    ${getCssScrollbar()}
   }
 `;
 

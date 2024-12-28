@@ -10,7 +10,7 @@ import { SmartOmit } from "@/utils";
 
 export type DragPositionPreviewConfig = {
   direction: "horizontal" | "vertical";
-  shouldUseTransform?: boolean;
+  shouldUseMargin?: boolean;
 };
 
 export type DragPositionPreviewConfigs = {
@@ -93,9 +93,9 @@ export const useDragPositionPreview = () => {
         console.warn("[showDragPositionPreview] !config");
         return;
       }
-      const { direction, shouldUseTransform: _shouldUseTransform } = config;
+      const { direction, shouldUseMargin: _shouldUseMargin } = config;
       if (
-        typeof _shouldUseTransform === "undefined" &&
+        typeof _shouldUseMargin === "undefined" &&
         direction !== "horizontal" &&
         direction !== "vertical"
       ) {
@@ -141,9 +141,8 @@ export const useDragPositionPreview = () => {
                 const isLast = index === arr.length - 1;
                 const marginLeft = cur.left;
                 const marginRight = isLast
-                  ? -cur.width + cur.left
+                  ? -cur.width
                   : acc[1] - cur.width - arr[index + 1].left - cur.right;
-                // Last: (-cur.w + cur.marginLeft)
                 // Not last: (acc -cur.w - prev.marginLeft - cur.marginRight)
                 return [marginLeft, marginRight];
               },
@@ -159,7 +158,7 @@ export const useDragPositionPreview = () => {
                 const isLast = index === arr.length - 1;
                 const marginTop = cur.top;
                 const marginBottom = isLast
-                  ? -cur.height + cur.left
+                  ? -cur.height
                   : acc[1] - cur.height - arr[index + 1].top - cur.bottom;
                 return [marginTop, marginBottom];
               },
@@ -178,24 +177,31 @@ export const useDragPositionPreview = () => {
         }
       });
 
-      const shouldUseTransform =
-        typeof _shouldUseTransform === "undefined"
+      const shouldUseMargin =
+        typeof _shouldUseMargin === "undefined"
           ? direction === "horizontal"
-            ? false
+            ? true
             : direction === "vertical"
-              ? true
+              ? false
               : false // never
-          : _shouldUseTransform;
-      // If direction is "vertical", defaults to `shouldUseTransform` to `true`, due to CSS margin collapsing.
+          : _shouldUseMargin;
+      // If direction is "vertical", `_shouldUseMargin` defaults to `false`, due to CSS margin collapsing which makes margin of no use.
 
-      const offsetStyle: React.CSSProperties = !shouldUseTransform
-        ? {
-            margin: `${marginTop}px ${marginLeft}px ${marginBottom}px ${marginRight}px`,
-          }
+      const offsetStyle: React.CSSProperties = shouldUseMargin
+        ? direction === "horizontal"
+          ? {
+              margin: `${marginTop}px ${-offsets[0].width + offsets[0].right}px ${marginBottom}px ${marginLeft}px`,
+              transform: `translate3d(${marginRight}px, 0px, 0)`,
+            }
+          : direction === "vertical"
+            ? {
+                margin: `${marginTop}px ${marginLeft}px ${marginBottom}px ${marginRight}px`,
+              }
+            : {} // never
         : {
-            transform: `translate3d(${marginLeft}px, ${marginBottom}px, 0)`,
+            transform: `translate3d(${marginRight}px, ${marginBottom}px, 0)`,
           };
-      // console.log(shouldUseTransform, offsetStyle);
+      // console.log(_shouldUseMargin, offsetStyle);
 
       const style: React.CSSProperties = {
         position: "relative",

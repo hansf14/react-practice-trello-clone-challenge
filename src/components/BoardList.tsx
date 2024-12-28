@@ -7,53 +7,37 @@ import React, {
   useState,
 } from "react";
 import { styled } from "styled-components";
-import { CssScrollbar } from "@/csses/scrollbar";
 import {
-  getElementOffsetOnDocument,
-  SmartMerge,
-  StyledComponentProps,
-} from "@/utils";
+  DragDropContext,
+  Droppable,
+  OnDragEndResponder,
+  OnDragStartResponder,
+  OnDragUpdateResponder,
+} from "@hello-pangea/dnd";
+import { SmartMerge, StyledComponentProps } from "@/utils";
 import {
   DroppableCustomAttributesKvObj,
-  ScrollContainerCustomAttributesKvObj,
   BoardListContextIndexer,
   BoardListContextValue,
   BoardListContextParams,
   useBoardListContext,
-  getDroppable,
-  getDraggables,
   DraggablesContainerCustomAttributesKvObj,
-  getDraggablesContainer,
-  getScrollContainer,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { createPortal } from "react-dom";
 import {
   scrollToPlaceholderWhenIntersect,
   DragScrollConfig,
   UseDragScroll,
   useDragScroll,
   ScrollContainerToElementConfigs,
-  getPlaceholderRef,
   getPlaceholder,
 } from "@/hooks/useDragScroll";
-import {
-  DragDropContext,
-  DragUpdate,
-  Droppable,
-  OnDragEndResponder,
-  OnDragStartResponder,
-  OnDragUpdateResponder,
-} from "@hello-pangea/dnd";
 import {
   DragPositionPreviewConfig,
   useDragPositionPreview,
 } from "@/hooks/useDragPositionPreview";
 
 const BoardListBase = styled.div`
-  ${CssScrollbar}
-  max-width: 100dvw;
-  width: 100%;
   height: 100%;
   padding: 10px;
 `;
@@ -62,15 +46,10 @@ type BoardListDropAreaProps = {
   isDropTarget?: boolean;
 };
 
-const BoardListDropArea = styled.div.withConfig({
+const BoardListDropPreviewArea = styled.div.withConfig({
   shouldForwardProp: (prop) => !["isDropTarget"].includes(prop),
 })<BoardListDropAreaProps>`
-  min-width: max-content;
-  width: 100%;
-  // ㄴ min-width: max-content; width: 100%;
-  // ㄴ DropArea => 마치 max(max-content, 100%)처럼 가능함
   height: 100%;
-
   padding: 10px;
 `;
 // ${({ isDropTarget }) =>
@@ -163,7 +142,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     useEffect(() => {
       addDragScrollConfig({
         boardListId,
-        scrollContainerId: boardListId,
+        scrollContainerId: null,
         config: horizontalDragScrollConfig,
       });
       parentItemIdList.forEach((parentItemId) => {
@@ -176,7 +155,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       return () => {
         removeDragScrollConfig({
           boardListId,
-          scrollContainerId: boardListId,
+          scrollContainerId: null,
         });
         parentItemIdList.forEach((parentItemId) => {
           removeDragScrollConfig({
@@ -198,7 +177,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       () =>
         ({
           direction: "horizontal",
-          shouldUseTransform: false,
+          shouldUseMargin: true,
         }) satisfies DragPositionPreviewConfig,
       [],
     );
@@ -207,7 +186,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       () =>
         ({
           direction: "vertical",
-          shouldUseTransform: true,
+          shouldUseMargin: false,
         }) satisfies DragPositionPreviewConfig,
       [],
     );
@@ -278,7 +257,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           draggableId: srcDraggableId,
         } = update;
         if (!dst) {
-          hideDragPositionPreview();
+          // hideDragPositionPreview();
           return;
         }
 
@@ -334,7 +313,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         // console.log(responderProvided);
 
         setIsDragging(false);
-        hideDragPositionPreview();
+        // hideDragPositionPreview();
 
         const { source, destination, type } = result;
         if (!destination) {
@@ -426,23 +405,23 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         <Droppable
           droppableId={boardListId}
           direction={direction}
-          // type="parent"
+          type="parent"
         >
           {(droppableProvided, droppableStateSnapshot) => {
             return (
               <BoardListBase
                 // ref={refBase} // TODO:
                 ref={droppableProvided.innerRef}
-                style={{
-                  backgroundColor: droppableStateSnapshot.isDraggingOver
-                    ? "rgba(0, 0, 0, 0.3)"
-                    : "",
-                }}
+                // style={{
+                //   backgroundColor: droppableStateSnapshot.isDraggingOver
+                //     ? "rgba(0, 0, 0, 0.3)"
+                //     : "",
+                // }}
                 {...droppableProvided.droppableProps}
                 {...droppableCustomAttributes}
                 {...otherProps}
               >
-                <BoardListDropArea
+                <BoardListDropPreviewArea
                   style={{
                     backgroundColor: droppableStateSnapshot.isDraggingOver
                       ? "rgba(0, 0, 0, 0.3)"
@@ -460,7 +439,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                       gapHorizontalLength: 10,
                     })}
                   </BoardListDropAreaMinusMargin>
-                </BoardListDropArea>
+                </BoardListDropPreviewArea>
               </BoardListBase>
             );
           }}

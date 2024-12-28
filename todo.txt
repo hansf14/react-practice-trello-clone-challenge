@@ -1,12 +1,13 @@
+* 기능 구현 필요
 3. 쓰레기통 - task 삭제기능 & 삭제버튼
 8. task 수정
 5. board 생성 할 수 있는 form
 6. board 삭제
 2. 모든 task state를 local storage에 저장 및 로드
 task 다른 list로 맨 앞에 추가하려하면 두번째로 추가되는 버그
-ResizeObserver 처리 버그 (padding-right)
 
-완료
+
+* 기능 완료
 4. board 자체의 순서를 서로 바꿀 수 있는 기능
 1. board 수정
 2. board의 모든 task 삭제
@@ -14,17 +15,15 @@ Optimization (prevent rendering of all cards due to subscribing the atom)
 4. TaskAdder task 추가
 3. TaskAdder input clear
 
-- 드래그 시 active draggable이 다른 draggable 보다 아래로 움즥이는 animation -> 위로 움직이게
+- drag scroll fallback scroll container (html, body)
+- customAttributes를 리턴하는 함수 만들기
 
-완료
+* 버그/사소한기능 해결/완료
 - 모바일(에뮬레이터 말고)에서 스크롤 laggy (delayed) => 해결 (Stats class 문제여서 사용 안 하기로 함)
 - 모바일 크롬 & 삼성인터넷 등 페이지 로드 되자마자 빠르게 오른쪽으로 스크롤 옮기면 backdrop-filter 적용된 element에 잔상이 크게 잠깐 보이는 버그 => 해결 (backdrop-filter 사용 안 하기로 함)
-- 모바일 크롬에서 텍스트 드래그 선택 또는 텍스트 커서 깜빡일때 바로 전의 index draggable이 다른 색상으로 보이는(드래그시)/깜빡이는(커서 올려놓을 시) 버그 발생 => 해결 (opacity로 대체)
-
-해결 - BoardMain 스크롤 enable zone 경계(vertical scroll)에서 BoardList 스크롤(horizontal)의 drag scroll이 enable되는 버그
-카드 가지고 가로 스크롤 후 drop하면 엉뚱한데에 drop되는 버그
-
-- position: absolute 대신 offset과 transform translate으로 미리보기 해결하기
-- clientX도 해결하기
-
-- customAttributes를 리턴하는 함수 만들기
+- 모바일 크롬에서 텍스트 드래그 선택 또는 텍스트 커서 깜빡일때 바로 전의 index draggable이 다른 색상으로 보이는(드래그시)/깜빡이는(커서 올려놓을 시) 버그 발생 => 이것도 backdrop-filter문제여서 opacity로 대체해서 해결
+- BoardMain 스크롤 enable zone 경계(vertical scroll)에서 BoardList 스크롤(horizontal)의 drag scroll이 enable되는 버그 => 해결
+- 카드 가지고 가로 스크롤 후 drop하면 엉뚱한데에 drop되는 버그 => 해결
+- DragPositionPreview position: absolute 대신 offset과 transform translate으로 미리보기 해결하기 => 해결
+- DragPositionPreview 가로도 해결하기 => 해결
+- ResizeObserver 처리 버그 (padding-right) => scrollbar 생길곳 상시 표시로 쇼부봄

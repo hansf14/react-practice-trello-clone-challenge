@@ -250,25 +250,27 @@ export type EndDragScrollParams = SmartPick<
   "scrollContainer"
 >;
 
-export interface DragScrollConfig
-  extends SmartOmit<DragScrollParams, "scrollContainer"> {}
+export type DragScrollConfig = SmartOmit<DragScrollParams, "scrollContainer">;
 
 export type DragScrollConfigs = {
-  [boardListId: string]: {
-    [scrollContainerId: string]: DragScrollConfig;
+  fallback: DragScrollConfig | null;
+  custom: {
+    [boardListId: string]: {
+      [scrollContainerId: string]: DragScrollConfig;
+    };
   };
 };
 
 export type AddDragScrollConfigParams = {
   boardListId: string;
-  scrollContainerId: string;
+  scrollContainerId: string | null; // null for fallback
   config: DragScrollConfig;
 };
 
-export type RemoveDragScrollConfigParams = SmartOmit<
-  AddDragScrollConfigParams,
-  "config"
->;
+export type RemoveDragScrollConfigParams = {
+  boardListId: string;
+  scrollContainerId: string | null; // null for fallback
+};
 
 let isOnPointerDownAttached = false;
 let isOnPointerMoveAttached = false;
@@ -280,9 +282,10 @@ let isDragScrollAllowed: boolean = false;
 
 export const UseDragScroll = createGlobalStyle`
   [data-rfd-drag-handle-context-id] {
-    pointer-events: auto !important; // TODO: !important -> &&
+    pointer-events: auto !important;
   }
 `;
+// ㄴ Without this, drag scroll not works
 
 export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
   const refScrollIntervalIdMap = useRef<
@@ -749,24 +752,41 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
     [idDragScroll, startDragScroll, endDragScroll],
   );
 
-  const refConfigs = useRef<DragScrollConfigs>({});
+  const refConfigs = useRef<DragScrollConfigs | null>(null);
 
   const addDragScrollConfig = useCallback(
     ({ boardListId, scrollContainerId, config }: AddDragScrollConfigParams) => {
-      if (!refConfigs.current[boardListId]) {
-        refConfigs.current[boardListId] = {};
+      if (!refConfigs.current) {
+        refConfigs.current = {
+          fallback: null,
+          custom: {},
+        };
       }
-      refConfigs.current[boardListId][scrollContainerId] = config;
+      if (!scrollContainerId) {
+        refConfigs.current.fallback = config;
+      } else {
+        if (!refConfigs.current.custom[boardListId]) {
+          refConfigs.current.custom[boardListId] = {};
+        }
+        refConfigs.current.custom[boardListId][scrollContainerId] = config;
+      }
     },
     [],
   );
 
   const removeDragScrollConfig = useCallback(
     ({ boardListId, scrollContainerId }: RemoveDragScrollConfigParams) => {
-      if (!refConfigs.current[boardListId]) {
+      if (!refConfigs.current) {
         return;
       }
-      delete refConfigs.current[boardListId][scrollContainerId];
+      if (!scrollContainerId) {
+        refConfigs.current.fallback = null;
+      } else {
+        if (!refConfigs.current.custom[boardListId]) {
+          return;
+        }
+        delete refConfigs.current.custom[boardListId][scrollContainerId];
+      }
     },
     [],
   );
@@ -810,10 +830,30 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
         scrollContainerIdAttribute,
       );
 
-      if (!boardListId || !scrollContainerId) {
+      const isFallback =
+        scrollContainer === document.body ||
+        scrollContainer === document.documentElement;
+      let config: DragScrollConfig | null = null;
+      // console.log(isFallback, scrollContainerId);
+
+      if (!isFallback && (!boardListId || !scrollContainerId)) {
         continue;
       }
-      const config = refConfigs.current[boardListId][scrollContainerId];
+      if (boardListId && scrollContainerId) {
+        const configs = refConfigs.current?.custom;
+        if (!configs) {
+          console.warn("[onDragMove] !configs");
+          continue;
+        }
+        config = configs[boardListId]?.[scrollContainerId];
+        if (!config) {
+          console.warn("[onDragMove] !config");
+          continue;
+        }
+      } else {
+        config = refConfigs.current?.fallback ?? null;
+      }
+      // console.log(scrollContainerId, config);
       if (!config) {
         continue;
       }
@@ -823,10 +863,6 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
         desiredFps: 60,
         ...config,
       });
-      // console.group();
-      // console.log(isDragScrollNeededForThisScrollContainer);
-      // console.log(scrollContainerId);
-      // console.groupEnd();
 
       if (isDragScrollNeededForThisScrollContainer) {
         return;

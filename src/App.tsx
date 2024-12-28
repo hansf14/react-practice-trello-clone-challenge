@@ -1,9 +1,10 @@
 import { ThemeProvider, createGlobalStyle, styled } from "styled-components";
 import { Helmet } from "react-helmet-async";
 // import { ReactQueryDevtools } from "react-query/devtools";
-import { darkTheme } from "./theme";
+import { lightTheme } from "./theme";
 import { CategoryTaskBoardList } from "@/components/CategoryTaskBoardList";
 import { defaultCategoryTaskItems } from "@/data";
+import { getCssScrollbar } from "@/csses/scrollbar";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
 const GlobalStyle = createGlobalStyle`
@@ -63,9 +64,30 @@ const GlobalStyle = createGlobalStyle`
     box-sizing: border-box;
   }
   html {
+    overflow-x: auto;
+    
+    min-width: max-content;
+    width: 100%;
+    // ㄴ min-width: max-content; width: 100%;
+    // ㄴ 마치 max(max-content, 100%)처럼 가능함
     height: 100%;
+    
+    background: ${({ theme }) => theme.background};
+    background-repeat: no-repeat;
+    background-size: cover;
+    color: black;
+
+    // TODO: scroll at body not html if drag scroll works fine
+    ${({ theme }) =>
+      getCssScrollbar({
+        // border: theme.scrollbarBorder,
+        // outline: theme.scrollbarOutline,
+        thumbBackground: theme.scrollbarThumbBackground,
+        trackBackground: theme.scrollbarTrackBackground,
+      })}
   }
   body {
+    width: max-content;
     height: 100%;
     min-height: 100%;
     font-family: "Source Sans 3", sans-serif;
@@ -75,34 +97,38 @@ const GlobalStyle = createGlobalStyle`
     word-break: break-word;
   }
   #root {
-    width: 100%;
+    width: max-content;
     height: 100%;
   }
   a {
     text-decoration: none;
     color: inherit;
   }
+
+   ${({ theme }) =>
+     getCssScrollbar({
+       border: theme.scrollbarBorder,
+       //  outline: theme.scrollbarOutline,
+       thumbBackground: theme.scrollbarThumbBackground,
+       trackBackground: theme.scrollbarTrackBackground,
+     })}
 `;
 
 const Main = styled.main`
-  width: 100%;
+  width: max-content;
   height: 100%;
-  background: ${({ theme }) => theme.background};
-  background-repeat: no-repeat;
-  background-size: cover;
-  color: black;
-  gap: 10px;
 
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 10px;
 `;
 
 function App() {
   return (
     <>
-      <ThemeProvider theme={darkTheme}>
+      <ThemeProvider theme={lightTheme}>
         <Helmet>
           <link
             href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap"
