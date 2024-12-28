@@ -63,10 +63,18 @@ const BoardListDropAreaMinusMargin = styled.div`
   margin: 0 -5px;
   // ㄴ To deduct the flex item's margin
 
+  min-width: max-content;
   width: 100%;
   height: 100%;
 
-  display: flex;
+  // https://stackoverflow.com/questions/26888428/display-flex-loses-right-padding-when-overflowing
+  // Padding collapse at the end item
+  &::after {
+    content: "";
+    min-width: 10px;
+  }
+
+  display: inline-flex;
   justify-content: stretch;
   align-items: center;
   border-radius: 10px;
@@ -257,7 +265,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           draggableId: srcDraggableId,
         } = update;
         if (!dst) {
-          // hideDragPositionPreview();
+          hideDragPositionPreview();
           return;
         }
 
@@ -313,7 +321,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         // console.log(responderProvided);
 
         setIsDragging(false);
-        // hideDragPositionPreview();
+        hideDragPositionPreview();
 
         const { source, destination, type } = result;
         if (!destination) {

@@ -615,8 +615,6 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
 
               // console.group();
               // console.log(offsetOnElementOfCursor);
-              // console.log([left, top]);
-              // console.log([right, bottom]);
               // console.groupEnd();
 
               const { xNoScroll, yNoScroll, xScroll, yScroll } =
@@ -709,8 +707,8 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
               // console.log("shouldTriggerScroll:", shouldTriggerScroll);
               // console.log("clientLeft", clientLeft);
               // console.log(
-              //   "clientWidth - rightBufferLength:",
-              //   clientWidth - rightBufferLength,
+              //   "clientLeft + leftBufferLength:",
+              //   clientLeft + leftBufferLength,
               // );
               // console.log("clientWidth:", clientWidth);
               // console.log("xNoScroll:", xNoScroll);
@@ -865,6 +863,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
       });
 
       if (isDragScrollNeededForThisScrollContainer) {
+        // console.log(isDragScrollNeededForThisScrollContainer, scrollContainer);
         return;
       }
     }

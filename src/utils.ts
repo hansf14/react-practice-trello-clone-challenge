@@ -287,15 +287,17 @@ export function getCursorScrollOffsetOnElement({
 } | null {
   let xOffsetOnDocumentOfCursor = 0;
   let yOffsetOnDocumentOfCursor = 0;
-  if ((event as TouchEvent).touches) {
-    xOffsetOnDocumentOfCursor = (event as TouchEvent).touches[0].pageX;
-    yOffsetOnDocumentOfCursor = (event as TouchEvent).touches[0].pageY;
+  if ("touches" in (event as TouchEvent)) {
+    xOffsetOnDocumentOfCursor = (event as TouchEvent).touches[0].clientX;
+    yOffsetOnDocumentOfCursor = (event as TouchEvent).touches[0].clientY;
   } else {
-    xOffsetOnDocumentOfCursor = (event as PointerEvent | MouseEvent).pageX;
-    yOffsetOnDocumentOfCursor = (event as PointerEvent | MouseEvent).pageY;
+    xOffsetOnDocumentOfCursor = (event as PointerEvent | MouseEvent).clientX;
+    yOffsetOnDocumentOfCursor = (event as PointerEvent | MouseEvent).clientY;
   }
   const { x: xOffsetOnDocumentOfElement, y: yOffsetOnDocumentOfElement } =
     getElementOffsetOnDocument({ element });
+  // console.log(xOffsetOnDocumentOfElement, yOffsetOnDocumentOfElement);
+
   const xOffsetOnElementOfCursor =
     xOffsetOnDocumentOfCursor - xOffsetOnDocumentOfElement;
   const yOffsetOnElementOfCursor =

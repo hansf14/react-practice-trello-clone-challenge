@@ -5,6 +5,7 @@ export type GetCssScrollbarParams = {
   height?: string;
   border?: string;
   outline?: string;
+  margin?: string;
   thumbBackground?: string;
   trackBackground?: string;
 };
@@ -15,7 +16,8 @@ export const getCssScrollbar = (params?: GetCssScrollbarParams) => {
     height = "10px",
     border = "1px solid white",
     outline = "none",
-    thumbBackground = "white",
+    margin = "0",
+    thumbBackground = "#ccc",
     trackBackground = "transparent",
   } = params ?? {};
   return css`
@@ -27,6 +29,8 @@ export const getCssScrollbar = (params?: GetCssScrollbarParams) => {
         height: ${height};
         border: ${border};
         outline: ${outline};
+        // Add margin if outline is set.
+        margin: ${margin};
       }
       &::-webkit-scrollbar-thumb {
         background: ${thumbBackground};
@@ -47,3 +51,27 @@ export const getCssScrollbar = (params?: GetCssScrollbarParams) => {
 };
 // scrollbar-color: ${thumbBackground} ${trackBackground};
 // scrollbar-width: thin;
+
+// https://stackoverflow.com/questions/9251354/css-customized-scroll-bar-in-div/14150577#14150577
+// https://stackoverflow.com/questions/50817727/change-scrollbar-height/53221672#53221672
+//  /* pseudo elements */
+//  ::-webkit-scrollbar              {  }
+//  ::-webkit-scrollbar-button       {  }
+//  ::-webkit-scrollbar-track        {  }
+//  ::-webkit-scrollbar-track-piece  {  }
+//  ::-webkit-scrollbar-thumb        {  }
+//  ::-webkit-scrollbar-corner       {  }
+//  ::-webkit-resizer                {  }
+
+//  /* pseudo class selectors */
+//  :horizontal
+//  :vertical
+//  :decrement
+//  :increment
+//  :start
+//  :end
+//  :double-button
+//  :single-button
+//  :no-button
+//  :corner-present
+//  :window-inactive

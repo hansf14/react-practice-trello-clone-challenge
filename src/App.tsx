@@ -63,43 +63,56 @@ const GlobalStyle = createGlobalStyle`
   * {
     box-sizing: border-box;
   }
+
   html {
+    background-clip: border-box;
     overflow-x: auto;
+    // overflow-y: hidden;
     
+    height: 100%;
     min-width: max-content;
     width: 100%;
     // ㄴ min-width: max-content; width: 100%;
     // ㄴ 마치 max(max-content, 100%)처럼 가능함
-    height: 100%;
     
     background: ${({ theme }) => theme.background};
     background-repeat: no-repeat;
     background-size: cover;
     color: black;
-
-    // TODO: scroll at body not html if drag scroll works fine
-    ${({ theme }) =>
-      getCssScrollbar({
-        // border: theme.scrollbarBorder,
-        // outline: theme.scrollbarOutline,
-        thumbBackground: theme.scrollbarThumbBackground,
-        trackBackground: theme.scrollbarTrackBackground,
-      })}
   }
+
   body {
-    width: max-content;
     height: 100%;
-    min-height: 100%;
+
     font-family: "Source Sans 3", sans-serif;
     font-optical-sizing: auto;
     font-weight: 500;
     font-style: normal;
     word-break: break-word;
+
+    ${({ theme }) =>
+      getCssScrollbar({
+        outline: "1px solid white",
+        margin: "1px",
+
+        thumbBackground: "white",
+        trackBackground: "#8dbeb7"
+      })}
+    
+    * {
+      ${({ theme }) =>
+        getCssScrollbar({
+          thumbBackground: "white",
+          trackBackground: "transparent",
+        })}
+    }
   }
+
   #root {
     width: max-content;
     height: 100%;
   }
+
   a {
     text-decoration: none;
     color: inherit;

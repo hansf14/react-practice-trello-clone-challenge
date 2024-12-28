@@ -190,7 +190,7 @@ export const useDragPositionPreview = () => {
       const offsetStyle: React.CSSProperties = shouldUseMargin
         ? direction === "horizontal"
           ? {
-              margin: `${marginTop}px ${-offsets[0].width + offsets[0].right}px ${marginBottom}px ${marginLeft}px`,
+              margin: `${marginTop}px ${-offsets[0].width - offsets[0].right}px ${marginBottom}px ${marginLeft}px`,
               transform: `translate3d(${marginRight}px, 0px, 0)`,
             }
           : direction === "vertical"
