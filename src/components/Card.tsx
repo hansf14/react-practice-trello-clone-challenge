@@ -1,19 +1,12 @@
-import React, {
-  useCallback,
-  useContext,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-} from "react";
-import { styled } from "styled-components";
+import React, { useImperativeHandle, useRef } from "react";
+import { css, styled } from "styled-components";
 import { GripVertical } from "react-bootstrap-icons";
 import {
-  CardContext,
   ChildItem,
   DraggableCustomAttributesKvObj,
   DraggableHandleCustomAttributesKvObj,
 } from "@/components/BoardContext";
-import { SmartOmit, StyledComponentProps } from "@/utils";
+import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
   OnEditCancel,
@@ -22,15 +15,34 @@ import {
   OnEditStart,
   TextArea,
   TextAreaHandle,
+  TextAreaPropsListeners as TextAreaPropsListeners,
   useTextArea,
 } from "@/components/TextArea";
 import { Draggable } from "@hello-pangea/dnd";
 
-const CardInternalBase = styled.div`
+type CardBaseProps = {
+  isDragging?: boolean;
+};
+
+const CardBase = styled.div.withConfig({
+  shouldForwardProp: (prop) => !["isDragging"].includes(prop),
+})<CardBaseProps>`
   margin: 5px 0;
 
   padding: 10px;
   background-color: rgba(255, 255, 255, 0.45);
+
+  ${({ isDragging }) => {
+    return css`
+      ${(isDragging ?? false)
+        ? `
+          border: 1px solid white;
+          opacity: 1;
+          background-color: ghostwhite; //#526C97;
+        `
+        : ""}
+    `;
+  }}
 `;
 
 const CardContentTextArea = styled(TextArea)`
@@ -40,10 +52,9 @@ const CardContentTextArea = styled(TextArea)`
   }
 `;
 
-const CardDragHandleBase = styled.div``;
-// &.${cardClassNameKvMapping["card-sortable-handle"]} {
-//   cursor: grab;
-// }
+const CardDragHandleBase = styled.div`
+  display: inline-flex;
+`;
 
 export type CardDragHandleProps = {
   boardListId: string;
@@ -57,24 +68,10 @@ export const CardDragHandle = withMemoAndRef<
 >({
   displayName: "CardDragHandle",
   Component: ({ boardListId, childItemId, ...otherProps }, ref) => {
-    const {
-      setActivatorNodeRef,
-      // draggableHandleAttributes,
-      // draggableHandleListeners,
-    } = useContext(CardContext);
-
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
-
-    const callbackRef = useCallback(
-      (el: HTMLDivElement | null) => {
-        refBase.current = el;
-        setActivatorNodeRef?.(el);
-      },
-      [setActivatorNodeRef],
-    );
 
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
       {
@@ -84,9 +81,7 @@ export const CardDragHandle = withMemoAndRef<
 
     return (
       <CardDragHandleBase
-        ref={callbackRef}
-        // {...draggableHandleAttributes}
-        // {...draggableHandleListeners}
+        ref={refBase}
         {...draggableHandleCustomAttributes}
         {...otherProps}
       >
@@ -106,16 +101,16 @@ export type OnUpdateChildItem = <C extends ChildItem>({
   newChildItem: C;
 }) => void;
 
-export type CardProps = {
-  boardListId: string;
-  childItem: ChildItem;
-  index: number;
-  droppableId: string;
-  onEditStartItem?: OnEditStart;
-  onEditCancelItem?: OnEditCancel;
-  onEditChangeItem?: OnEditChange;
-  onEditFinishItem?: OnEditFinish;
-} & SmartOmit<StyledComponentProps<"div">, "children">;
+export type CardProps = SmartMerge<
+  {
+    boardListId: string;
+    childItem: ChildItem;
+    index: number;
+    droppableId: string;
+    alertMessageOnEditStart?: string | null;
+  } & TextAreaPropsListeners
+> &
+  SmartOmit<StyledComponentProps<"div">, "children">;
 
 export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
   displayName: "Card",
@@ -125,90 +120,19 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       childItem,
       index,
       droppableId,
-      onEditStartItem,
-      onEditCancelItem,
-      onEditChangeItem,
-      onEditFinishItem,
+      alertMessageOnEditStart,
+      onEditStart: _onEditStart,
+      onEditCancel: _onEditCancel,
+      onEditChange: _onEditChange,
+      onEditFinish: _onEditFinish,
       ...otherProps
     },
     ref,
   ) => {
-    // const sortableConfig = useMemo<UseSortableArguments>(
-    //   () => ({
-    //     id: childItem.id,
-    //     // disabled // TODO: isEditMode
-    //     data: {
-    //       customData: {
-    //         boardListId,
-    //         type: "child",
-    //         item: childItem,
-    //       },
-    //     } satisfies DndDataInterfaceCustomGeneric<"child">,
-    //   }),
-    //   [boardListId, childItem],
-    // );
-
-    // const {
-    //   isDragging,
-    //   setNodeRef,
-    //   setActivatorNodeRef,
-    //   attributes: draggableHandleAttributes,
-    //   listeners: draggableHandleListeners,
-    //   transform: _transform,
-    //   transition,
-    // } = useSortable(sortableConfig);
-
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
-
-    // const callbackRef = useCallback(
-    //   (el: HTMLDivElement | null) => {
-    //     refBase.current = el;
-    //     setNodeRef(el);
-    //   },
-    //   [setNodeRef],
-    // );
-
-    // const cardContextValue = useMemo<CardContextValue>(
-    //   () => ({
-    //     setActivatorNodeRef,
-    //     draggableHandleAttributes,
-    //     draggableHandleListeners,
-    //   }),
-    //   [
-    //     draggableHandleAttributes,
-    //     draggableHandleListeners,
-    //     setActivatorNodeRef,
-    //   ],
-    // );
-
-    // const transform: Transform = useMemo(
-    //   () => ({
-    //     ...((_transform ?? {}) as Transform),
-    //     scaleX: 1,
-    //     scaleY: 1,
-    //   }),
-    //   [_transform],
-    // );
-
-    // const style = useMemo(
-    //   () => ({
-    //     transition,
-    //     // transition: "none",
-    //     // transition: {
-    //     //   duration: 150,
-    //     //   easing: "cubic-bezier(0.25, 1, 0.5, 1)",
-    //     // },
-    //     // transform: undefined,
-    //     transform: CSS.Transform.toString(transform),
-    //     // transform: transform && {
-    //     //   transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    //     // },
-    //   }),
-    //   [transition, transform],
-    // );
 
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
@@ -217,54 +141,38 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       "data-droppable-id": droppableId,
     };
 
+    const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
+      {
+        "data-board-list-id": boardListId,
+        "data-draggable-handle-id": childItem.id,
+      };
+
     const {
-      // stateIsEditMode,
-      // setStateIsEditMode,
-      // onEditModeEnabled,
-      // onEditModeDisabled,
+      isEditMode,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      enableEditMode,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      disableEditMode,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      toggleEditMode,
       onEditStart,
       onEditCancel,
       onEditChange,
       onEditFinish,
     } = useTextArea({
-      onEditStartItem,
-      onEditCancelItem,
-      onEditChangeItem,
-      onEditFinishItem,
+      onEditStart: _onEditStart,
+      onEditCancel: _onEditCancel,
+      onEditChange: _onEditChange,
+      onEditFinish: _onEditFinish,
     });
     const refCardContentTextArea = useRef<TextAreaHandle | null>(null);
 
-    const children = useMemo(
-      () => (
-        <>
-          <CardContentTextArea
-            ref={refCardContentTextArea}
-            value={childItem.content}
-            onEditStart={onEditStart}
-            onEditCancel={onEditCancel}
-            onEditChange={onEditChange}
-            onEditFinish={onEditFinish}
-          />
-          <CardDragHandle
-            boardListId={boardListId}
-            childItemId={childItem.id}
-          />
-        </>
-      ),
-      [
-        boardListId,
-        childItem.id,
-        childItem.content,
-        onEditStart,
-        onEditCancel,
-        onEditChange,
-        onEditFinish,
-      ],
-    );
-
     return (
-      // <CardContextProvider value={cardContextValue}>
-      <Draggable draggableId={childItem.id} index={index}>
+      <Draggable
+        draggableId={childItem.id}
+        index={index}
+        isDragDisabled={isEditMode}
+      >
         {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
         {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
           // console.log(draggableStateSnapshot.isDragging);
@@ -274,21 +182,35 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
           // console.log(draggableRubric.type);
 
           return (
-            <CardInternalBase
-              // ref={callbackRef}
-              // style={style}
-              ref={draggableProvided.innerRef}
+            <CardBase
+              ref={(el: HTMLDivElement | null) => {
+                refBase.current = el;
+                draggableProvided.innerRef(el);
+              }}
+              isDragging={draggableStateSnapshot.isDragging}
               {...draggableProvided.draggableProps}
-              {...draggableProvided.dragHandleProps}
               {...draggableCustomAttributes}
               {...otherProps}
             >
-              {children}
-            </CardInternalBase>
+              <CardContentTextArea
+                ref={refCardContentTextArea}
+                value={childItem.content}
+                alertMessageOnEditStart={alertMessageOnEditStart}
+                onEditStart={onEditStart}
+                onEditCancel={onEditCancel}
+                onEditChange={onEditChange}
+                onEditFinish={onEditFinish}
+              />
+              <CardDragHandle
+                boardListId={boardListId}
+                childItemId={childItem.id}
+                {...draggableProvided.dragHandleProps}
+                {...draggableHandleCustomAttributes}
+              />
+            </CardBase>
           );
         }}
       </Draggable>
-      // </CardContextProvider>
     );
   },
 });

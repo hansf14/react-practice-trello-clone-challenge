@@ -65,9 +65,8 @@ const GlobalStyle = createGlobalStyle`
   }
 
   html {
-    background-clip: border-box;
     overflow-x: auto;
-    // overflow-y: hidden;
+    overflow-y: hidden;
     
     height: 100%;
     min-width: max-content;
@@ -80,6 +79,9 @@ const GlobalStyle = createGlobalStyle`
     background-size: cover;
     color: black;
   }
+  // Due to @hello-pangea/dnd's drop and collision detection functionality work normally, we have to use the HTML scroll, not the body scroll or inner elements.
+  // But we have to sacrifice some features like transparent scrollbar with the html tag background (which is possible in body or inner elements), BoardList component's scroll functionality encapsulation.
+  // Also, in mobile, the scrollbar is always overlay type. Can't make it always visible in HTML tag.
 
   body {
     height: 100%;
@@ -90,17 +92,23 @@ const GlobalStyle = createGlobalStyle`
     font-style: normal;
     word-break: break-word;
 
-    ${({ theme }) =>
+    ${({
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      theme,
+    }) =>
       getCssScrollbar({
         outline: "1px solid white",
         margin: "1px",
 
         thumbBackground: "white",
-        trackBackground: "#8dbeb7"
+        trackBackground: "#8dbeb7",
       })}
     
     * {
-      ${({ theme }) =>
+      ${({
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        theme,
+      }) =>
         getCssScrollbar({
           thumbBackground: "white",
           trackBackground: "transparent",
@@ -117,14 +125,6 @@ const GlobalStyle = createGlobalStyle`
     text-decoration: none;
     color: inherit;
   }
-
-   ${({ theme }) =>
-     getCssScrollbar({
-       border: theme.scrollbarBorder,
-       //  outline: theme.scrollbarOutline,
-       thumbBackground: theme.scrollbarThumbBackground,
-       trackBackground: theme.scrollbarTrackBackground,
-     })}
 `;
 
 const Main = styled.main`

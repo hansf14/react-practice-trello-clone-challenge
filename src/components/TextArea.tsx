@@ -3,7 +3,7 @@ import { styled } from "styled-components";
 import { Input } from "antd";
 import { TextAreaRef } from "antd/es/input/TextArea";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { SmartOmit, StyledComponentProps } from "@/utils";
+import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
 import { useStateWithCb } from "@/hooks/useStateWithCb";
 const { TextArea: AntdTextArea } = Input;
 
@@ -30,65 +30,59 @@ const TextAreaBase = styled(AntdTextArea)`
 `;
 
 export type OnEditStart = ({
-  elementTextArea,
-  handlers,
+  textAreaHandle,
 }: {
-  elementTextArea: TextAreaRef;
-  handlers: {
-    editCancelHandler: () => void;
-  };
+  textAreaHandle: TextAreaHandle;
 }) => void;
-// export type OnEditStartItem = OnEditStart;
 
-export type OnEditCancel = () => void;
-// export type OnEditCancelItem = OnEditCancel;
+export type OnEditFinish = ({
+  textAreaHandle,
+  oldValue,
+  newValue,
+}: {
+  textAreaHandle: TextAreaHandle;
+  oldValue: string;
+  newValue: string;
+}) => void;
+
+export type OnEditCancel = ({
+  textAreaHandle,
+}: {
+  textAreaHandle: TextAreaHandle;
+}) => void;
 
 export type OnEditChange = ({
+  textAreaHandle,
   event,
   oldValue,
   newValue,
 }: {
+  textAreaHandle: TextAreaHandle;
   event: React.ChangeEvent<HTMLTextAreaElement>;
   oldValue: string;
   newValue: string;
 }) => void;
-// export type OnEditingItem<I> = ({
-//   event,
-//   oldValue,
-//   newValue,
-// }: {
-//   event: React.ChangeEvent<HTMLTextAreaElement>;
-//   oldValue: I;
-//   newValue: I;
-// }) => void;
 
-export type OnEditFinish = ({
-  oldValue,
-  newValue,
-}: {
-  oldValue: string;
-  newValue: string;
-}) => void;
-// export type OnEditFinishItem<I> = ({
-//   oldValue,
-//   newValue,
-// }: {
-//   oldValue: I;
-//   newValue: I;
-// }) => void;
-
-export type TextAreaProps = {
-  value?: string;
-  initialEditMode?: boolean;
-  shouldUseAlertOnEditStart?: boolean;
+export type TextAreaPropsListeners = {
   onEditStart?: OnEditStart;
   onEditCancel?: OnEditCancel;
   onEditChange?: OnEditChange;
   onEditFinish?: OnEditFinish;
-} & SmartOmit<StyledComponentProps<"textarea">, "children">;
+};
+
+export type TextAreaProps = SmartMerge<
+  {
+    value?: string;
+    isEditMode?: boolean;
+    alertMessageOnEditStart?: string | null;
+  } & TextAreaPropsListeners
+> &
+  SmartOmit<StyledComponentProps<"textarea">, "children">;
 
 export type TextAreaHandle = TextAreaRef & {
+  value: string;
   isEditMode: boolean;
+  alertMessageOnEditStart: string | null;
   dispatchEditCancel: () => void;
   dispatchEditEnable: () => void;
   dispatchEditFinish: () => void;
@@ -104,8 +98,8 @@ export const TextArea = withMemoAndRef<
   Component: (
     {
       value = "",
-      initialEditMode,
-      shouldUseAlertOnEditStart = true,
+      isEditMode = false,
+      alertMessageOnEditStart: _alertMessageOnEditStart,
       onEditStart,
       onEditCancel,
       onEditChange,
@@ -116,23 +110,33 @@ export const TextArea = withMemoAndRef<
   ) => {
     const { state: stateIsEditMode, setState: setStateIsEditMode } =
       useStateWithCb<boolean>({
-        initialState: initialEditMode ?? false,
+        initialState: isEditMode,
       });
     const [stateValue, setStateValue] = useState<string>(value);
     const refValueBackup = useRef<string>(value);
 
-    const refBase = useRef<TextAreaRef | null>(null);
+    const refBase = useRef<TextAreaHandle | null>(null);
 
     const editCancelHandler = useCallback(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (event: FocusEvent) => {
+      (event: FocusEvent | React.KeyboardEvent<HTMLTextAreaElement>) => {
         setStateIsEditMode({ newStateOrSetStateAction: false });
         setStateValue(refValueBackup.current);
 
-        onEditCancel?.();
+        if (!refBase.current) {
+          return;
+        }
+        onEditCancel?.({
+          textAreaHandle: refBase.current,
+        });
       },
       [setStateIsEditMode, onEditCancel],
     );
+
+    const alertMessageOnEditStart =
+      typeof _alertMessageOnEditStart === "undefined"
+        ? "Press 'enter' to finish the edit.\nPress 'esc' or touch/click elsewhere to cancel."
+        : _alertMessageOnEditStart;
 
     const editEnableHandler = useCallback<React.MouseEventHandler<TextAreaRef>>(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -143,8 +147,8 @@ export const TextArea = withMemoAndRef<
             if (!refBase.current) {
               return;
             }
-            if (shouldUseAlertOnEditStart) {
-              alert("Press enter when the edit is finished.");
+            if (alertMessageOnEditStart !== null) {
+              alert(alertMessageOnEditStart);
 
               refBase.current.focus({ cursor: "all" });
 
@@ -163,16 +167,13 @@ export const TextArea = withMemoAndRef<
             }
 
             onEditStart?.({
-              elementTextArea: refBase.current,
-              handlers: {
-                editCancelHandler: editCancelHandler as () => void,
-              },
+              textAreaHandle: refBase.current,
             });
           },
         });
       },
       [
-        shouldUseAlertOnEditStart,
+        alertMessageOnEditStart,
         setStateIsEditMode,
         onEditStart,
         editCancelHandler,
@@ -189,7 +190,11 @@ export const TextArea = withMemoAndRef<
         setStateIsEditMode({ newStateOrSetStateAction: false });
         refValueBackup.current = stateValue;
 
+        if (!refBase.current) {
+          return;
+        }
         onEditFinish?.({
+          textAreaHandle: refBase.current,
           oldValue: value,
           newValue: stateValue,
         });
@@ -203,8 +208,12 @@ export const TextArea = withMemoAndRef<
       (event) => {
         setStateValue(event.target.value);
 
+        if (!refBase.current) {
+          return;
+        }
         onEditChange?.({
           event,
+          textAreaHandle: refBase.current,
           oldValue: value,
           newValue: event.target.value,
         });
@@ -212,15 +221,38 @@ export const TextArea = withMemoAndRef<
       [value, onEditChange],
     );
 
+    const editKeyDownHandler = useCallback<
+      React.KeyboardEventHandler<HTMLTextAreaElement>
+    >(
+      (event) => {
+        switch (event.key) {
+          case "Enter": {
+            editFinishHandler(event);
+            break;
+          }
+          case "Escape": {
+            editCancelHandler(event);
+            break;
+          }
+          default:
+            return;
+        }
+      },
+      [editFinishHandler, editCancelHandler],
+    );
+
     useImperativeHandle(ref, () => {
-      return {
-        ...(refBase.current as TextAreaRef),
+      refBase.current = {
+        ...refBase.current,
+        value: stateValue,
         isEditMode: stateIsEditMode,
-        dispatchEditCancel: editCancelHandler,
-        dispatchEditEnable: editEnableHandler,
-        dispatchEditFinish: editFinishHandler,
-        dispatchEditChange: editChangeHandler,
+        alertMessageOnEditStart,
+        dispatchEditCancel: editCancelHandler as () => void,
+        dispatchEditEnable: editEnableHandler as () => void,
+        dispatchEditFinish: editFinishHandler as () => void,
+        dispatchEditChange: editChangeHandler as () => void,
       } as TextAreaHandle;
+      return refBase.current;
     });
 
     return (
@@ -231,7 +263,7 @@ export const TextArea = withMemoAndRef<
         autoSize
         readOnly={!stateIsEditMode}
         onClick={editEnableHandler}
-        onKeyDown={editFinishHandler}
+        onKeyDown={editKeyDownHandler}
         onChange={editChangeHandler}
         {...otherProps}
       />
@@ -239,68 +271,94 @@ export const TextArea = withMemoAndRef<
   },
 });
 
-export type UseTextAreaParams = {
-  onEditStartItem?: OnEditStart;
-  onEditCancelItem?: OnEditCancel;
-  onEditChangeItem?: OnEditChange;
-  onEditFinishItem?: OnEditFinish;
-};
+export type UseTextAreaParams = SmartMerge<
+  {
+    initialIsEditMode?: boolean;
+    onEditModeChange?: (params?: {
+      isEditModeOld: boolean;
+      isEditModeNew: boolean;
+    }) => void;
+  } & TextAreaPropsListeners
+>;
 
 export const useTextArea = (params?: UseTextAreaParams) => {
   const {
-    onEditStartItem,
-    onEditCancelItem,
-    onEditChangeItem,
-    onEditFinishItem,
+    initialIsEditMode = false,
+    onEditModeChange,
+    onEditStart: _onEditStart,
+    onEditCancel: _onEditCancel,
+    onEditChange: _onEditChange,
+    onEditFinish: _onEditFinish,
   } = params ?? {};
 
-  const [stateIsEditMode, setStateIsEditMode] = useState<boolean>(false);
+  const [stateIsEditMode, setStateIsEditMode] =
+    useState<boolean>(initialIsEditMode);
 
-  const onEditModeEnabled = useCallback(() => {
+  const enableEditMode = useCallback(() => {
     setStateIsEditMode(true);
-  }, []);
+    onEditModeChange?.({
+      isEditModeOld: stateIsEditMode,
+      isEditModeNew: true,
+    });
+  }, [onEditModeChange, stateIsEditMode]);
 
-  const onEditModeDisabled = useCallback(() => {
+  const disableEditMode = useCallback(() => {
     setStateIsEditMode(false);
-  }, []);
+    onEditModeChange?.({
+      isEditModeOld: stateIsEditMode,
+      isEditModeNew: false,
+    });
+  }, [onEditModeChange, stateIsEditMode]);
+
+  const toggleEditMode = useCallback(() => {
+    setStateIsEditMode((curIsEditMode) => !curIsEditMode);
+    onEditModeChange?.({
+      isEditModeOld: stateIsEditMode,
+      isEditModeNew: !stateIsEditMode,
+    });
+  }, [onEditModeChange, stateIsEditMode]);
 
   const onEditStart = useCallback<OnEditStart>(
-    ({ elementTextArea, handlers }) => {
-      onEditModeEnabled();
-      onEditStartItem?.({ elementTextArea, handlers });
+    ({ textAreaHandle }) => {
+      enableEditMode();
+      _onEditStart?.({ textAreaHandle });
     },
-    [onEditStartItem, onEditModeEnabled],
+    [_onEditStart, enableEditMode],
   );
 
-  const onEditCancel = useCallback<OnEditCancel>(() => {
-    onEditCancelItem?.();
-    onEditModeDisabled();
-  }, [onEditCancelItem, onEditModeDisabled]);
+  const onEditCancel = useCallback<OnEditCancel>(
+    ({ textAreaHandle }) => {
+      _onEditCancel?.({ textAreaHandle });
+      disableEditMode();
+    },
+    [_onEditCancel, disableEditMode],
+  );
 
   const onEditChange = useCallback<OnEditChange>(
-    ({ event, oldValue, newValue }) => {
-      onEditChangeItem?.({
+    ({ textAreaHandle, event, oldValue, newValue }) => {
+      _onEditChange?.({
+        textAreaHandle,
         event,
         oldValue,
         newValue,
       });
     },
-    [onEditChangeItem],
+    [_onEditChange],
   );
 
   const onEditFinish = useCallback<OnEditFinish>(
-    ({ oldValue, newValue }) => {
-      onEditFinishItem?.({ oldValue, newValue });
-      onEditModeDisabled();
+    ({ textAreaHandle, oldValue, newValue }) => {
+      _onEditFinish?.({ textAreaHandle, oldValue, newValue });
+      disableEditMode();
     },
-    [onEditFinishItem, onEditModeDisabled],
+    [_onEditFinish, disableEditMode],
   );
 
   return {
-    stateIsEditMode,
-    setStateIsEditMode,
-    onEditModeEnabled,
-    onEditModeDisabled,
+    isEditMode: stateIsEditMode,
+    enableEditMode,
+    disableEditMode,
+    toggleEditMode,
     onEditStart,
     onEditCancel,
     onEditChange,

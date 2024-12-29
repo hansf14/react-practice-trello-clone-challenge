@@ -1,12 +1,13 @@
 import { css, styled } from "styled-components";
-import { StyledComponentProps } from "@/utils";
+import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import { useImperativeHandle, useRef } from "react";
+import React, { useImperativeHandle, useRef } from "react";
 import {
   DraggableCustomAttributesKvObj,
   ParentItem,
 } from "@/components/BoardContext";
-import { Draggable } from "@hello-pangea/dnd";
+import { Draggable, DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
+import { TextAreaPropsListeners, useTextArea } from "@/components/TextArea";
 
 type BoardBaseProps = {
   isDragging?: boolean;
@@ -39,30 +40,49 @@ const BoardBase = styled.div.withConfig({
     return css`
       ${(isDragging ?? false)
         ? `
-        border: 2px solid yellow;
-        opacity: 1;
-        background-color: cornflowerblue; //#526C97;
-
-        // [data-draggable-handle-id] {
-        //   background-color: red;
-        //   pointer-events: none;
-        // }
+          border: 1px solid white;
+          opacity: 1;
+          background-color: #a9b8d1; //#526C97;
         `
         : ""}
     `;
   }}
 `;
 
-export type BoardProps = {
-  boardListId: string;
-  parentItem: ParentItem;
-  index: number;
-} & StyledComponentProps<"div">;
+export type BoardChildren = ({
+  draggableDragHandleProps,
+  onEditStart,
+  onEditCancel,
+  onEditChange,
+  onEditFinish,
+}: {
+  draggableDragHandleProps: DraggableProvidedDragHandleProps | null;
+} & TextAreaPropsListeners) => React.ReactNode;
+
+export type BoardProps = SmartMerge<
+  {
+    boardListId: string;
+    parentItem: ParentItem;
+    index: number;
+    children: BoardChildren;
+  } & TextAreaPropsListeners
+> &
+  SmartOmit<StyledComponentProps<"div">, "children">;
 
 export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
   displayName: "Board",
   Component: (
-    { boardListId, parentItem, index, children, ...otherProps },
+    {
+      boardListId,
+      parentItem,
+      index,
+      children,
+      onEditStart: _onEditStart,
+      onEditCancel: _onEditCancel,
+      onEditChange: _onEditChange,
+      onEditFinish: _onEditFinish,
+      ...otherProps
+    },
     ref,
   ) => {
     const refBase = useRef<HTMLDivElement | null>(null);
@@ -70,34 +90,25 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       return refBase.current as HTMLDivElement;
     });
 
-    // const callbackRef = useCallback(
-    //   (el: HTMLDivElement | null) => {
-    //     refBase.current = el;
-    //     setNodeRef(el);
-    //   },
-    //   [setNodeRef],
-    // );
+    const {
+      isEditMode,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      enableEditMode,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      disableEditMode,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      toggleEditMode,
+      onEditStart,
+      onEditCancel,
+      onEditChange,
+      onEditFinish,
+    } = useTextArea({
+      onEditStart: _onEditStart,
+      onEditCancel: _onEditCancel,
+      onEditChange: _onEditChange,
+      onEditFinish: _onEditFinish,
+    });
 
-    // const boardContextValue = useMemo<BoardContextValue>(
-    //   () => ({
-    //     setActivatorNodeRef,
-    //     draggableHandleAttributes,
-    //     draggableHandleListeners,
-    //   }),
-    //   [
-    //     draggableHandleAttributes,
-    //     draggableHandleListeners,
-    //     setActivatorNodeRef,
-    //   ],
-    // );
-
-    // const style = useMemo(
-    //   () => ({
-    //     transition: "none",
-    //     transform: CSS.Transform.toString(transform),
-    //   }),
-    //   [transform],
-    // );
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
       "data-draggable-id": parentItem.id,
@@ -109,21 +120,28 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       <Draggable
         draggableId={parentItem.id}
         index={index}
-        // disabled // TODO: isEditMode
+        isDragDisabled={isEditMode}
       >
         {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
         {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
           return (
             <BoardBase
-              ref={draggableProvided.innerRef}
+              ref={(el: HTMLDivElement | null) => {
+                refBase.current = el;
+                draggableProvided.innerRef(el);
+              }}
               isDragging={draggableStateSnapshot.isDragging}
               {...draggableProvided.draggableProps}
-              {...draggableProvided.dragHandleProps}
-              // ref={callbackRef}
               {...draggableCustomAttributes}
               {...otherProps}
             >
-              {children}
+              {children({
+                draggableDragHandleProps: draggableProvided.dragHandleProps,
+                onEditStart,
+                onEditCancel,
+                onEditChange,
+                onEditFinish,
+              })}
             </BoardBase>
           );
         }}

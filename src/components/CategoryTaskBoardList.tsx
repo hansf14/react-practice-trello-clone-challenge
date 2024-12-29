@@ -4,23 +4,24 @@ import { BoardHeader } from "@/components/BoardHeader";
 import {
   BoardListExtendProps,
   BoardList,
-  BoardListProps,
   BoardListInternalProps,
 } from "@/components/BoardList";
-import { memoizeCallback, SmartOmit } from "@/utils";
+import { memoizeCallback } from "@/utils";
 import {
   ParentItem,
   BoardListContextProvider,
   useBoardListContext,
   BoardListContextValue,
   UseBoardContextParams,
+  BoardListContextIndexer,
+  ChildItem,
 } from "@/components/BoardContext";
 import { BoardMain } from "@/components/BoardMain";
 import { Card } from "@/components/Card";
 import { styled } from "styled-components";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
-import { OnEditFinish, OnEditStart } from "@/components/TextArea";
+import { OnEditFinish } from "@/components/TextArea";
 
 const CategoryTaskBoardListInternalBase = styled(BoardList)``;
 
@@ -42,77 +43,95 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
     );
     const {
       parentItems__Immutable: parentItems,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       stateBoardListContext,
       setStateBoardListContext,
     } = useBoardListContext(boardListContextParams);
 
-    // const onUpdateChildItem = useCallback<OnUpdateChildItem>(
-    //   ({ event, oldChildItem, newChildItem }) => {
-    //     // console.log(event.target.value);
-    //     setStateNestedIndexer((cur) => {
-    //       const newIndexer = new NestedIndexer(cur);
-    //       newIndexer.updateChild({
-    //         childId: oldChildItem.id,
-    //         child: newChildItem,
-    //       });
-    //       return newIndexer;
-    //     });
-    //   },
-    //   [setStateNestedIndexer],
-    // );
-
-    // const categoryList = useMemo(() => {
-    //   // console.log("[categoryList]");
-    //   return (
-    //     stateBoardListContext.indexer.getParentList__MutableParent() ??
-    //     getEmptyArray<ParentItem>()
-    //   );
-    // }, [stateBoardListContext]);
-
-    // const taskList = useMemo(() => {
-    //   return categoryList.map((category) => {
-    //     // console.log("[taskList]");
-    //     return (
-    //       stateBoardListContext.indexer.getChildListOfParentId__MutableChild({
-    //         parentId: category.id,
-    //       }) ?? getEmptyArray<ChildItem>()
-    //     );
-    //   });
-    // }, [categoryList, stateBoardListContext]);
-
-    const onEditStartParentItem = useCallback<OnEditStart>(
-      ({ elementTextArea, handlers: { editCancelHandler } }) => {},
-      [],
-    );
-
     const idOnEditFinishParentItem = useMemoizeCallbackId();
-    const onEditFinishParentItem = useCallback<
-      ({ parentItem }: { parentItem: ParentItem }) => OnEditFinish
-    >(
-      ({ parentItem }) =>
+    const onEditFinishParentItem = useCallback(
+      ({
+        parentItem,
+        onEditFinish,
+      }: {
+        parentItem: ParentItem;
+        onEditFinish?: OnEditFinish;
+      }) =>
         memoizeCallback<OnEditFinish>({
           id: idOnEditFinishParentItem,
-          fn: ({ oldValue, newValue }) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          fn: ({ textAreaHandle, oldValue, newValue }) => {
             setStateBoardListContext((curBoardListContext) => {
-              curBoardListContext.indexer.updateParent({
+              const newBoardListContextIndexer = new BoardListContextIndexer(
+                curBoardListContext.indexer,
+              );
+              newBoardListContextIndexer.updateParent({
                 oldParentId: parentItem.id,
                 newParent: {
                   ...parentItem,
                   title: newValue,
                 },
+                shouldKeepRef: false,
               });
               return {
-                ...curBoardListContext,
+                boardListId,
+                indexer: newBoardListContextIndexer,
+              };
+            });
+
+            onEditFinish?.({ textAreaHandle, oldValue, newValue });
+          },
+          deps: [
+            parentItem,
+            onEditFinish,
+            idOnEditFinishParentItem,
+            boardListId,
+            setStateBoardListContext,
+          ],
+        }),
+      [idOnEditFinishParentItem, boardListId, setStateBoardListContext],
+    );
+
+    const idOnUpdateChildItem = useMemoizeCallbackId();
+    const onUpdateChildItem = useCallback(
+      ({ childItem }: { childItem: ChildItem }) =>
+        memoizeCallback<OnEditFinish>({
+          id: idOnUpdateChildItem,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          fn: ({ oldValue, newValue }) => {
+            setStateBoardListContext((curBoardListContext) => {
+              const newBoardListContextIndexer = new BoardListContextIndexer(
+                curBoardListContext.indexer,
+              );
+              newBoardListContextIndexer.updateChild({
+                oldChildId: childItem.id,
+                newChild: {
+                  id: childItem.id,
+                  content: newValue,
+                },
+                shouldKeepRef: false,
+              });
+              return {
+                boardListId,
+                indexer: newBoardListContextIndexer,
               };
             });
           },
           deps: [
-            parentItem,
-            idOnEditFinishParentItem,
+            childItem,
+            idOnUpdateChildItem,
+            boardListId,
             setStateBoardListContext,
           ],
         }),
-      [idOnEditFinishParentItem, setStateBoardListContext],
+      [idOnUpdateChildItem, boardListId, setStateBoardListContext],
+    );
+
+    const alertMessageOnEditStart = useCallback(
+      ({ editTarget }: { editTarget: string }) => {
+        return `Press 'enter' to finish the edit.\nPress 'esc' or touch/click elsewhere to cancel.\nThe ${editTarget} drag will be disabled till you finish/cancel the edit.`;
+      },
+      [],
     );
 
     return (
@@ -132,32 +151,58 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
               parentItem={parentItem}
               index={parentItemIndex}
             >
-              <BoardHeader
-                boardListId={boardListId}
-                parentItem={parentItem}
-                onEditStartItem={onEditStartParentItem}
-                onEditFinishItem={onEditFinishParentItem({ parentItem })}
-              />
-              <BoardMain
-                boardListId={boardListId}
-                parentItem={parentItem}
-                direction="vertical"
-              >
-                {parentItems[parentItemIndex].items?.map(
-                  (childItem, childItemIndex) => {
-                    return (
-                      <Card
-                        key={childItem.id}
-                        boardListId={boardListId}
-                        childItem={childItem}
-                        index={childItemIndex}
-                        droppableId={parentItem.id}
-                        // onUpdateChildItem={onUpdateChildItem}
-                      />
-                    );
-                  },
-                )}
-              </BoardMain>
+              {({
+                draggableDragHandleProps,
+                onEditStart,
+                onEditCancel,
+                onEditChange,
+                onEditFinish,
+              }) => {
+                return (
+                  <>
+                    <BoardHeader
+                      boardListId={boardListId}
+                      parentItem={parentItem}
+                      draggableDragHandleProps={draggableDragHandleProps}
+                      alertMessageOnEditStart={alertMessageOnEditStart({
+                        editTarget: "task category",
+                      })}
+                      onEditStart={onEditStart}
+                      onEditCancel={onEditCancel}
+                      onEditChange={onEditChange}
+                      onEditFinish={onEditFinishParentItem({
+                        parentItem,
+                        onEditFinish,
+                      })}
+                    />
+                    <BoardMain
+                      boardListId={boardListId}
+                      parentItem={parentItem}
+                      direction="vertical"
+                    >
+                      {parentItems[parentItemIndex].items?.map(
+                        (childItem, childItemIndex) => {
+                          return (
+                            <Card
+                              key={childItem.id}
+                              boardListId={boardListId}
+                              childItem={childItem}
+                              index={childItemIndex}
+                              droppableId={parentItem.id}
+                              alertMessageOnEditStart={alertMessageOnEditStart({
+                                editTarget: "task",
+                              })}
+                              onEditFinish={onUpdateChildItem({
+                                childItem,
+                              })}
+                            />
+                          );
+                        },
+                      )}
+                    </BoardMain>
+                  </>
+                );
+              }}
             </Board>
           );
         })}

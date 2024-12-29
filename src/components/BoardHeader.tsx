@@ -15,8 +15,8 @@ import {
   OnEditStart,
   TextArea,
   TextAreaHandle,
-  useTextArea,
 } from "@/components/TextArea";
+import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 
 const BoardHeaderBase = styled.div``;
 
@@ -132,10 +132,12 @@ export const BoardHeaderDragHandle = withMemoAndRef<
 export type BoardHeaderProps = {
   boardListId: string;
   parentItem: ParentItem;
-  onEditStartItem?: OnEditStart;
-  onEditCancelItem?: OnEditCancel;
-  onEditingItem?: OnEditChange;
-  onEditFinishItem?: OnEditFinish;
+  draggableDragHandleProps: DraggableProvidedDragHandleProps | null;
+  alertMessageOnEditStart?: string | null;
+  onEditStart?: OnEditStart;
+  onEditCancel?: OnEditCancel;
+  onEditChange?: OnEditChange;
+  onEditFinish?: OnEditFinish;
 } & StyledComponentProps<"div">;
 
 export const BoardHeader = withMemoAndRef<
@@ -148,45 +150,37 @@ export const BoardHeader = withMemoAndRef<
     {
       boardListId,
       parentItem,
-      onEditStartItem,
-      onEditCancelItem,
-      onEditingItem,
-      onEditFinishItem,
-      ...otherProps
-    },
-    ref,
-  ) => {
-    const {
-      stateIsEditMode,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      setStateIsEditMode,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      onEditModeEnabled,
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      onEditModeDisabled,
+      draggableDragHandleProps,
+      alertMessageOnEditStart,
       onEditStart,
       onEditCancel,
       onEditChange,
       onEditFinish,
-    } = useTextArea({
-      onEditStartItem,
-      onEditCancelItem,
-      onEditChangeItem: onEditingItem,
-      onEditFinishItem,
-    });
+      ...otherProps
+    },
+    ref,
+  ) => {
     const refBoardHeaderTitleTextArea = useRef<TextAreaHandle | null>(null);
+
+    const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
+      {
+        "data-board-list-id": boardListId,
+        "data-draggable-handle-id": parentItem.id,
+      };
 
     return (
       <BoardHeaderBase ref={ref} {...otherProps}>
         <BoardHeaderTitle>
-          {stateIsEditMode && refBoardHeaderTitleTextArea.current && (
-            <BoardHeaderTitleEditCancelButton
-              onClick={refBoardHeaderTitleTextArea.current.dispatchEditCancel}
-            />
-          )}
+          {refBoardHeaderTitleTextArea.current?.isEditMode &&
+            refBoardHeaderTitleTextArea.current && (
+              <BoardHeaderTitleEditCancelButton
+                onClick={refBoardHeaderTitleTextArea.current.dispatchEditCancel}
+              />
+            )}
           <BoardHeaderTitleTextArea
             ref={refBoardHeaderTitleTextArea}
             value={parentItem.title}
+            alertMessageOnEditStart={alertMessageOnEditStart}
             onEditStart={onEditStart}
             onEditCancel={onEditCancel}
             onEditChange={onEditChange}
@@ -195,6 +189,8 @@ export const BoardHeader = withMemoAndRef<
           <BoardHeaderDragHandle
             boardListId={boardListId}
             parentItemId={parentItem.id}
+            {...draggableDragHandleProps}
+            {...draggableHandleCustomAttributes}
           />
         </BoardHeaderTitle>
       </BoardHeaderBase>

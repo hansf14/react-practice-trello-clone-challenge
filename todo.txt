@@ -8,8 +8,8 @@ task 다른 list로 맨 앞에 추가하려하면 두번째로 추가되는 버�
 
 
 * 기능 완료
-4. board 자체의 순서를 서로 바꿀 수 있는 기능
-1. board 수정
+- board 자체의 순서를 서로 바꿀 수 있는 기능
+- board 수정
 2. board의 모든 task 삭제
 Optimization (prevent rendering of all cards due to subscribing the atom)
 4. TaskAdder task 추가
