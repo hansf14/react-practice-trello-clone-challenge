@@ -1,3 +1,5 @@
+// https://codesandbox.io/p/sandbox/suttp
+// https://medium.com/@Dedanade/how-to-add-a-custom-placeholder-for-more-than-one-column-react-beautiful-dnd-3d59b64fe2d2
 import React, { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DragUpdate } from "@hello-pangea/dnd";

@@ -1,7 +1,5 @@
-// navigator.maxTouchPoints is always = 1 on dev tool simulation mode
-
-import { observeUserAgentChange, ObserveUserAgentChangeCb } from "@/utils";
 import { useCallback, useEffect, useState } from "react";
+import { observeUserAgentChange, ObserveUserAgentChangeCb } from "@/utils";
 
 export type DeviceEnvironmentChangeCb = ObserveUserAgentChangeCb;
 
@@ -48,6 +46,7 @@ export const useDeviceDetector = (params?: {
       navigator?.maxTouchPoints !== 1;
 
     const getIsEmulatorWebkit = () => stateUserAgent.indexOf("Mobile") !== -1;
+    // cf> // navigator.maxTouchPoints is always = 1 on dev tool simulation mode
 
     const getIsMobile = () =>
       !isSSR &&

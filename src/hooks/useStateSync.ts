@@ -1,7 +1,7 @@
 // Warn to use: (Dangerous hook) possible infinite function call
-import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
 import { useCallback, useEffect, useRef } from "react";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
+import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
 
 export type OnSyncCb = ({}) => void;
 

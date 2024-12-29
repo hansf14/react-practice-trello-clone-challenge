@@ -1,6 +1,5 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { styled } from "styled-components";
-import { atom } from "recoil";
 import {
   ArrowDownCircleFill,
   ArrowUpCircleFill,
@@ -8,10 +7,9 @@ import {
   XCircleFill,
 } from "react-bootstrap-icons";
 import { SubmitHandler, useForm } from "react-hook-form";
-import { getEmptyArray, StyledComponentProps } from "@/utils";
+import { StyledComponentProps } from "@/utils";
 import { Input } from "antd";
 import {
-  ChildItem,
   DraggablesContainerCustomAttributesKvObj,
   DroppableCustomAttributesKvObj,
   ParentItem,
@@ -20,6 +18,7 @@ import {
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { Droppable } from "@hello-pangea/dnd";
 import { getPlaceholder } from "@/hooks/useDragScroll";
+import { TextAreaRef } from "antd/es/input/TextArea";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
@@ -59,19 +58,19 @@ const BoardMainContentMinusMargin = styled.div`
   flex-direction: column;
 `;
 
-const Toolbar = styled.div`
+const ChildItemForm = styled.form`
   width: 100%;
   display: flex;
-  gap: 10px;
+  gap: 8px;
 `;
 
-const ChildItemAdder = styled.form`
+const ChildItemAdder = styled.div`
   flex-grow: 1;
 `;
 
 const ChildItemAdderInput = styled(TextArea)`
   && {
-    height: 56px;
+    height: 74px;
     border: none;
     border-radius: 0;
     font-weight: bold;
@@ -82,10 +81,6 @@ const ChildItemAdderInput = styled(TextArea)`
 
     background-color: rgb(204, 221, 223);
     color: black;
-
-    &&::placeholder {
-      color: #777;
-    }
   }
 `;
 
@@ -93,177 +88,238 @@ const ToolbarButtons = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: center;
+  gap: 3px;
 `;
 
-const ScrollButtons = styled.div`
+const BoardControllers = styled.div`
   display: flex;
+  gap: 3px;
 `;
 
 const ScrollDownButton = styled(ArrowDownCircleFill)`
   width: 25px;
   height: 25px;
   cursor: pointer;
+
+  clip-path: circle(48%);
+  background-color: white;
+  fill: black;
 `;
 
 const ScrollUpButton = styled(ArrowUpCircleFill)`
   width: 25px;
   height: 25px;
   cursor: pointer;
-`;
 
-const TaskButtons = styled.div`
-  display: flex;
-`;
-
-const ChildItemAddButton = styled(PlusCircleFill)`
-  width: 25px;
-  height: 25px;
-  cursor: pointer;
+  clip-path: circle(48%);
+  background-color: white;
+  fill: black;
+  margin-left: -1px;
 `;
 
 const ChildItemAdderInputClearButton = styled(XCircleFill)`
   width: 25px;
   height: 25px;
   cursor: pointer;
+
+  clip-path: circle(48%);
+  background-color: white;
+  fill: black;
+  margin-left: -1px;
+`;
+
+const CardInputControllers = styled.div`
+  display: flex;
+  gap: 3px;
+`;
+
+const ChildItemAddButton = styled.button`
+  all: unset;
+`;
+
+const ChildItemAddButtonIcon = styled(PlusCircleFill)`
+  width: 25px;
+  height: 25px;
+  cursor: pointer;
+
+  clip-path: circle(48%);
+  background-color: white;
+  fill: black;
 `;
 
 const ClearChildItemsButton = styled(XCircleFill)`
   width: 25px;
   height: 25px;
   cursor: pointer;
-  color: red;
+
+  clip-path: circle(48%);
   background-color: white;
-  border-radius: 50%;
-  overflow: hidden;
+  fill: red;
 `;
 
 export interface FormData {
-  childItem: string;
+  childItemContent: string;
 }
+
+export type OnClearChildItems = ({
+  parentItemId,
+}: {
+  parentItemId: string;
+}) => void;
+
+export type OnAddChildItem = ({
+  parentItemId,
+  value,
+}: {
+  parentItemId: string;
+  value: string;
+}) => void;
 
 export type BoardMainProps = {
   boardListId: string;
   parentItem: ParentItem;
   direction: "horizontal" | "vertical";
+  childItemAdderInputScrollDownStepSize?: number;
+  childItemAdderInputScrollDownBehavior?: ScrollBehavior;
+  childItemAdderInputScrollUpStepSize?: number;
+  childItemAdderInputScrollUpBehavior?: ScrollBehavior;
+  onClearChildItems?: OnClearChildItems;
+  onAddChildItemSuccess?: OnAddChildItem;
 } & StyledComponentProps<"div">;
 
 export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
   displayName: "BoardMain",
   Component: (
-    { boardListId, parentItem, direction, children, ...otherProps },
+    {
+      boardListId,
+      parentItem,
+      direction,
+      childItemAdderInputScrollDownStepSize = 22,
+      childItemAdderInputScrollDownBehavior = "smooth",
+      childItemAdderInputScrollUpStepSize = 22,
+      childItemAdderInputScrollUpBehavior = "smooth",
+      onClearChildItems: _onClearChildItems,
+      onAddChildItemSuccess: _onAddChildItemSuccess,
+      children,
+      ...otherProps
+    },
     ref,
   ) => {
-    // const [stateNestedIndexer, setNestedStateIndexer] =
-    //   useRecoilState(nestedIndexerAtom);
+    const refChildItemAdderInput = useRef<TextAreaRef | null>(null);
 
-    // const {
-    //   register,
-    //   handleSubmit,
-    //   // setValue,
-    //   reset,
-    //   formState: { errors },
-    // } = useForm<FormData>();
-    // const [stateChildItemContent, setStateChildItemContent] =
-    //   useState<string>("");
+    const childItemAdderInputScrollDownHandler = useCallback<
+      React.MouseEventHandler<SVGElement>
+    >(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (event) => {
+        refChildItemAdderInput.current?.resizableTextArea?.textArea.scrollBy({
+          top: childItemAdderInputScrollDownStepSize,
+          behavior: childItemAdderInputScrollDownBehavior,
+        });
+      },
+      [
+        childItemAdderInputScrollDownStepSize,
+        childItemAdderInputScrollDownBehavior,
+      ],
+    );
 
-    // const onValid = useCallback<SubmitHandler<FormData>>(
-    //   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    //   (data: FormData, event) => {
-    //     console.log(data);
+    const childItemAdderInputScrollUpHandler = useCallback<
+      React.MouseEventHandler<SVGElement>
+    >(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (event) => {
+        refChildItemAdderInput.current?.resizableTextArea?.textArea.scrollBy({
+          top: -childItemAdderInputScrollUpStepSize,
+          behavior: childItemAdderInputScrollUpBehavior,
+        });
+      },
+      [
+        childItemAdderInputScrollUpStepSize,
+        childItemAdderInputScrollUpBehavior,
+      ],
+    );
 
-    //     setNestedStateIndexer((cur) => {
-    //       const newItem = {
-    //         id: generateUniqueRandomId(),
-    //         content: data.childItem,
-    //       } satisfies ChildItem;
+    const onClearChildItems = useCallback<React.MouseEventHandler<SVGElement>>(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (event) => {
+        _onClearChildItems?.({ parentItemId: parentItem.id });
+      },
+      [parentItem.id, _onClearChildItems],
+    );
 
-    //       const newIndexer = new NestedIndexer(cur);
-    //       newIndexer.createChild({
-    //         parentId: parentItem.id,
-    //         child: newItem,
-    //         shouldAppend: false,
-    //       });
-    //       return newIndexer;
-    //     });
+    const {
+      register,
+      handleSubmit,
+      // setValue,
+      reset,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      formState: { errors },
+    } = useForm<FormData>();
 
-    //     reset();
-    //   },
-    //   [parentItem.id, setNestedStateIndexer, reset],
-    // );
+    const formRegisterProps = useMemo(() => {
+      return register("childItemContent", {
+        required: true,
+      });
+    }, [register]);
+    const {
+      ref: innerRef,
+      onChange,
+      ...otherFormRegisterProps
+    } = formRegisterProps;
 
-    // const onChangeChildItemInput = useCallback<
-    //   React.ChangeEventHandler<HTMLTextAreaElement>
-    // >(
-    //   (event) => {
-    //     setStateChildItemContent(event.target.value);
-    //   },
-    //   [setStateChildItemContent],
-    // );
+    const childItemAdderInputCbRef = (instance: TextAreaRef | null) => {
+      refChildItemAdderInput.current = instance;
+      innerRef(instance?.resizableTextArea?.textArea);
+    };
 
-    // const onClearChildItemInput = useCallback<
-    //   React.MouseEventHandler<SVGElement>
-    // >(() => {
-    //   setStateChildItemContent("");
-    // }, [setStateChildItemContent]);
+    const [stateChildItemContent, setStateChildItemContent] =
+      useState<string>("");
 
-    // const onAddChildItem = useCallback<React.MouseEventHandler<SVGElement>>(
-    //   (event) => {
-    //     setNestedStateIndexer((cur) => {
-    //       const newItem = {
-    //         id: generateUniqueRandomId(),
-    //         content: stateChildItemContent,
-    //       } satisfies ChildItem;
-    //       const newIndexer = new NestedIndexer(cur);
-    //       newIndexer.createChild({
-    //         parentId: parentItem.id,
-    //         child: newItem,
-    //         shouldAppend: true,
-    //       });
-    //       return newIndexer;
-    //     });
-    //   },
-    //   [parentItem.id, stateChildItemContent, setNestedStateIndexer],
-    // );
+    const onValid = useCallback<SubmitHandler<FormData>>(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (data: FormData, event) => {
+        console.log(data.childItemContent);
 
-    // const onClearChildItems = useCallback<
-    //   React.MouseEventHandler<SVGElement>
-    // >(() => {
-    //   setNestedStateIndexer((cur) => {
-    //     const newIndexer = new NestedIndexer(cur);
-    //     newIndexer.clearChildListFromParentId({ parentId: parentItem.id });
-    //     return newIndexer;
-    //   });
-    // }, [parentItem.id, setNestedStateIndexer]);
+        _onAddChildItemSuccess?.({
+          parentItemId: parentItem.id,
+          value: data.childItemContent,
+        });
 
-    // * ResizeObserver doesn't work for scrollHeight. It works for clientHeight.
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    // const scrollDownHandler = useCallback<React.MouseEventHandler<SVGElement>>(
-    //   (event) => {
-    //     refCardsContainer.current?.scrollBy({
-    //       top: 50,
-    //       behavior: "smooth",
-    //     });
-    //   },
-    //   [],
-    // );
+        reset();
+      },
+      [parentItem.id, _onAddChildItemSuccess, reset],
+    );
 
-    // // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    // const scrollUpHandler = useCallback<React.MouseEventHandler<SVGElement>>(
-    //   (event) => {
-    //     refCardsContainer.current?.scrollBy({
-    //       top: -50,
-    //       behavior: "smooth",
-    //     });
-    //   },
-    //   [],
-    // );
+    const onChangeChildItemInput = useCallback<
+      React.ChangeEventHandler<HTMLTextAreaElement>
+    >(
+      (event) => {
+        setStateChildItemContent(event.target.value);
+        onChange(event);
+      },
+      [setStateChildItemContent, onChange],
+    );
 
-    const childIdList = useMemo(() => {
-      // console.log("[childIdList]");
-      return (parentItem.items ?? getEmptyArray<ChildItem>()).map(
-        (parentItem) => parentItem.id ?? getEmptyArray<ParentItem>(),
-      );
-    }, [parentItem.items]);
+    const onClearChildItemInput = useCallback<
+      React.MouseEventHandler<SVGElement>
+    >(() => {
+      const result = confirm("Do you want to clear the input?");
+      if (!result) {
+        return;
+      }
+      reset({
+        childItemContent: "",
+      });
+
+      if (
+        typeof refChildItemAdderInput.current?.resizableTextArea?.textArea
+          .value === "undefined"
+      ) {
+        return;
+      }
+      setStateChildItemContent("");
+      refChildItemAdderInput.current.focus();
+    }, [reset]);
 
     const scrollContainerCustomAttributes: ScrollContainerCustomAttributesKvObj =
       {
@@ -313,6 +369,7 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
             //   );
             // }}
           >
+            {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
             {(droppableProvided, droppableStateSnapshot) => {
               // console.log(droppableStateSnapshot.draggingFromThisWith);
               // ㄴ This property in the snapshot object indicates the draggableId of the item being dragged from this droppable. It is null if no item is currently being dragged from this droppable.
@@ -347,42 +404,33 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
             }}
           </Droppable>
         </BoardMainContentContainer>
-        <Toolbar>
-          <ChildItemAdder
-          // onSubmit={handleSubmit(onValid)}
-          >
+        <ChildItemForm onSubmit={handleSubmit(onValid)}>
+          <ChildItemAdder>
             <ChildItemAdderInput
-              rows={2}
-              placeholder={`Add a task on ${parentItem.title}`}
-              // {...register("childItem", {
-              //   required: true,
-              // })}
-              // value={stateChildItemContent}
-              // onChange={onChangeChildItemInput}
+              ref={childItemAdderInputCbRef}
+              rows={3}
+              placeholder={`Add a task on "${parentItem.title}"`}
+              value={stateChildItemContent}
+              onChange={onChangeChildItemInput}
+              {...otherFormRegisterProps}
             />
           </ChildItemAdder>
           <ToolbarButtons>
-            <ScrollButtons>
+            <BoardControllers>
               <ScrollDownButton
-              //  onClick={scrollDownHandler}
+                onClick={childItemAdderInputScrollDownHandler}
               />
-              <ScrollUpButton
-              // onClick={scrollUpHandler}
-              />
-              <ClearChildItemsButton
-              // onClick={onClearChildItems}
-              />
-            </ScrollButtons>
-            <TaskButtons>
-              <ChildItemAddButton
-              // onClick={onAddChildItem}
-              />
-              <ChildItemAdderInputClearButton
-              //  onClick={onClearChildItemInput}
-              />
-            </TaskButtons>
+              <ScrollUpButton onClick={childItemAdderInputScrollUpHandler} />
+              <ClearChildItemsButton onClick={onClearChildItems} />
+            </BoardControllers>
+            <CardInputControllers>
+              <ChildItemAddButton as="button" type="submit">
+                <ChildItemAddButtonIcon />
+              </ChildItemAddButton>
+              <ChildItemAdderInputClearButton onClick={onClearChildItemInput} />
+            </CardInputControllers>
           </ToolbarButtons>
-        </Toolbar>
+        </ChildItemForm>
       </BoardMainBase>
     );
   },

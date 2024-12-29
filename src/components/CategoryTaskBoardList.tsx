@@ -6,7 +6,7 @@ import {
   BoardList,
   BoardListInternalProps,
 } from "@/components/BoardList";
-import { memoizeCallback } from "@/utils";
+import { generateUniqueRandomId, memoizeCallback } from "@/utils";
 import {
   ParentItem,
   BoardListContextProvider,
@@ -16,7 +16,11 @@ import {
   BoardListContextIndexer,
   ChildItem,
 } from "@/components/BoardContext";
-import { BoardMain } from "@/components/BoardMain";
+import {
+  BoardMain,
+  OnAddChildItem,
+  OnClearChildItems,
+} from "@/components/BoardMain";
 import { Card } from "@/components/Card";
 import { styled } from "styled-components";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
@@ -127,6 +131,49 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       [idOnUpdateChildItem, boardListId, setStateBoardListContext],
     );
 
+    const onClearChildItems = useCallback<OnClearChildItems>(
+      ({ parentItemId }) => {
+        setStateBoardListContext((curBoardListContext) => {
+          const newBoardListContextIndexer = new BoardListContextIndexer(
+            curBoardListContext.indexer,
+          );
+          newBoardListContextIndexer.clearChildIdListOfParentId({
+            parentId: parentItemId,
+          });
+          return {
+            boardListId,
+            indexer: newBoardListContextIndexer,
+          };
+        });
+      },
+      [boardListId, setStateBoardListContext],
+    );
+
+    const onAddChildItemSuccess = useCallback<OnAddChildItem>(
+      ({ parentItemId, value }) => {
+        setStateBoardListContext((curBoardListContext) => {
+          const newBoardListContextIndexer = new BoardListContextIndexer(
+            curBoardListContext.indexer,
+          );
+          const newItem = {
+            id: generateUniqueRandomId(),
+            content: value,
+          } satisfies ChildItem;
+          newBoardListContextIndexer.createChild({
+            parentId: parentItemId,
+            child: newItem,
+            shouldAppend: false,
+            shouldKeepRef: false,
+          });
+          return {
+            boardListId,
+            indexer: newBoardListContextIndexer,
+          };
+        });
+      },
+      [boardListId, setStateBoardListContext],
+    );
+
     const alertMessageOnEditStart = useCallback(
       ({ editTarget }: { editTarget: string }) => {
         return `Press 'enter' to finish the edit.\nPress 'esc' or touch/click elsewhere to cancel.\nThe ${editTarget} drag will be disabled till you finish/cancel the edit.`;
@@ -179,6 +226,8 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                       boardListId={boardListId}
                       parentItem={parentItem}
                       direction="vertical"
+                      onClearChildItems={onClearChildItems}
+                      onAddChildItemSuccess={onAddChildItemSuccess}
                     >
                       {parentItems[parentItemIndex].items?.map(
                         (childItem, childItemIndex) => {

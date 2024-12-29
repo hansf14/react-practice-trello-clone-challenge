@@ -15,12 +15,17 @@ const TextAreaBase = styled(AntdTextArea)`
     background: transparent;
 
     font-weight: bold;
-
     transition: none;
+
+    &&::placeholder {
+      color: #777;
+    }
+
     &:focus,
     &:focus-within {
       box-shadow: none;
-      outline: 2px solid black;
+      // outline: 2px solid black;
+      outline: none;
     }
 
     &:not([readonly]) {

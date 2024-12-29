@@ -9,10 +9,6 @@ import {
 import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
-  OnEditCancel,
-  OnEditChange,
-  OnEditFinish,
-  OnEditStart,
   TextArea,
   TextAreaHandle,
   TextAreaPropsListeners as TextAreaPropsListeners,
@@ -125,6 +121,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       onEditCancel: _onEditCancel,
       onEditChange: _onEditChange,
       onEditFinish: _onEditFinish,
+      onRemove: _onRemove,
       ...otherProps
     },
     ref,

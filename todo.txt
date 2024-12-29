@@ -1,19 +1,17 @@
-* 기능 구현 필요
-3. 쓰레기통 - task 삭제기능 & 삭제버튼
-8. task 수정
-5. board 생성 할 수 있는 form
-6. board 삭제
-2. 모든 task state를 local storage에 저장 및 로드
-task 다른 list로 맨 앞에 추가하려하면 두번째로 추가되는 버그
-
-
 * 기능 완료
 - board 자체의 순서를 서로 바꿀 수 있는 기능
 - board 수정
-2. board의 모든 task 삭제
-Optimization (prevent rendering of all cards due to subscribing the atom)
+- board의 모든 task 삭제
+5. board 생성 할 수 있는 form
+6. board 삭제
 4. TaskAdder task 추가
-3. TaskAdder input clear
+- TaskAdder input clear
+- task 수정
+2. 모든 task state를 local storage에 저장 및 로드
+3. 쓰레기통 - task 삭제기능 & 삭제버튼
+- Optimization (prevent rendering of all cards due to subscribing the atom)
+1. Board update finish button
+2. Card update finish button
 
 - drag scroll fallback scroll container (html, body)
 - customAttributes를 리턴하는 함수 만들기
@@ -27,3 +25,4 @@ Optimization (prevent rendering of all cards due to subscribing the atom)
 - DragPositionPreview position: absolute 대신 offset과 transform translate으로 미리보기 해결하기 => 해결
 - DragPositionPreview 가로도 해결하기 => 해결
 - ResizeObserver 처리 버그 (padding-right) => scrollbar 생길곳 상시 표시로 쇼부봄
+- task 다른 list로 맨 앞에 추가하려하면 두번째로 추가되는 버그 => 해결

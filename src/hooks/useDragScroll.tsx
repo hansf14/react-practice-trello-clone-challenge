@@ -1,3 +1,9 @@
+// https://github.com/atlassian/react-beautiful-dnd/issues/131
+// ㄴ Support for nested scroll containers - not supported. I had to manage scroll functionality by myself in nested scroll container.
+import React, { createRef, useCallback, useEffect, useRef } from "react";
+import styled, { createGlobalStyle, css } from "styled-components";
+import { DroppableProvided } from "@hello-pangea/dnd";
+import { throttle } from "lodash-es";
 import {
   getDraggable,
   getScrollContainer,
@@ -16,10 +22,6 @@ import {
   SmartOmit,
   SmartPick,
 } from "@/utils";
-import { DroppableProvided } from "@hello-pangea/dnd";
-import { throttle } from "lodash-es";
-import React, { createRef, useCallback, useEffect, useRef } from "react";
-import styled, { createGlobalStyle, css } from "styled-components";
 
 export type PlaceholderContainerProps = {
   gapHorizontalLength?: number;
