@@ -315,6 +315,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
     (event: TouchEvent) => {
       const isTouchDevice = getIsTouchDevice();
       if (isTouchDevice && isDragging) {
+        console.log("[preventDefaultScrollOnDragInTouchDevice]");
         event.preventDefault();
       }
     },
@@ -325,6 +326,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
     (event: MouseEvent) => {
       const isTouchDevice = getIsTouchDevice();
       if (isTouchDevice && isDragging) {
+        console.log("[preventContextMenuAndWheelOnDrag]");
         event.preventDefault();
       }
     },
@@ -411,7 +413,8 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
         isOnPointerUpAttached = false;
       }
     };
-  }, [onPointerDown, onPointerMove, onPointerUp]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnPointerDownAttached, onPointerDown, onPointerMove, onPointerUp]);
 
   const endDragScroll = useCallback(
     ({ scrollContainer }: EndDragScrollParams) => {

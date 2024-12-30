@@ -64,6 +64,10 @@ const GlobalStyle = createGlobalStyle`
     box-sizing: border-box;
   }
 
+  :root {
+    color-scheme: only light;
+  }
+  
   html {
     overflow-x: auto;
     overflow-y: hidden;

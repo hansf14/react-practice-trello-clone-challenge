@@ -1,6 +1,6 @@
 import { useCallback, useContext, useImperativeHandle, useRef } from "react";
 import { styled } from "styled-components";
-import { GripVertical, ArrowClockwise } from "react-bootstrap-icons";
+import { GripVertical, ArrowClockwise, CheckLg } from "react-bootstrap-icons";
 import { SmartOmit, StyledComponentProps } from "@/utils";
 import {
   BoardContext,
@@ -15,6 +15,7 @@ import {
   OnEditStart,
   TextArea,
   TextAreaHandle,
+  OnEditKeyDownCbs,
 } from "@/components/TextArea";
 import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 
@@ -31,15 +32,33 @@ const BoardHeaderTitle = styled.h2`
   font-size: 25px;
 `;
 
-const BoardHeaderTitleEditCancelButton = styled(ArrowClockwise)`
+const BoardHeaderTitleEditControllers = styled.div`
   transform: translateZ(10px);
   grid-column: 1;
   grid-row: 1;
 
-  height: 47px;
-  width: 35px;
-  padding: 0 5px;
+  width: min-content;
+  padding: 8px 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const BoardHeaderTitleEditFinishButton = styled(CheckLg)`
+  height: 30px;
+  width: 30px;
   cursor: pointer;
+
+  fill: green;
+`;
+
+const BoardHeaderTitleEditCancelButton = styled(ArrowClockwise)`
+  height: 26px;
+  width: 26px;
+  cursor: pointer;
+  margin-left: 2px;
+
+  fill: black; // #ce241b;
 `;
 
 const BoardHeaderTitleTextArea = styled(TextArea)`
@@ -60,6 +79,10 @@ const BoardHeaderTitleTextArea = styled(TextArea)`
     opacity: 0.95;
     border-radius: 5px;
     border: 1px solid rgba(255, 255, 255, 0.18);
+
+    &:not([readonly]) {
+      min-height: 81px;
+    }
   }
 `;
 
@@ -134,15 +157,24 @@ export type BoardHeaderProps = {
   parentItem: ParentItem;
   draggableDragHandleProps: DraggableProvidedDragHandleProps | null;
   alertMessageOnEditStart?: string | null;
+  isEditMode?: boolean;
+  onEditKeyDownCbs?: OnEditKeyDownCbs | null;
   onEditStart?: OnEditStart;
   onEditCancel?: OnEditCancel;
   onEditChange?: OnEditChange;
   onEditFinish?: OnEditFinish;
 } & StyledComponentProps<"div">;
 
+export type BoardHeaderHandle = {
+  baseElement: HTMLDivElement | null;
+  boardHeaderTitleElement: HTMLHeadingElement | null;
+  boardHeaderTitleTextAreaInstance: TextAreaHandle | null;
+  boardHeaderDragHandleElement: HTMLDivElement | null;
+};
+
 export const BoardHeader = withMemoAndRef<
   "div",
-  HTMLDivElement,
+  BoardHeaderHandle,
   BoardHeaderProps
 >({
   displayName: "BoardHeader",
@@ -152,15 +184,54 @@ export const BoardHeader = withMemoAndRef<
       parentItem,
       draggableDragHandleProps,
       alertMessageOnEditStart,
-      onEditStart,
-      onEditCancel,
-      onEditChange,
-      onEditFinish,
+      isEditMode = false,
+      onEditKeyDownCbs,
+      onEditStart: _onEditStart,
+      onEditCancel: _onEditCancel,
+      onEditChange: _onEditChange,
+      onEditFinish: _onEditFinish,
       ...otherProps
     },
     ref,
   ) => {
+    const refBase = useRef<HTMLDivElement | null>(null);
+    const refBoardHeaderTitle = useRef<HTMLHeadingElement | null>(null);
     const refBoardHeaderTitleTextArea = useRef<TextAreaHandle | null>(null);
+    const refBoardHeaderDragHandle = useRef<HTMLDivElement | null>(null);
+
+    useImperativeHandle(ref, () => {
+      return {
+        baseElement: refBase.current,
+        boardHeaderTitleElement: refBoardHeaderTitle.current,
+        boardHeaderTitleTextAreaInstance: refBoardHeaderTitleTextArea.current,
+        boardHeaderDragHandleElement: refBoardHeaderDragHandle.current,
+      } satisfies BoardHeaderHandle;
+    });
+
+    const onFinishEdit = useCallback<React.PointerEventHandler<SVGElement>>(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (event) => {
+        // console.log("[onFinishEdit]", refBoardHeaderTitleTextArea.current);
+        if (!refBoardHeaderTitleTextArea.current) {
+          return;
+        }
+        refBoardHeaderTitleTextArea.current.dispatchEditFinish();
+      },
+      [],
+    );
+
+    const onEditCancel = useCallback<React.PointerEventHandler<SVGElement>>(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (event) => {
+        // console.log("[onEditCancel]", refBoardHeaderTitleTextArea.current);
+
+        if (!refBoardHeaderTitleTextArea.current) {
+          return;
+        }
+        refBoardHeaderTitleTextArea.current.dispatchEditCancel();
+      },
+      [],
+    );
 
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
       {
@@ -169,24 +240,27 @@ export const BoardHeader = withMemoAndRef<
       };
 
     return (
-      <BoardHeaderBase ref={ref} {...otherProps}>
-        <BoardHeaderTitle>
-          {refBoardHeaderTitleTextArea.current?.isEditMode &&
-            refBoardHeaderTitleTextArea.current && (
-              <BoardHeaderTitleEditCancelButton
-                onClick={refBoardHeaderTitleTextArea.current.dispatchEditCancel}
-              />
-            )}
+      <BoardHeaderBase ref={refBase} {...otherProps}>
+        <BoardHeaderTitle ref={refBoardHeaderTitle}>
+          {isEditMode && (
+            <BoardHeaderTitleEditControllers>
+              {/* Because the antd component TextArea uses stopPropagation under-the-hood on click, we have to use `onPointerDown` instead of `onClick`. */}
+              <BoardHeaderTitleEditFinishButton onPointerDown={onFinishEdit} />
+              <BoardHeaderTitleEditCancelButton onPointerDown={onEditCancel} />
+            </BoardHeaderTitleEditControllers>
+          )}
           <BoardHeaderTitleTextArea
             ref={refBoardHeaderTitleTextArea}
             value={parentItem.title}
             alertMessageOnEditStart={alertMessageOnEditStart}
-            onEditStart={onEditStart}
-            onEditCancel={onEditCancel}
-            onEditChange={onEditChange}
-            onEditFinish={onEditFinish}
+            onEditKeyDownCbs={onEditKeyDownCbs}
+            onEditStart={_onEditStart}
+            onEditCancel={_onEditCancel}
+            onEditChange={_onEditChange}
+            onEditFinish={_onEditFinish}
           />
           <BoardHeaderDragHandle
+            ref={refBoardHeaderDragHandle}
             boardListId={boardListId}
             parentItemId={parentItem.id}
             {...draggableDragHandleProps}

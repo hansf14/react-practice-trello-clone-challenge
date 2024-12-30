@@ -1,6 +1,6 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { Board } from "@/components/Board";
-import { BoardHeader } from "@/components/BoardHeader";
+import { BoardHeader, BoardHeaderHandle } from "@/components/BoardHeader";
 import {
   BoardListExtendProps,
   BoardList,
@@ -25,7 +25,7 @@ import { Card } from "@/components/Card";
 import { styled } from "styled-components";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
-import { OnEditFinish } from "@/components/TextArea";
+import { OnEditFinish, OnEditKeyDownCbs } from "@/components/TextArea";
 
 const CategoryTaskBoardListInternalBase = styled(BoardList)``;
 
@@ -51,6 +51,20 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       stateBoardListContext,
       setStateBoardListContext,
     } = useBoardListContext(boardListContextParams);
+
+    const refBoardHeader = useRef<BoardHeaderHandle | null>(null);
+
+    const onEditKeyDownCbs = useMemo(() => {
+      if (!refBoardHeader.current?.boardHeaderTitleTextAreaInstance) {
+        return null;
+      }
+      return {
+        '"Escape"':
+          refBoardHeader.current.boardHeaderTitleTextAreaInstance
+            .dispatchEditCancel,
+      } as OnEditKeyDownCbs;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [refBoardHeader.current?.boardHeaderTitleTextAreaInstance]);
 
     const idOnEditFinishParentItem = useMemoizeCallbackId();
     const onEditFinishParentItem = useCallback(
@@ -200,6 +214,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
             >
               {({
                 draggableDragHandleProps,
+                isEditMode,
                 onEditStart,
                 onEditCancel,
                 onEditChange,
@@ -208,12 +223,15 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                 return (
                   <>
                     <BoardHeader
+                      ref={refBoardHeader}
                       boardListId={boardListId}
                       parentItem={parentItem}
                       draggableDragHandleProps={draggableDragHandleProps}
                       alertMessageOnEditStart={alertMessageOnEditStart({
                         editTarget: "task category",
                       })}
+                      onEditKeyDownCbs={onEditKeyDownCbs}
+                      isEditMode={isEditMode}
                       onEditStart={onEditStart}
                       onEditCancel={onEditCancel}
                       onEditChange={onEditChange}

@@ -121,12 +121,13 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       onEditCancel: _onEditCancel,
       onEditChange: _onEditChange,
       onEditFinish: _onEditFinish,
-      onRemove: _onRemove,
+      // onRemove: _onRemove,
       ...otherProps
     },
     ref,
   ) => {
     const refBase = useRef<HTMLDivElement | null>(null);
+
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });

@@ -51,12 +51,14 @@ const BoardBase = styled.div.withConfig({
 
 export type BoardChildren = ({
   draggableDragHandleProps,
+  isEditMode,
   onEditStart,
   onEditCancel,
   onEditChange,
   onEditFinish,
 }: {
   draggableDragHandleProps: DraggableProvidedDragHandleProps | null;
+  isEditMode: boolean;
 } & TextAreaPropsListeners) => React.ReactNode;
 
 export type BoardProps = SmartMerge<
@@ -137,6 +139,7 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
             >
               {children({
                 draggableDragHandleProps: draggableProvided.dragHandleProps,
+                isEditMode,
                 onEditStart,
                 onEditCancel,
                 onEditChange,

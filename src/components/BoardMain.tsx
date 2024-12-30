@@ -7,7 +7,7 @@ import {
   XCircleFill,
 } from "react-bootstrap-icons";
 import { SubmitHandler, useForm } from "react-hook-form";
-import { StyledComponentProps } from "@/utils";
+import { memoizeCallback, StyledComponentProps } from "@/utils";
 import { Input } from "antd";
 import {
   DraggablesContainerCustomAttributesKvObj,
@@ -19,6 +19,7 @@ import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { Droppable } from "@hello-pangea/dnd";
 import { getPlaceholder } from "@/hooks/useDragScroll";
 import { TextAreaRef } from "antd/es/input/TextArea";
+import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 const { TextArea } = Input;
 
 const BoardMainBase = styled.div`
@@ -267,6 +268,40 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
       ...otherFormRegisterProps
     } = formRegisterProps;
 
+    const idOnClearChildItemInput = useMemoizeCallbackId();
+    const onClearChildItemInput = useCallback(
+      (params?: { shouldUseAlert?: boolean }) =>
+        memoizeCallback({
+          id: idOnClearChildItemInput,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          fn: (event?: React.MouseEvent<SVGElement>) => {
+            const { shouldUseAlert = true } = params ?? {};
+            if (shouldUseAlert) {
+              const result = confirm("Do you want to clear the input?");
+              if (!result) {
+                return;
+              }
+            }
+
+            reset({
+              childItemContent: "",
+            });
+
+            if (
+              typeof refChildItemAdderInput.current?.resizableTextArea?.textArea
+                .value === "undefined"
+            ) {
+              return;
+            }
+
+            setStateChildItemContent("");
+            refChildItemAdderInput.current.focus();
+          },
+          deps: [params?.shouldUseAlert, idOnClearChildItemInput, reset],
+        }),
+      [idOnClearChildItemInput, reset],
+    );
+
     const childItemAdderInputCbRef = (instance: TextAreaRef | null) => {
       refChildItemAdderInput.current = instance;
       innerRef(instance?.resizableTextArea?.textArea);
@@ -285,9 +320,9 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
           value: data.childItemContent,
         });
 
-        reset();
+        onClearChildItemInput({ shouldUseAlert: false })();
       },
-      [parentItem.id, _onAddChildItemSuccess, reset],
+      [parentItem.id, _onAddChildItemSuccess, onClearChildItemInput],
     );
 
     const onChangeChildItemInput = useCallback<
@@ -299,27 +334,6 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
       },
       [setStateChildItemContent, onChange],
     );
-
-    const onClearChildItemInput = useCallback<
-      React.MouseEventHandler<SVGElement>
-    >(() => {
-      const result = confirm("Do you want to clear the input?");
-      if (!result) {
-        return;
-      }
-      reset({
-        childItemContent: "",
-      });
-
-      if (
-        typeof refChildItemAdderInput.current?.resizableTextArea?.textArea
-          .value === "undefined"
-      ) {
-        return;
-      }
-      setStateChildItemContent("");
-      refChildItemAdderInput.current.focus();
-    }, [reset]);
 
     const scrollContainerCustomAttributes: ScrollContainerCustomAttributesKvObj =
       {
@@ -427,7 +441,9 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
               <ChildItemAddButton as="button" type="submit">
                 <ChildItemAddButtonIcon />
               </ChildItemAddButton>
-              <ChildItemAdderInputClearButton onClick={onClearChildItemInput} />
+              <ChildItemAdderInputClearButton
+                onClick={onClearChildItemInput()}
+              />
             </CardInputControllers>
           </ToolbarButtons>
         </ChildItemForm>
