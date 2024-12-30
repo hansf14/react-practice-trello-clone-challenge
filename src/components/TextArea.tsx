@@ -24,6 +24,7 @@ const TextAreaBase = styled(AntdTextArea)`
     &:focus,
     &:focus-within {
       outline: none;
+      box-shadow: none;
     }
 
     &:not([readonly]) {
@@ -131,6 +132,32 @@ export const TextArea = withMemoAndRef<
 
     const refBase = useRef<TextAreaHandle | null>(null);
 
+    // https://stackoverflow.com/a/3169849/11941803
+    const resetTextSelectionRange = useCallback(() => {
+      console.log("[resetTextSelectionRange]");
+      if (!window) {
+        return;
+      }
+      const selection = window.getSelection();
+      if (!selection) {
+        return;
+      }
+
+      if ("empty" in (selection as any)) {
+        // Chrome
+        selection.empty();
+        return;
+      } else if ("removeAllRanges" in (selection as any)) {
+        // Firefox, Safari, IE
+        selection.removeAllRanges();
+        return;
+      }
+      // if (!refBase.current?.resizableTextArea?.textArea) {
+      //   return;
+      // }
+      // refBase.current.resizableTextArea.textArea.setSelectionRange(0, 0);
+    }, []);
+
     const editCancelHandler = useCallback(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (event: FocusEvent | React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -138,6 +165,7 @@ export const TextArea = withMemoAndRef<
 
         setStateIsEditMode({ newStateOrSetStateAction: false });
         setStateValue(refValueBackup.current);
+        resetTextSelectionRange();
 
         if (!refBase.current) {
           return;
@@ -146,7 +174,7 @@ export const TextArea = withMemoAndRef<
           textAreaHandle: refBase.current,
         });
       },
-      [setStateIsEditMode, onEditCancel],
+      [setStateIsEditMode, onEditCancel, resetTextSelectionRange],
     );
 
     const alertMessageOnEditStart =
@@ -251,32 +279,6 @@ export const TextArea = withMemoAndRef<
       },
       [onEditKeyDown],
     );
-
-    // https://stackoverflow.com/a/3169849/11941803
-    const resetTextSelectionRange = useCallback(() => {
-      console.log("[resetTextSelectionRange]");
-      if (!window) {
-        return;
-      }
-      const selection = window.getSelection();
-      if (!selection) {
-        return;
-      }
-
-      if ("empty" in (selection as any)) {
-        // Chrome
-        selection.empty();
-        return;
-      } else if ("removeAllRanges" in (selection as any)) {
-        // Firefox, Safari, IE
-        selection.removeAllRanges();
-        return;
-      }
-      // if (!refBase.current?.resizableTextArea?.textArea) {
-      //   return;
-      // }
-      // refBase.current.resizableTextArea.textArea.setSelectionRange(0, 0);
-    }, []);
 
     useImperativeHandle(ref, () => {
       refBase.current = {

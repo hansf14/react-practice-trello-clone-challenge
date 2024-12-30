@@ -36,6 +36,7 @@ const BoardCardBase = styled.div.withConfig({
 
   display: flex;
   flex-direction: column;
+  gap: 3px;
 
   ${({ isDragging }) => {
     return css`
@@ -54,6 +55,8 @@ const BoardCardContentTextArea = styled(TextArea)`
   && {
     font-weight: bold;
     font-size: 14px;
+
+    padding: 4px 6px;
   }
 `;
 
@@ -73,7 +76,11 @@ const BoardCardDragHandleIcon = styled(GripVertical)`
   height: 30px;
 `;
 
-const BoardCardEditControllers = styled.div``;
+const BoardCardEditControllers = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+`;
 
 const BoardCardEditFinishButton = styled(CheckLg)`
   height: 20px;
@@ -84,10 +91,9 @@ const BoardCardEditFinishButton = styled(CheckLg)`
 `;
 
 const BoardCardEditCancelButton = styled(ArrowClockwise)`
-  height: 26px;
-  width: 26px;
+  height: 20px;
+  width: 20px;
   cursor: pointer;
-  margin-left: 2px;
 
   fill: black;
 `;
@@ -242,6 +248,32 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
     });
     const refCardContentTextArea = useRef<TextAreaHandle | null>(null);
 
+    const onFinishEditHandler = useCallback<
+      React.PointerEventHandler<SVGElement>
+    >(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (event) => {
+        if (!refCardContentTextArea.current) {
+          return;
+        }
+        refCardContentTextArea.current.dispatchEditFinish();
+      },
+      [],
+    );
+
+    const onEditCancelHandler = useCallback<
+      React.PointerEventHandler<SVGElement>
+    >(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (event) => {
+        if (!refCardContentTextArea.current) {
+          return;
+        }
+        refCardContentTextArea.current.dispatchEditCancel();
+      },
+      [],
+    );
+
     return (
       <Draggable
         draggableId={childItem.id}
@@ -287,11 +319,15 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
                 />
                 {isEditMode && (
                   <BoardCardEditControllers>
-                    <BoardCardEditFinishButton />
-                    <BoardCardEditCancelButton />
+                    <BoardCardEditFinishButton
+                      onPointerDown={onFinishEditHandler} // Should use `onPointerDown`, not `onClick`. Because seems like the antd component TextArea uses stopPropagation under-the-hood on click
+                    />
+                    <BoardCardEditCancelButton
+                      onPointerDown={onEditCancelHandler}
+                    />
                   </BoardCardEditControllers>
                 )}
-                <BoardCardRemoveButton />
+                <BoardCardRemoveButton onClick={onRemoveCard} />
               </BoardCardControllers>
             </BoardCardBase>
           );

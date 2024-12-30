@@ -64,7 +64,7 @@ const BoardHeaderTitleEditCancelButton = styled(ArrowClockwise)`
 `;
 
 const BoardHeaderTitleTextArea = styled(TextArea)`
-  && {
+  &&& {
     grid-column: 1;
     grid-row: 1;
 
@@ -286,7 +286,7 @@ export const BoardHeader = withMemoAndRef<
         <BoardHeaderTitle ref={refBoardHeaderTitle}>
           {isEditMode && (
             <BoardHeaderTitleEditControllers>
-              {/* Because the antd component TextArea uses stopPropagation under-the-hood on click, we have to use `onPointerDown` instead of `onClick`. */}
+              {/* Because seems like the antd component TextArea uses stopPropagation under-the-hood on click, we have to use `onPointerDown` instead of `onClick`. */}
               <BoardHeaderTitleEditFinishButton onPointerDown={onFinishEdit} />
               <BoardHeaderTitleEditCancelButton onPointerDown={onEditCancel} />
             </BoardHeaderTitleEditControllers>

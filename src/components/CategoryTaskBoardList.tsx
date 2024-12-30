@@ -21,7 +21,7 @@ import {
   OnAddChildItem,
   OnClearChildItems,
 } from "@/components/BoardMain";
-import { BoardCard } from "@/components/BoardCard";
+import { BoardCard, OnRemoveCard } from "@/components/BoardCard";
 import { styled } from "styled-components";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
@@ -211,9 +211,28 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       [boardListId, setStateBoardListContext],
     );
 
+    const onRemoveCard = useCallback<OnRemoveCard>(
+      ({ childItemId }) => {
+        setStateBoardListContext((curBoardListContext) => {
+          const newBoardListContextIndexer = new BoardListContextIndexer(
+            curBoardListContext.indexer,
+          );
+          newBoardListContextIndexer.removeChild({
+            childId: childItemId,
+            shouldKeepRef: false,
+          });
+          return {
+            boardListId,
+            indexer: newBoardListContextIndexer,
+          };
+        });
+      },
+      [boardListId, setStateBoardListContext],
+    );
+
     const alertMessageOnEditStart = useCallback(
       ({ editTarget }: { editTarget: string }) => {
-        return `Press 'esc' or touch/click elsewhere to cancel.\nThe ${editTarget} drag will be disabled till you finish/cancel the edit.`;
+        return `Press 'esc' or touch/click elsewhere to cancel.\nThe current ${editTarget} drag will be disabled till you finish/cancel the edit.`;
       },
       [],
     );
@@ -299,6 +318,8 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                               onEditFinish={onUpdateChildItem({
                                 childItem,
                               })}
+                              onEditKeyDown={onEditKeyDown}
+                              onRemoveCard={onRemoveCard}
                             />
                           );
                         },
