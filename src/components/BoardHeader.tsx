@@ -19,6 +19,7 @@ import {
   TextAreaExtendProps,
 } from "@/components/TextArea";
 import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
+import { useRfd } from "@/hooks/useRfd";
 
 const BoardHeaderBase = styled.div``;
 
@@ -107,7 +108,7 @@ const BoardHeaderBoardRemoveButton = styled(XCircleFill)`
 
   clip-path: circle(48%);
   background-color: white;
-  fill: red;
+  fill: #0e396f;
 `;
 
 const BoardHeaderDragHandleBase = styled.div`
@@ -119,8 +120,6 @@ const BoardHeaderDragHandleBase = styled.div`
 
   display: flex;
   align-items: center;
-
-  cursor: grab;
 `;
 
 export type BoardHeaderDragHandleProps = {
@@ -179,7 +178,7 @@ export type BoardHeaderProps = SmartMerge<
     boardListId: string;
     parentItem: ParentItem;
     draggableDragHandleProps: DraggableProvidedDragHandleProps | null;
-    alertMessageOnRemove?: string | null;
+    alertMessageOnRemoveBoard?: string | null;
     onRemoveBoard?: OnRemoveBoard;
   } & TextAreaExtendProps
 > &
@@ -204,7 +203,7 @@ export const BoardHeader = withMemoAndRef<
       parentItem,
       draggableDragHandleProps,
       alertMessageOnEditStart,
-      alertMessageOnRemove: _alertMessageOnRemove,
+      alertMessageOnRemoveBoard: _alertMessageOnRemoveBoard,
       isEditMode = false,
       onEditStart: _onEditStart,
       onEditCancel: _onEditCancel,
@@ -220,6 +219,8 @@ export const BoardHeader = withMemoAndRef<
     const refBoardHeaderTitle = useRef<HTMLHeadingElement | null>(null);
     const refBoardHeaderTitleTextArea = useRef<TextAreaHandle | null>(null);
     const refBoardHeaderDragHandle = useRef<HTMLDivElement | null>(null);
+
+    const { fixRfdBlurBugOnDragHandle } = useRfd();
 
     useImperativeHandle(ref, () => {
       return {
@@ -255,23 +256,23 @@ export const BoardHeader = withMemoAndRef<
       [],
     );
 
-    const alertMessageOnRemove =
-      typeof _alertMessageOnRemove === "undefined"
+    const alertMessageOnRemoveBoard =
+      typeof _alertMessageOnRemoveBoard === "undefined"
         ? "Are you sure you want to remove the board?"
-        : _alertMessageOnRemove;
+        : _alertMessageOnRemoveBoard;
 
     const onRemoveBoard = useCallback<React.MouseEventHandler>(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (event) => {
-        if (alertMessageOnRemove !== null) {
-          const result = confirm(alertMessageOnRemove);
+        if (alertMessageOnRemoveBoard !== null) {
+          const result = confirm(alertMessageOnRemoveBoard);
           if (!result) {
             return;
           }
         }
         _onRemoveBoard?.({ parentItemId: parentItem.id });
       },
-      [parentItem.id, alertMessageOnRemove, _onRemoveBoard],
+      [parentItem.id, alertMessageOnRemoveBoard, _onRemoveBoard],
     );
 
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
@@ -305,6 +306,7 @@ export const BoardHeader = withMemoAndRef<
               ref={refBoardHeaderDragHandle}
               boardListId={boardListId}
               parentItemId={parentItem.id}
+              onPointerDown={fixRfdBlurBugOnDragHandle}
               {...draggableDragHandleProps}
               {...draggableHandleCustomAttributes}
             />

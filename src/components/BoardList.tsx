@@ -10,12 +10,11 @@ import { css, styled } from "styled-components";
 import {
   DragDropContext,
   Droppable,
-  DroppableProvided,
   OnDragEndResponder,
   OnDragStartResponder,
   OnDragUpdateResponder,
 } from "@hello-pangea/dnd";
-import { memoizeCallback, SmartMerge, StyledComponentProps } from "@/utils";
+import { SmartMerge, StyledComponentProps } from "@/utils";
 import {
   DroppableCustomAttributesKvObj,
   BoardListContextIndexer,
@@ -37,7 +36,7 @@ import {
   DragPositionPreviewConfig,
   useDragPositionPreview,
 } from "@/hooks/useDragPositionPreview";
-import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
+import { useRfd } from "@/hooks/useRfd";
 
 const BoardListBase = styled.div`
   height: 100%;
@@ -118,23 +117,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       return refBase.current as HTMLDivElement;
     });
 
-    const idBaseCbRef = useMemoizeCallbackId();
-    const baseCbRef = useCallback(
-      ({
-        droppableProvidedInnerRef,
-      }: {
-        droppableProvidedInnerRef: DroppableProvided["innerRef"];
-      }) =>
-        memoizeCallback({
-          id: idBaseCbRef,
-          fn: (el: HTMLDivElement | null) => {
-            refBase.current = el;
-            droppableProvidedInnerRef(el);
-          },
-          deps: [droppableProvidedInnerRef, idBaseCbRef],
-        }),
-      [idBaseCbRef],
-    );
+    const { cbRefForDroppable } = useRfd();
 
     const boardListContextParams = useMemo(
       () => ({
@@ -434,7 +417,8 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           {(droppableProvided, droppableStateSnapshot) => {
             return (
               <BoardListBase
-                ref={baseCbRef({
+                ref={cbRefForDroppable({
+                  refDroppable: refBase,
                   droppableProvidedInnerRef: droppableProvided.innerRef,
                 })}
                 {...droppableProvided.droppableProps}

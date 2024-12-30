@@ -1,23 +1,14 @@
 import { css, styled } from "styled-components";
-import {
-  memoizeCallback,
-  SmartMerge,
-  SmartOmit,
-  StyledComponentProps,
-} from "@/utils";
+import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import React, { useCallback, useImperativeHandle, useRef } from "react";
+import React, { useImperativeHandle, useRef } from "react";
 import {
   DraggableCustomAttributesKvObj,
   ParentItem,
 } from "@/components/BoardContext";
-import {
-  Draggable,
-  DraggableProvided,
-  DraggableProvidedDragHandleProps,
-} from "@hello-pangea/dnd";
+import { Draggable, DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { TextAreaPropsListeners, useTextArea } from "@/components/TextArea";
-import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
+import { useRfd } from "@/hooks/useRfd";
 
 type BoardBaseProps = {
   isDragging?: boolean;
@@ -102,23 +93,7 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       return refBase.current as HTMLDivElement;
     });
 
-    const idBaseCbRef = useMemoizeCallbackId();
-    const baseCbRef = useCallback(
-      ({
-        draggableProvidedInnerRef,
-      }: {
-        draggableProvidedInnerRef: DraggableProvided["innerRef"];
-      }) =>
-        memoizeCallback({
-          id: idBaseCbRef,
-          fn: (el: HTMLDivElement | null) => {
-            refBase.current = el;
-            draggableProvidedInnerRef(el);
-          },
-          deps: [draggableProvidedInnerRef, idBaseCbRef],
-        }),
-      [idBaseCbRef],
-    );
+    const { cbRefForDraggable } = useRfd();
 
     const {
       isEditMode,
@@ -156,7 +131,8 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
         {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
           return (
             <BoardBase
-              ref={baseCbRef({
+              ref={cbRefForDraggable({
+                refDraggable: refBase,
                 draggableProvidedInnerRef: draggableProvided.innerRef,
               })}
               isDragging={draggableStateSnapshot.isDragging}

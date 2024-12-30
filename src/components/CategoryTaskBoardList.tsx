@@ -213,7 +213,14 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
 
     const alertMessageOnEditStart = useCallback(
       ({ editTarget }: { editTarget: string }) => {
-        return `Press 'enter' to finish the edit.\nPress 'esc' or touch/click elsewhere to cancel.\nThe ${editTarget} drag will be disabled till you finish/cancel the edit.`;
+        return `Press 'esc' or touch/click elsewhere to cancel.\nThe ${editTarget} drag will be disabled till you finish/cancel the edit.`;
+      },
+      [],
+    );
+
+    const alertMessageOnRemove = useCallback(
+      ({ editTarget }: { editTarget: string }) => {
+        return `Are you sure you want to remove the ${editTarget}?`;
       },
       [],
     );
@@ -252,6 +259,9 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                       alertMessageOnEditStart={alertMessageOnEditStart({
                         editTarget: "task category",
                       })}
+                      alertMessageOnRemoveBoard={alertMessageOnRemove({
+                        editTarget: "task category",
+                      })}
                       isEditMode={isEditMode}
                       onEditStart={onEditStart}
                       onEditCancel={onEditCancel}
@@ -280,6 +290,9 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                               index={childItemIndex}
                               droppableId={parentItem.id}
                               alertMessageOnEditStart={alertMessageOnEditStart({
+                                editTarget: "task",
+                              })}
+                              alertMessageOnRemoveCard={alertMessageOnRemove({
                                 editTarget: "task",
                               })}
                               // onEditKeyDownCbs={onEditKeyDownCbs}

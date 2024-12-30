@@ -252,6 +252,32 @@ export const TextArea = withMemoAndRef<
       [onEditKeyDown],
     );
 
+    // https://stackoverflow.com/a/3169849/11941803
+    const resetTextSelectionRange = useCallback(() => {
+      console.log("[resetTextSelectionRange]");
+      if (!window) {
+        return;
+      }
+      const selection = window.getSelection();
+      if (!selection) {
+        return;
+      }
+
+      if ("empty" in (selection as any)) {
+        // Chrome
+        selection.empty();
+        return;
+      } else if ("removeAllRanges" in (selection as any)) {
+        // Firefox, Safari, IE
+        selection.removeAllRanges();
+        return;
+      }
+      // if (!refBase.current?.resizableTextArea?.textArea) {
+      //   return;
+      // }
+      // refBase.current.resizableTextArea.textArea.setSelectionRange(0, 0);
+    }, []);
+
     useImperativeHandle(ref, () => {
       refBase.current = {
         ...refBase.current, // <- Mandatory. Should not omit. It stores `TextAreaRef` values from antd.)
@@ -275,6 +301,7 @@ export const TextArea = withMemoAndRef<
         onClick={editEnableHandler}
         onKeyDown={editKeyDownHandler}
         onChange={editChangeHandler}
+        onBlur={resetTextSelectionRange}
         {...otherProps}
       />
     );

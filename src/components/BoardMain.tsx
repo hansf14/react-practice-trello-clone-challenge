@@ -170,7 +170,7 @@ const ClearChildItemsButton = styled(XCircleFill)`
 
   clip-path: circle(48%);
   background-color: white;
-  fill: red;
+  fill: #0e396f;
 `;
 
 export interface FormData {

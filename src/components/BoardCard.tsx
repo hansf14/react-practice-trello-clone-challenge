@@ -1,17 +1,17 @@
 import React, { useCallback, useImperativeHandle, useRef } from "react";
 import { css, styled } from "styled-components";
-import { GripVertical } from "react-bootstrap-icons";
+import {
+  ArrowClockwise,
+  CheckLg,
+  GripVertical,
+  XCircleFill,
+} from "react-bootstrap-icons";
 import {
   ChildItem,
   DraggableCustomAttributesKvObj,
   DraggableHandleCustomAttributesKvObj,
 } from "@/components/BoardContext";
-import {
-  memoizeCallback,
-  SmartMerge,
-  SmartOmit,
-  StyledComponentProps,
-} from "@/utils";
+import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
   TextArea,
@@ -19,8 +19,8 @@ import {
   TextAreaHandle,
   useTextArea,
 } from "@/components/TextArea";
-import { Draggable, DraggableProvided } from "@hello-pangea/dnd";
-import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
+import { Draggable } from "@hello-pangea/dnd";
+import { useRfd } from "@/hooks/useRfd";
 
 type BoardCardBaseProps = {
   isDragging?: boolean;
@@ -33,6 +33,9 @@ const BoardCardBase = styled.div.withConfig({
 
   padding: 10px;
   background-color: rgba(255, 255, 255, 0.45);
+
+  display: flex;
+  flex-direction: column;
 
   ${({ isDragging }) => {
     return css`
@@ -54,8 +57,50 @@ const BoardCardContentTextArea = styled(TextArea)`
   }
 `;
 
+const BoardCardControllers = styled.div`
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+`;
+
 const BoardCardDragHandleBase = styled.div`
+  grid-column: 1;
   display: inline-flex;
+`;
+
+const BoardCardDragHandleIcon = styled(GripVertical)`
+  width: 20px;
+  height: 30px;
+`;
+
+const BoardCardEditControllers = styled.div``;
+
+const BoardCardEditFinishButton = styled(CheckLg)`
+  height: 20px;
+  width: 20px;
+  cursor: pointer;
+
+  fill: green;
+`;
+
+const BoardCardEditCancelButton = styled(ArrowClockwise)`
+  height: 26px;
+  width: 26px;
+  cursor: pointer;
+  margin-left: 2px;
+
+  fill: black;
+`;
+
+const BoardCardRemoveButton = styled(XCircleFill)`
+  grid-column: 3;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+
+  clip-path: circle(48%);
+  background-color: white;
+  fill: #0e396f;
 `;
 
 export type BoardCardDragHandleProps = {
@@ -87,7 +132,7 @@ export const BoardCardDragHandle = withMemoAndRef<
         {...draggableHandleCustomAttributes}
         {...otherProps}
       >
-        <GripVertical />
+        <BoardCardDragHandleIcon />
       </BoardCardDragHandleBase>
     );
   },
@@ -103,14 +148,16 @@ export type OnUpdateChildItem = <C extends ChildItem>({
   newChildItem: C;
 }) => void;
 
+export type OnRemoveCard = ({ childItemId }: { childItemId: string }) => void;
+
 export type BoardCardProps = SmartMerge<
   {
     boardListId: string;
     childItem: ChildItem;
-    index: number;
     droppableId: string;
-    alertMessageOnEditStart?: string | null;
-    isEditMode?: boolean;
+    index: number;
+    alertMessageOnRemoveCard?: string | null;
+    onRemoveCard?: OnRemoveCard;
   } & TextAreaExtendProps
 > &
   SmartOmit<StyledComponentProps<"div">, "children">;
@@ -124,12 +171,13 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
       index,
       droppableId,
       alertMessageOnEditStart,
+      alertMessageOnRemoveCard: _alertMessageOnRemoveCard,
       onEditStart: _onEditStart,
       onEditCancel: _onEditCancel,
       onEditChange: _onEditChange,
       onEditFinish: _onEditFinish,
       onEditKeyDown,
-      // onRemove: _onRemove,
+      onRemoveCard: _onRemoveCard,
       ...otherProps
     },
     ref,
@@ -140,22 +188,25 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
       return refBase.current as HTMLDivElement;
     });
 
-    const idBaseCbRef = useMemoizeCallbackId();
-    const baseCbRef = useCallback(
-      ({
-        draggableProvidedInnerRef,
-      }: {
-        draggableProvidedInnerRef: DraggableProvided["innerRef"];
-      }) =>
-        memoizeCallback({
-          id: idBaseCbRef,
-          fn: (el: HTMLDivElement | null) => {
-            refBase.current = el;
-            draggableProvidedInnerRef(el);
-          },
-          deps: [draggableProvidedInnerRef, idBaseCbRef],
-        }),
-      [idBaseCbRef],
+    const { cbRefForDraggable, fixRfdBlurBugOnDragHandle } = useRfd();
+
+    const alertMessageOnRemoveCard =
+      typeof _alertMessageOnRemoveCard === "undefined"
+        ? "Are you sure you want to remove the card?"
+        : _alertMessageOnRemoveCard;
+
+    const onRemoveCard = useCallback<React.MouseEventHandler>(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (event) => {
+        if (alertMessageOnRemoveCard !== null) {
+          const result = confirm(alertMessageOnRemoveCard);
+          if (!result) {
+            return;
+          }
+        }
+        _onRemoveCard?.({ childItemId: childItem.id });
+      },
+      [childItem.id, alertMessageOnRemoveCard, _onRemoveCard],
     );
 
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
@@ -207,7 +258,8 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
 
           return (
             <BoardCardBase
-              ref={baseCbRef({
+              ref={cbRefForDraggable({
+                refDraggable: refBase,
                 draggableProvidedInnerRef: draggableProvided.innerRef,
               })}
               isDragging={draggableStateSnapshot.isDragging}
@@ -225,12 +277,22 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
                 onEditFinish={onEditFinish}
                 onEditKeyDown={onEditKeyDown}
               />
-              <BoardCardDragHandle
-                boardListId={boardListId}
-                childItemId={childItem.id}
-                {...draggableProvided.dragHandleProps}
-                {...draggableHandleCustomAttributes}
-              />
+              <BoardCardControllers>
+                <BoardCardDragHandle
+                  boardListId={boardListId}
+                  childItemId={childItem.id}
+                  onPointerDown={fixRfdBlurBugOnDragHandle}
+                  {...draggableProvided.dragHandleProps}
+                  {...draggableHandleCustomAttributes}
+                />
+                {isEditMode && (
+                  <BoardCardEditControllers>
+                    <BoardCardEditFinishButton />
+                    <BoardCardEditCancelButton />
+                  </BoardCardEditControllers>
+                )}
+                <BoardCardRemoveButton />
+              </BoardCardControllers>
             </BoardCardBase>
           );
         }}
