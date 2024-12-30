@@ -1,4 +1,4 @@
-import React, { useImperativeHandle, useRef } from "react";
+import React, { useCallback, useImperativeHandle, useRef } from "react";
 import { css, styled } from "styled-components";
 import { GripVertical } from "react-bootstrap-icons";
 import {
@@ -6,23 +6,29 @@ import {
   DraggableCustomAttributesKvObj,
   DraggableHandleCustomAttributesKvObj,
 } from "@/components/BoardContext";
-import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
+import {
+  memoizeCallback,
+  SmartMerge,
+  SmartOmit,
+  StyledComponentProps,
+} from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
   TextArea,
+  TextAreaExtendProps,
   TextAreaHandle,
-  TextAreaPropsListeners as TextAreaPropsListeners,
   useTextArea,
 } from "@/components/TextArea";
-import { Draggable } from "@hello-pangea/dnd";
+import { Draggable, DraggableProvided } from "@hello-pangea/dnd";
+import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 
-type CardBaseProps = {
+type BoardCardBaseProps = {
   isDragging?: boolean;
 };
 
-const CardBase = styled.div.withConfig({
+const BoardCardBase = styled.div.withConfig({
   shouldForwardProp: (prop) => !["isDragging"].includes(prop),
-})<CardBaseProps>`
+})<BoardCardBaseProps>`
   margin: 5px 0;
 
   padding: 10px;
@@ -41,28 +47,28 @@ const CardBase = styled.div.withConfig({
   }}
 `;
 
-const CardContentTextArea = styled(TextArea)`
+const BoardCardContentTextArea = styled(TextArea)`
   && {
     font-weight: bold;
     font-size: 14px;
   }
 `;
 
-const CardDragHandleBase = styled.div`
+const BoardCardDragHandleBase = styled.div`
   display: inline-flex;
 `;
 
-export type CardDragHandleProps = {
+export type BoardCardDragHandleProps = {
   boardListId: string;
   childItemId: string;
 } & SmartOmit<StyledComponentProps<"div">, "children">;
 
-export const CardDragHandle = withMemoAndRef<
+export const BoardCardDragHandle = withMemoAndRef<
   "div",
   HTMLDivElement,
-  CardDragHandleProps
+  BoardCardDragHandleProps
 >({
-  displayName: "CardDragHandle",
+  displayName: "BoardCardDragHandle",
   Component: ({ boardListId, childItemId, ...otherProps }, ref) => {
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
@@ -76,13 +82,13 @@ export const CardDragHandle = withMemoAndRef<
       };
 
     return (
-      <CardDragHandleBase
+      <BoardCardDragHandleBase
         ref={refBase}
         {...draggableHandleCustomAttributes}
         {...otherProps}
       >
         <GripVertical />
-      </CardDragHandleBase>
+      </BoardCardDragHandleBase>
     );
   },
 });
@@ -97,19 +103,20 @@ export type OnUpdateChildItem = <C extends ChildItem>({
   newChildItem: C;
 }) => void;
 
-export type CardProps = SmartMerge<
+export type BoardCardProps = SmartMerge<
   {
     boardListId: string;
     childItem: ChildItem;
     index: number;
     droppableId: string;
     alertMessageOnEditStart?: string | null;
-  } & TextAreaPropsListeners
+    isEditMode?: boolean;
+  } & TextAreaExtendProps
 > &
   SmartOmit<StyledComponentProps<"div">, "children">;
 
-export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
-  displayName: "Card",
+export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
+  displayName: "BoardCard",
   Component: (
     {
       boardListId,
@@ -121,6 +128,7 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
       onEditCancel: _onEditCancel,
       onEditChange: _onEditChange,
       onEditFinish: _onEditFinish,
+      onEditKeyDown,
       // onRemove: _onRemove,
       ...otherProps
     },
@@ -131,6 +139,24 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
+
+    const idBaseCbRef = useMemoizeCallbackId();
+    const baseCbRef = useCallback(
+      ({
+        draggableProvidedInnerRef,
+      }: {
+        draggableProvidedInnerRef: DraggableProvided["innerRef"];
+      }) =>
+        memoizeCallback({
+          id: idBaseCbRef,
+          fn: (el: HTMLDivElement | null) => {
+            refBase.current = el;
+            draggableProvidedInnerRef(el);
+          },
+          deps: [draggableProvidedInnerRef, idBaseCbRef],
+        }),
+      [idBaseCbRef],
+    );
 
     const draggableCustomAttributes: DraggableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
@@ -180,17 +206,16 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
           // console.log(draggableRubric.type);
 
           return (
-            <CardBase
-              ref={(el: HTMLDivElement | null) => {
-                refBase.current = el;
-                draggableProvided.innerRef(el);
-              }}
+            <BoardCardBase
+              ref={baseCbRef({
+                draggableProvidedInnerRef: draggableProvided.innerRef,
+              })}
               isDragging={draggableStateSnapshot.isDragging}
               {...draggableProvided.draggableProps}
               {...draggableCustomAttributes}
               {...otherProps}
             >
-              <CardContentTextArea
+              <BoardCardContentTextArea
                 ref={refCardContentTextArea}
                 value={childItem.content}
                 alertMessageOnEditStart={alertMessageOnEditStart}
@@ -198,14 +223,15 @@ export const Card = withMemoAndRef<"div", HTMLDivElement, CardProps>({
                 onEditCancel={onEditCancel}
                 onEditChange={onEditChange}
                 onEditFinish={onEditFinish}
+                onEditKeyDown={onEditKeyDown}
               />
-              <CardDragHandle
+              <BoardCardDragHandle
                 boardListId={boardListId}
                 childItemId={childItem.id}
                 {...draggableProvided.dragHandleProps}
                 {...draggableHandleCustomAttributes}
               />
-            </CardBase>
+            </BoardCardBase>
           );
         }}
       </Draggable>

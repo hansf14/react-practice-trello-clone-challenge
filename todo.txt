@@ -3,16 +3,17 @@
 - board 수정
 - board의 모든 task 삭제
 - TaskAdder input clear
-- task 수정
+- Task 수정
 - Optimization (prevent rendering of all cards due to subscribing the atom)
 - Board update finish button
 - TaskAdder task 추가
-2. Card update finish button
 5. board 생성 할 수 있는 form
-6. board 삭제
-2. 모든 task state를 local storage에 저장 및 로드
-3. 쓰레기통 - task 삭제기능 & 삭제버튼
-1. card remove
+2. 모든 task state를 local storage에 저장 및 로드, 그리고 local storage 비우는 기능
+3. 쓰레기통 - task, board 삭제기능 & 삭제버튼
+1. Card remove
+2. Card update finish button
+- Board 삭제
+- Card drop area
 
 - drag scroll fallback scroll container (html, body)
 - customAttributes를 리턴하는 함수 만들기

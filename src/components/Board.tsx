@@ -1,13 +1,23 @@
 import { css, styled } from "styled-components";
-import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
+import {
+  memoizeCallback,
+  SmartMerge,
+  SmartOmit,
+  StyledComponentProps,
+} from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import React, { useImperativeHandle, useRef } from "react";
+import React, { useCallback, useImperativeHandle, useRef } from "react";
 import {
   DraggableCustomAttributesKvObj,
   ParentItem,
 } from "@/components/BoardContext";
-import { Draggable, DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
+import {
+  Draggable,
+  DraggableProvided,
+  DraggableProvidedDragHandleProps,
+} from "@hello-pangea/dnd";
 import { TextAreaPropsListeners, useTextArea } from "@/components/TextArea";
+import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 
 type BoardBaseProps = {
   isDragging?: boolean;
@@ -92,6 +102,24 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       return refBase.current as HTMLDivElement;
     });
 
+    const idBaseCbRef = useMemoizeCallbackId();
+    const baseCbRef = useCallback(
+      ({
+        draggableProvidedInnerRef,
+      }: {
+        draggableProvidedInnerRef: DraggableProvided["innerRef"];
+      }) =>
+        memoizeCallback({
+          id: idBaseCbRef,
+          fn: (el: HTMLDivElement | null) => {
+            refBase.current = el;
+            draggableProvidedInnerRef(el);
+          },
+          deps: [draggableProvidedInnerRef, idBaseCbRef],
+        }),
+      [idBaseCbRef],
+    );
+
     const {
       isEditMode,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -128,10 +156,9 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
         {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
           return (
             <BoardBase
-              ref={(el: HTMLDivElement | null) => {
-                refBase.current = el;
-                draggableProvided.innerRef(el);
-              }}
+              ref={baseCbRef({
+                draggableProvidedInnerRef: draggableProvided.innerRef,
+              })}
               isDragging={draggableStateSnapshot.isDragging}
               {...draggableProvided.draggableProps}
               {...draggableCustomAttributes}

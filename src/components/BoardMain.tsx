@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { styled } from "styled-components";
+import { css, styled } from "styled-components";
 import {
   ArrowDownCircleFill,
   ArrowUpCircleFill,
@@ -34,12 +34,11 @@ const BoardMainContentContainer = styled.div`
   overflow: hidden;
   min-height: 0;
   height: 100%;
-  /* margin-top: 10px; */
   padding: 10px;
 
   background-color: rgba(255, 255, 255, 0.3);
   // backdrop-filter: blur(13.5px);
-  // ㄴ Causes bug in dnd-kit
+  // ㄴ Causes bug in dnd-kit and @hello-pangea/dnd
   // https://github.com/clauderic/dnd-kit/issues/1256
 `;
 
@@ -51,12 +50,28 @@ const BoardMainContent = styled.div`
   overflow-y: scroll;
 `;
 
-const BoardMainContentMinusMargin = styled.div`
+type BoardMainContentMinusMarginProps = {
+  isDraggingOver?: boolean;
+};
+
+const BoardMainContentMinusMargin = styled.div.withConfig({
+  shouldForwardProp: (prop) => !["isDraggingOver"].includes(prop),
+})<BoardMainContentMinusMarginProps>`
   margin: -5px 10px -5px 0;
   height: 100%;
 
   display: flex;
   flex-direction: column;
+
+  ${({ isDraggingOver }) => {
+    return css`
+      ${(isDraggingOver ?? false)
+        ? `
+        background-color: rgba(0, 0, 0, 0.1);
+      `
+        : ""}
+    `;
+  }}
 `;
 
 const ChildItemForm = styled.form`
@@ -404,6 +419,7 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                 >
                   <BoardMainContentMinusMargin
                     {...draggablesContainerCustomAttributes}
+                    isDraggingOver={droppableStateSnapshot.isDraggingOver}
                   >
                     {children}
                     {getPlaceholder({

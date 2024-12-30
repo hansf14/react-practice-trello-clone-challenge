@@ -1,7 +1,7 @@
 // Warn to use: (Dangerous hook) possible infinite function call
 import { useCallback, useEffect, useRef } from "react";
 import { useIsomorphicLayoutEffect } from "usehooks-ts";
-import { useForceRenderWithOptionalCb } from "@/hooks/useForceRenderWithOptionalCb";
+import { useForceRender } from "@/hooks/useForceRender";
 
 export type OnSyncCb = ({}) => void;
 
@@ -15,7 +15,7 @@ export const useStateSync = <T>({
   onSyncCbType?: "useEffect" | "useIsomorphicLayoutEffect";
 }) => {
   const refState = useRef<T>(stateSrc);
-  const { forceRender } = useForceRenderWithOptionalCb();
+  const { forceRender } = useForceRender();
 
   const effectHook =
     onSyncCbType === "useEffect" ? useEffect : useIsomorphicLayoutEffect;

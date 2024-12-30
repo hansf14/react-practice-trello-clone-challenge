@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 import { Board } from "@/components/Board";
-import { BoardHeader, BoardHeaderHandle } from "@/components/BoardHeader";
+import { BoardHeader, OnRemoveBoard } from "@/components/BoardHeader";
 import {
   BoardListExtendProps,
   BoardList,
@@ -21,11 +21,11 @@ import {
   OnAddChildItem,
   OnClearChildItems,
 } from "@/components/BoardMain";
-import { Card } from "@/components/Card";
+import { BoardCard } from "@/components/BoardCard";
 import { styled } from "styled-components";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
-import { OnEditFinish, OnEditKeyDownCbs } from "@/components/TextArea";
+import { OnEditFinish, OnEditKeyDown } from "@/components/TextArea";
 
 const CategoryTaskBoardListInternalBase = styled(BoardList)``;
 
@@ -51,20 +51,6 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       stateBoardListContext,
       setStateBoardListContext,
     } = useBoardListContext(boardListContextParams);
-
-    const refBoardHeader = useRef<BoardHeaderHandle | null>(null);
-
-    const onEditKeyDownCbs = useMemo(() => {
-      if (!refBoardHeader.current?.boardHeaderTitleTextAreaInstance) {
-        return null;
-      }
-      return {
-        '"Escape"':
-          refBoardHeader.current.boardHeaderTitleTextAreaInstance
-            .dispatchEditCancel,
-      } as OnEditKeyDownCbs;
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [refBoardHeader.current?.boardHeaderTitleTextAreaInstance]);
 
     const idOnEditFinishParentItem = useMemoizeCallbackId();
     const onEditFinishParentItem = useCallback(
@@ -188,6 +174,43 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       [boardListId, setStateBoardListContext],
     );
 
+    const onEditKeyDown = useCallback<OnEditKeyDown>(
+      ({ textAreaHandle, event }) => {
+        switch (event.key) {
+          // case "Enter": {
+          //   textAreaHandle.dispatchEditFinish();
+          //   break;
+          // }
+          case "Escape": {
+            textAreaHandle.dispatchEditCancel();
+            break;
+          }
+          default:
+            return;
+        }
+      },
+      [],
+    );
+
+    const onRemoveBoard = useCallback<OnRemoveBoard>(
+      ({ parentItemId }) => {
+        setStateBoardListContext((curBoardListContext) => {
+          const newBoardListContextIndexer = new BoardListContextIndexer(
+            curBoardListContext.indexer,
+          );
+          newBoardListContextIndexer.removeParent({
+            parentId: parentItemId,
+            shouldKeepRef: false,
+          });
+          return {
+            boardListId,
+            indexer: newBoardListContextIndexer,
+          };
+        });
+      },
+      [boardListId, setStateBoardListContext],
+    );
+
     const alertMessageOnEditStart = useCallback(
       ({ editTarget }: { editTarget: string }) => {
         return `Press 'enter' to finish the edit.\nPress 'esc' or touch/click elsewhere to cancel.\nThe ${editTarget} drag will be disabled till you finish/cancel the edit.`;
@@ -223,14 +246,12 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                 return (
                   <>
                     <BoardHeader
-                      ref={refBoardHeader}
                       boardListId={boardListId}
                       parentItem={parentItem}
                       draggableDragHandleProps={draggableDragHandleProps}
                       alertMessageOnEditStart={alertMessageOnEditStart({
                         editTarget: "task category",
                       })}
-                      onEditKeyDownCbs={onEditKeyDownCbs}
                       isEditMode={isEditMode}
                       onEditStart={onEditStart}
                       onEditCancel={onEditCancel}
@@ -239,6 +260,8 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                         parentItem,
                         onEditFinish,
                       })}
+                      onEditKeyDown={onEditKeyDown}
+                      onRemoveBoard={onRemoveBoard}
                     />
                     <BoardMain
                       boardListId={boardListId}
@@ -250,7 +273,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                       {parentItems[parentItemIndex].items?.map(
                         (childItem, childItemIndex) => {
                           return (
-                            <Card
+                            <BoardCard
                               key={childItem.id}
                               boardListId={boardListId}
                               childItem={childItem}
@@ -259,6 +282,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                               alertMessageOnEditStart={alertMessageOnEditStart({
                                 editTarget: "task",
                               })}
+                              // onEditKeyDownCbs={onEditKeyDownCbs}
                               onEditFinish={onUpdateChildItem({
                                 childItem,
                               })}

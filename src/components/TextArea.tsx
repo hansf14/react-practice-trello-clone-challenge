@@ -66,23 +66,29 @@ export type OnEditChange = ({
   newValue: string;
 }) => void;
 
-export type OnEditKeyDownCbs = {
-  [keyCode: string]: React.KeyboardEventHandler<HTMLTextAreaElement>;
-};
+export type OnEditKeyDown = ({
+  textAreaHandle,
+  event,
+}: {
+  textAreaHandle: TextAreaHandle;
+  event: React.KeyboardEvent<HTMLTextAreaElement>;
+}) => void;
 
 export type TextAreaPropsListeners = {
   onEditStart?: OnEditStart;
   onEditCancel?: OnEditCancel;
   onEditChange?: OnEditChange;
   onEditFinish?: OnEditFinish;
+  onEditKeyDown?: OnEditKeyDown;
 };
+
+export type TextAreaExtendProps = SmartOmit<TextAreaProps, "value">;
 
 export type TextAreaProps = SmartMerge<
   {
     value?: string;
     isEditMode?: boolean;
     alertMessageOnEditStart?: string | null;
-    onEditKeyDownCbs?: OnEditKeyDownCbs | null;
   } & TextAreaPropsListeners
 > &
   SmartOmit<StyledComponentProps<"textarea">, "children">;
@@ -107,11 +113,11 @@ export const TextArea = withMemoAndRef<
       value = "",
       isEditMode = false,
       alertMessageOnEditStart: _alertMessageOnEditStart,
-      onEditKeyDownCbs,
       onEditStart,
       onEditCancel,
       onEditChange,
       onEditFinish,
+      onEditKeyDown,
       ...otherProps
     },
     ref,
@@ -128,7 +134,7 @@ export const TextArea = withMemoAndRef<
     const editCancelHandler = useCallback(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (event: FocusEvent | React.KeyboardEvent<HTMLTextAreaElement>) => {
-        console.log("[editCancelHandler]");
+        // console.log("[editCancelHandler]");
 
         setStateIsEditMode({ newStateOrSetStateAction: false });
         setStateValue(refValueBackup.current);
@@ -195,7 +201,7 @@ export const TextArea = withMemoAndRef<
     >(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (event) => {
-        console.log("[editFinishHandler]");
+        // console.log("[editFinishHandler]");
 
         setStateIsEditMode({ newStateOrSetStateAction: false });
         refValueBackup.current = stateValue;
@@ -222,8 +228,8 @@ export const TextArea = withMemoAndRef<
           return;
         }
         onEditChange?.({
-          event,
           textAreaHandle: refBase.current,
+          event,
           oldValue: value,
           newValue: event.target.value,
         });
@@ -235,36 +241,26 @@ export const TextArea = withMemoAndRef<
       React.KeyboardEventHandler<HTMLTextAreaElement>
     >(
       (event) => {
-        if (!onEditKeyDownCbs) {
-          switch (event.key) {
-            case "Enter": {
-              editFinishHandler(event);
-              break;
-            }
-            case "Escape": {
-              editCancelHandler(event);
-              break;
-            }
-            default:
-              return;
-          }
-        } else {
-          // console.log(onEditKeyDownCbs);
-          onEditKeyDownCbs[event.key]?.(event);
+        if (!refBase.current) {
+          return;
         }
+        onEditKeyDown?.({
+          textAreaHandle: refBase.current,
+          event,
+        });
       },
-      [onEditKeyDownCbs, editFinishHandler, editCancelHandler],
+      [onEditKeyDown],
     );
 
     useImperativeHandle(ref, () => {
       refBase.current = {
-        ...refBase.current, // <- Mandatory. Should not omit! (stores `TextAreaRef` values from antd.)
+        ...refBase.current, // <- Mandatory. Should not omit. It stores `TextAreaRef` values from antd.)
         value: stateValue,
         isEditMode: stateIsEditMode,
         alertMessageOnEditStart,
-        dispatchEditCancel: editCancelHandler as () => void,
-        dispatchEditEnable: editEnableHandler as () => void,
-        dispatchEditFinish: editFinishHandler as () => void,
+        dispatchEditCancel: editCancelHandler,
+        dispatchEditEnable: editEnableHandler,
+        dispatchEditFinish: editFinishHandler,
       } as TextAreaHandle;
       return refBase.current;
     });

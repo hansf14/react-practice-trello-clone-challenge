@@ -1,7 +1,12 @@
 import { useCallback, useContext, useImperativeHandle, useRef } from "react";
 import { styled } from "styled-components";
-import { GripVertical, ArrowClockwise, CheckLg } from "react-bootstrap-icons";
-import { SmartOmit, StyledComponentProps } from "@/utils";
+import {
+  GripVertical,
+  ArrowClockwise,
+  CheckLg,
+  XCircleFill,
+} from "react-bootstrap-icons";
+import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
 import {
   BoardContext,
   DraggableHandleCustomAttributesKvObj,
@@ -9,13 +14,9 @@ import {
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
-  OnEditCancel,
-  OnEditFinish,
-  OnEditChange,
-  OnEditStart,
   TextArea,
   TextAreaHandle,
-  OnEditKeyDownCbs,
+  TextAreaExtendProps,
 } from "@/components/TextArea";
 import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 
@@ -58,7 +59,7 @@ const BoardHeaderTitleEditCancelButton = styled(ArrowClockwise)`
   cursor: pointer;
   margin-left: 2px;
 
-  fill: black; // #ce241b;
+  fill: black;
 `;
 
 const BoardHeaderTitleTextArea = styled(TextArea)`
@@ -86,13 +87,34 @@ const BoardHeaderTitleTextArea = styled(TextArea)`
   }
 `;
 
-const BoardHeaderDragHandleBase = styled.div`
-  transform: translateZ(10px);
+const BoardHeaderBoardControllers = styled.div`
   grid-column: 1;
   grid-row: 1;
+  justify-self: flex-end;
+
+  width: min-content;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+`;
+
+const BoardHeaderBoardRemoveButton = styled(XCircleFill)`
+  height: 20px;
+  width: 20px;
+  cursor: pointer;
+  margin: 0 5px 5px 0;
+
+  clip-path: circle(48%);
+  background-color: white;
+  fill: red;
+`;
+
+const BoardHeaderDragHandleBase = styled.div`
+  transform: translateZ(10px);
 
   height: 47px;
-  padding-left: 10px;
+  padding: 0 3px;
   justify-self: end;
 
   display: flex;
@@ -113,18 +135,14 @@ export const BoardHeaderDragHandle = withMemoAndRef<
 >({
   displayName: "BoardHeaderDragHandle",
   Component: ({ boardListId, parentItemId, ...otherProps }, ref) => {
-    const {
-      setActivatorNodeRef,
-      // draggableHandleAttributes,
-      // draggableHandleListeners,
-    } = useContext(BoardContext);
+    const { setActivatorNodeRef } = useContext(BoardContext);
 
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
 
-    const callbackRef = useCallback(
+    const baseCbRef = useCallback(
       (el: HTMLDivElement | null) => {
         refBase.current = el;
         setActivatorNodeRef?.(el);
@@ -140,9 +158,7 @@ export const BoardHeaderDragHandle = withMemoAndRef<
 
     return (
       <BoardHeaderDragHandleBase
-        ref={callbackRef}
-        // {...draggableHandleAttributes}
-        // {...draggableHandleListeners}
+        ref={baseCbRef}
         {...draggableHandleCustomAttributes}
         {...otherProps}
       >
@@ -152,18 +168,22 @@ export const BoardHeaderDragHandle = withMemoAndRef<
   },
 });
 
-export type BoardHeaderProps = {
-  boardListId: string;
-  parentItem: ParentItem;
-  draggableDragHandleProps: DraggableProvidedDragHandleProps | null;
-  alertMessageOnEditStart?: string | null;
-  isEditMode?: boolean;
-  onEditKeyDownCbs?: OnEditKeyDownCbs | null;
-  onEditStart?: OnEditStart;
-  onEditCancel?: OnEditCancel;
-  onEditChange?: OnEditChange;
-  onEditFinish?: OnEditFinish;
-} & StyledComponentProps<"div">;
+export type OnRemoveBoard = ({
+  parentItemId,
+}: {
+  parentItemId: string;
+}) => void;
+
+export type BoardHeaderProps = SmartMerge<
+  {
+    boardListId: string;
+    parentItem: ParentItem;
+    draggableDragHandleProps: DraggableProvidedDragHandleProps | null;
+    alertMessageOnRemove?: string | null;
+    onRemoveBoard?: OnRemoveBoard;
+  } & TextAreaExtendProps
+> &
+  StyledComponentProps<"div">;
 
 export type BoardHeaderHandle = {
   baseElement: HTMLDivElement | null;
@@ -184,12 +204,14 @@ export const BoardHeader = withMemoAndRef<
       parentItem,
       draggableDragHandleProps,
       alertMessageOnEditStart,
+      alertMessageOnRemove: _alertMessageOnRemove,
       isEditMode = false,
-      onEditKeyDownCbs,
       onEditStart: _onEditStart,
       onEditCancel: _onEditCancel,
       onEditChange: _onEditChange,
       onEditFinish: _onEditFinish,
+      onEditKeyDown: _onEditKeyDown,
+      onRemoveBoard: _onRemoveBoard,
       ...otherProps
     },
     ref,
@@ -233,6 +255,25 @@ export const BoardHeader = withMemoAndRef<
       [],
     );
 
+    const alertMessageOnRemove =
+      typeof _alertMessageOnRemove === "undefined"
+        ? "Are you sure you want to remove the board?"
+        : _alertMessageOnRemove;
+
+    const onRemoveBoard = useCallback<React.MouseEventHandler>(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (event) => {
+        if (alertMessageOnRemove !== null) {
+          const result = confirm(alertMessageOnRemove);
+          if (!result) {
+            return;
+          }
+        }
+        _onRemoveBoard?.({ parentItemId: parentItem.id });
+      },
+      [parentItem.id, alertMessageOnRemove, _onRemoveBoard],
+    );
+
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
       {
         "data-board-list-id": boardListId,
@@ -253,19 +294,22 @@ export const BoardHeader = withMemoAndRef<
             ref={refBoardHeaderTitleTextArea}
             value={parentItem.title}
             alertMessageOnEditStart={alertMessageOnEditStart}
-            onEditKeyDownCbs={onEditKeyDownCbs}
             onEditStart={_onEditStart}
             onEditCancel={_onEditCancel}
             onEditChange={_onEditChange}
             onEditFinish={_onEditFinish}
+            onEditKeyDown={_onEditKeyDown}
           />
-          <BoardHeaderDragHandle
-            ref={refBoardHeaderDragHandle}
-            boardListId={boardListId}
-            parentItemId={parentItem.id}
-            {...draggableDragHandleProps}
-            {...draggableHandleCustomAttributes}
-          />
+          <BoardHeaderBoardControllers>
+            <BoardHeaderDragHandle
+              ref={refBoardHeaderDragHandle}
+              boardListId={boardListId}
+              parentItemId={parentItem.id}
+              {...draggableDragHandleProps}
+              {...draggableHandleCustomAttributes}
+            />
+            <BoardHeaderBoardRemoveButton onPointerDown={onRemoveBoard} />
+          </BoardHeaderBoardControllers>
         </BoardHeaderTitle>
       </BoardHeaderBase>
     );

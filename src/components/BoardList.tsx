@@ -6,15 +6,16 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { styled } from "styled-components";
+import { css, styled } from "styled-components";
 import {
   DragDropContext,
   Droppable,
+  DroppableProvided,
   OnDragEndResponder,
   OnDragStartResponder,
   OnDragUpdateResponder,
 } from "@hello-pangea/dnd";
-import { SmartMerge, StyledComponentProps } from "@/utils";
+import { memoizeCallback, SmartMerge, StyledComponentProps } from "@/utils";
 import {
   DroppableCustomAttributesKvObj,
   BoardListContextIndexer,
@@ -36,6 +37,7 @@ import {
   DragPositionPreviewConfig,
   useDragPositionPreview,
 } from "@/hooks/useDragPositionPreview";
+import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 
 const BoardListBase = styled.div`
   height: 100%;
@@ -43,21 +45,25 @@ const BoardListBase = styled.div`
 `;
 
 type BoardListDropAreaProps = {
-  isDropTarget?: boolean;
+  isDraggingOver?: boolean;
 };
 
 const BoardListDropPreviewArea = styled.div.withConfig({
-  shouldForwardProp: (prop) => !["isDropTarget"].includes(prop),
+  shouldForwardProp: (prop) => !["isDraggingOver"].includes(prop),
 })<BoardListDropAreaProps>`
   height: 100%;
   padding: 10px;
+
+  ${({ isDraggingOver }) => {
+    return css`
+      ${(isDraggingOver ?? false)
+        ? `
+        background-color: rgba(0, 0, 0, 0.3);
+      `
+        : ""}
+    `;
+  }}
 `;
-// ${({ isDropTarget }) =>
-//   (isDropTarget ?? false)
-//     ? css`
-//         background-color: rgb(0, 0, 0, 0.5);
-//       `
-//     : ""}
 
 const BoardListDropAreaMinusMargin = styled.div`
   margin: 0 -5px;
@@ -112,6 +118,24 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       return refBase.current as HTMLDivElement;
     });
 
+    const idBaseCbRef = useMemoizeCallbackId();
+    const baseCbRef = useCallback(
+      ({
+        droppableProvidedInnerRef,
+      }: {
+        droppableProvidedInnerRef: DroppableProvided["innerRef"];
+      }) =>
+        memoizeCallback({
+          id: idBaseCbRef,
+          fn: (el: HTMLDivElement | null) => {
+            refBase.current = el;
+            droppableProvidedInnerRef(el);
+          },
+          deps: [droppableProvidedInnerRef, idBaseCbRef],
+        }),
+      [idBaseCbRef],
+    );
+
     const boardListContextParams = useMemo(
       () => ({
         boardListId,
@@ -122,6 +146,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     );
     const {
       parentItems__Immutable: parentItems,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       stateBoardListContext,
       setStateBoardListContext,
     } = useBoardListContext(boardListContextParams);
@@ -378,15 +403,6 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       [boardListId, setStateBoardListContext, hideDragPositionPreview],
     );
 
-    const childItemIdList = useMemo(() => {
-      return parentItems.reduce<string[]>((acc, curParentItem) => {
-        const childIdList = (curParentItem.items ?? []).map(
-          (childItem) => childItem.id,
-        );
-        return acc.concat(...childIdList);
-      }, []);
-    }, [parentItems]);
-
     const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
       "data-droppable-id": boardListId,
@@ -418,23 +434,15 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           {(droppableProvided, droppableStateSnapshot) => {
             return (
               <BoardListBase
-                // ref={refBase} // TODO:
-                ref={droppableProvided.innerRef}
-                // style={{
-                //   backgroundColor: droppableStateSnapshot.isDraggingOver
-                //     ? "rgba(0, 0, 0, 0.3)"
-                //     : "",
-                // }}
+                ref={baseCbRef({
+                  droppableProvidedInnerRef: droppableProvided.innerRef,
+                })}
                 {...droppableProvided.droppableProps}
                 {...droppableCustomAttributes}
                 {...otherProps}
               >
                 <BoardListDropPreviewArea
-                  style={{
-                    backgroundColor: droppableStateSnapshot.isDraggingOver
-                      ? "rgba(0, 0, 0, 0.3)"
-                      : "",
-                  }}
+                  isDraggingOver={droppableStateSnapshot.isDraggingOver}
                 >
                   <BoardListDropAreaMinusMargin
                     {...draggablesContainerCustomAttributes}
