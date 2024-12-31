@@ -232,7 +232,14 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
 
     const alertMessageOnEditStart = useCallback(
       ({ editTarget }: { editTarget: string }) => {
-        return `Press 'esc' or touch/click elsewhere to cancel.\nThe current ${editTarget} drag will be disabled till you finish/cancel the edit.`;
+        return (
+          <>
+            Press "Esc" or touch/click elsewhere to cancel.
+            <br />
+            The current {editTarget} drag will be disabled till you
+            finish/cancel the edit.
+          </>
+        );
       },
       [],
     );

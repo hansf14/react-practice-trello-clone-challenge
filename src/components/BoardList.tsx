@@ -444,9 +444,9 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     );
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const { setModalOpen, setModalClose } = useAntdModal();
+    const { openModalFixup, closeModalFixup } = useAntdModal();
 
-    const openModalHandler = useCallback(() => {
+    const openModal = useCallback(() => {
       setIsModalOpen(true);
 
       setTimeout(() => {
@@ -457,16 +457,16 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           return;
         }
 
-        setModalOpen({
+        openModalFixup({
           refAnyInnerElement: textarea,
           cb: () => {
             textarea.focus();
           },
         });
       }, 1);
-    }, [setModalOpen]);
+    }, [openModalFixup]);
 
-    const closeModalHandler = useCallback(() => {
+    const closeModal = useCallback(() => {
       setIsModalOpen(false);
 
       setTimeout(() => {
@@ -477,11 +477,11 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           return;
         }
 
-        setModalClose({
+        closeModalFixup({
           refAnyInnerElement: textarea,
         });
       }, 1);
-    }, [setModalClose]);
+    }, [closeModalFixup]);
 
     const {
       isEditMode,
@@ -563,7 +563,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                 {...droppableCustomAttributes}
                 {...otherProps}
               >
-                <BoardAdder onClick={openModalHandler}>
+                <BoardAdder onClick={openModal}>
                   <BoardAdderIcon />
                 </BoardAdder>
                 <Modal
@@ -579,12 +579,11 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                     <Button key="submit" type="primary" onClick={() => {}}>
                       Submit
                     </Button>,
-                    <Button key="back" onClick={closeModalHandler}>
+                    <Button key="back" onClick={closeModal}>
                       Cancel
                     </Button>,
                   ]}
-                  onOk={() => {}}
-                  onCancel={closeModalHandler}
+                  onCancel={closeModal}
                 >
                   <BoardAdderModalBody>
                     <BoardAdderModalBodyTextArea

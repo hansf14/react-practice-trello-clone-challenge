@@ -249,31 +249,25 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
     });
     const refCardContentTextArea = useRef<TextAreaHandle | null>(null);
 
-    const onFinishEditHandler = useCallback<
-      React.PointerEventHandler<SVGElement>
-    >(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (event) => {
-        if (!refCardContentTextArea.current) {
-          return;
-        }
-        refCardContentTextArea.current.dispatchEditFinish();
-      },
-      [],
-    );
+    const onFinishEditHandler = useCallback(() => {
+      if (!refCardContentTextArea.current) {
+        return;
+      }
+      refCardContentTextArea.current.dispatchEditFinish();
+    }, []);
 
-    const onEditCancelHandler = useCallback<
-      React.PointerEventHandler<SVGElement>
-    >(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (event) => {
-        if (!refCardContentTextArea.current) {
-          return;
-        }
-        refCardContentTextArea.current.dispatchEditCancel();
-      },
-      [],
-    );
+    const onEditCancelHandler = useCallback(() => {
+      if (!refCardContentTextArea.current) {
+        return;
+      }
+      refCardContentTextArea.current.dispatchEditCancel();
+    }, []);
+
+    const onBlur = useCallback(() => {
+      if (isEditMode) {
+        onEditCancelHandler();
+      }
+    }, [isEditMode, onEditCancelHandler]);
 
     return (
       <Draggable
@@ -296,6 +290,7 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
                 draggableProvidedInnerRef: draggableProvided.innerRef,
               })}
               isDragging={draggableStateSnapshot.isDragging}
+              onBlur={onBlur}
               {...draggableProvided.draggableProps}
               {...draggableCustomAttributes}
               {...otherProps}

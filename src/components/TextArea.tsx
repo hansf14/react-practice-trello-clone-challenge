@@ -1,6 +1,12 @@
-import { useCallback, useImperativeHandle, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { styled } from "styled-components";
-import { Input, Modal } from "antd";
+import { Button, Input, Modal } from "antd";
 import { TextAreaRef } from "antd/es/input/TextArea";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
@@ -31,6 +37,10 @@ const TextAreaBase = styled(AntdTextArea)`
       }
     }
   }
+`;
+
+const TextAreaModalBody = styled.div`
+  margin-right: 20px;
 `;
 
 export type OnEditStart = ({
@@ -89,7 +99,7 @@ export type TextAreaProps = SmartMerge<
   {
     value?: string;
     isEditMode?: boolean;
-    alertMessageOnEditStart?: string | null;
+    alertMessageOnEditStart?: React.ReactElement | string | null;
   } & TextAreaPropsListeners
 > &
   SmartOmit<StyledComponentProps<"textarea">, "children">;
@@ -97,7 +107,7 @@ export type TextAreaProps = SmartMerge<
 export type TextAreaHandle = TextAreaRef & {
   value: string;
   isEditMode: boolean;
-  alertMessageOnEditStart: string | null;
+  alertMessageOnEditStart: React.ReactElement | string | null;
   dispatchEditCancel: () => void;
   dispatchEditEnable: () => void;
   dispatchEditFinish: () => void;
@@ -131,6 +141,7 @@ export const TextArea = withMemoAndRef<
     const refValueBackup = useRef<string>(value);
 
     const refBase = useRef<TextAreaHandle | null>(null);
+    const refOkButton = useRef<HTMLButtonElement | null>(null);
 
     // https://stackoverflow.com/a/3169849/11941803
     const resetTextSelectionRange = useCallback(() => {
@@ -177,55 +188,85 @@ export const TextArea = withMemoAndRef<
       [setStateIsEditMode, onEditCancel, resetTextSelectionRange],
     );
 
-    const alertMessageOnEditStart =
-      typeof _alertMessageOnEditStart === "undefined"
-        ? "Press 'enter' to finish the edit.\nPress 'esc' or touch/click elsewhere to cancel."
-        : _alertMessageOnEditStart;
+    const alertMessageOnEditStart = useMemo(() => {
+      return typeof _alertMessageOnEditStart === "undefined" ? (
+        <>
+          "Press 'enter' to finish the edit.
+          <br />
+          Press 'esc' or touch/click elsewhere to cancel."
+        </>
+      ) : (
+        _alertMessageOnEditStart
+      );
+    }, [_alertMessageOnEditStart]);
+
+    const editEnableHandler__Internal = useCallback(() => {
+      setTimeout(() => {
+        if (!refBase.current) {
+          return;
+        }
+
+        // Delay execution to prevent interference. For example, `focus` event.
+        // Introduce a small delay before execution using a setTimeout.
+        // cf> https://stackoverflow.com/a/53702815/11941803
+        refBase.current.focus({ cursor: "all" });
+        // refBase.current?.resizableTextArea?.textArea.select();
+        // refBase.current?.resizableTextArea?.textArea.focus();
+
+        onEditStart?.({
+          textAreaHandle: refBase.current,
+        });
+      }, 1);
+    }, [onEditStart]);
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const openModal = useCallback(() => {
+      setIsModalOpen(true);
+
+      setTimeout(() => {
+        refOkButton.current?.focus();
+      }, 1);
+    }, []);
+
+    const closeModal = useCallback(() => {
+      setIsModalOpen(false);
+
+      setStateIsEditMode({
+        newStateOrSetStateAction: true,
+        cb: () => {
+          editEnableHandler__Internal();
+        },
+      });
+    }, [setStateIsEditMode, editEnableHandler__Internal]);
 
     const editEnableHandler = useCallback<React.MouseEventHandler<TextAreaRef>>(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (event) => {
-        setStateIsEditMode({
-          newStateOrSetStateAction: true,
-          cb: () => {
-            if (alertMessageOnEditStart !== null) {
-              alert(alertMessageOnEditStart);
-              // alert(alertMessageOnEditStart);
-            }
+        // console.log("[editEnableHandler]");
 
-            setTimeout(() => {
-              if (!refBase.current) {
-                return;
-              }
+        if (isEditMode) {
+          return;
+        }
 
-              refBase.current.focus({ cursor: "all" });
-              // refBase.current?.resizableTextArea?.textArea.focus();
-              // refBase.current?.resizableTextArea?.textArea.select();
-              // refBase.current?.resizableTextArea?.textArea.focus();
-
-              // Delay execution to prevent interference. For example, `focus` event.
-              // Introduce a small delay before execution using a setTimeout.
-              // cf> https://stackoverflow.com/a/53702815/11941803
-              refBase.current.resizableTextArea?.textArea.addEventListener(
-                "blur",
-                editCancelHandler,
-                {
-                  once: true,
-                },
-              );
-
-              onEditStart?.({
-                textAreaHandle: refBase.current,
-              });
-            }, 1);
-          },
-        });
+        if (alertMessageOnEditStart === null) {
+          setStateIsEditMode({
+            newStateOrSetStateAction: true,
+            cb: () => {
+              editEnableHandler__Internal();
+            },
+          });
+        } else {
+          openModal();
+          // editEnableHandler__Internal will be executed at the modal.
+        }
       },
       [
+        isEditMode,
         alertMessageOnEditStart,
         setStateIsEditMode,
-        onEditStart,
-        editCancelHandler,
+        openModal,
+        editEnableHandler__Internal,
       ],
     );
 
@@ -312,7 +353,26 @@ export const TextArea = withMemoAndRef<
           onBlur={resetTextSelectionRange}
           {...otherProps}
         />
-        {/* <Modal></Modal> */}
+        {alertMessageOnEditStart !== null && (
+          <Modal
+            centered
+            width={"min(80%, 350px)"}
+            open={isModalOpen}
+            footer={[
+              <Button
+                ref={refOkButton}
+                key="ok"
+                type="primary"
+                onClick={closeModal}
+              >
+                OK
+              </Button>,
+            ]}
+            onCancel={closeModal}
+          >
+            <TextAreaModalBody>{alertMessageOnEditStart}</TextAreaModalBody>
+          </Modal>
+        )}
       </>
     );
   },

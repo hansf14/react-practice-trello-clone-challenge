@@ -3,7 +3,7 @@ import { useCallback } from "react";
 export const useAntdModal = () => {
   // Fixes antd bug
   // Bug: After we close the modal, `tabindex` stays at `-1`
-  const setModalOpen = useCallback(
+  const openModalFixup = useCallback(
     ({
       refAnyInnerElement,
       cb,
@@ -45,7 +45,7 @@ export const useAntdModal = () => {
     [],
   );
 
-  const setModalClose = useCallback(
+  const closeModalFixup = useCallback(
     ({ refAnyInnerElement }: { refAnyInnerElement: HTMLElement }) => {
       const modals = document.querySelectorAll(".ant-modal-wrap");
       for (const modal of modals) {
@@ -59,7 +59,7 @@ export const useAntdModal = () => {
   );
 
   return {
-    setModalOpen,
-    setModalClose,
+    openModalFixup,
+    closeModalFixup,
   };
 };

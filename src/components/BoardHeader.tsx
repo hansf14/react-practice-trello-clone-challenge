@@ -68,7 +68,7 @@ const BoardHeaderTitleTextArea = styled(TextArea)`
     grid-column: 1;
     grid-row: 1;
 
-    padding: 5px 32px;
+    padding: 5px 38px;
     font-size: 22px;
     text-align: center;
 
@@ -82,10 +82,8 @@ const BoardHeaderTitleTextArea = styled(TextArea)`
     border-radius: 5px;
     border: 1px solid rgba(255, 255, 255, 0.18);
 
-    &:not([readonly]) {
-      min-height: 81px;
-      max-height: 116px;
-    }
+    min-height: 81px;
+    max-height: 116px;
   }
 `;
 
@@ -232,29 +230,27 @@ export const BoardHeader = withMemoAndRef<
       } satisfies BoardHeaderHandle;
     });
 
-    const onFinishEdit = useCallback<React.PointerEventHandler<SVGElement>>(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (event) => {
-        // console.log("[onFinishEdit]", refBoardHeaderTitleTextArea.current);
-        if (!refBoardHeaderTitleTextArea.current) {
-          return;
-        }
-        refBoardHeaderTitleTextArea.current.dispatchEditFinish();
-      },
-      [],
-    );
+    const onFinishEdit = useCallback(() => {
+      // console.log("[onFinishEdit]", refBoardHeaderTitleTextArea.current);
+      if (!refBoardHeaderTitleTextArea.current) {
+        return;
+      }
+      refBoardHeaderTitleTextArea.current.dispatchEditFinish();
+    }, []);
 
-    const onEditCancel = useCallback<React.PointerEventHandler<SVGElement>>(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      (event) => {
-        console.log("[onEditCancel]", refBoardHeaderTitleTextArea.current);
-        if (!refBoardHeaderTitleTextArea.current) {
-          return;
-        }
-        refBoardHeaderTitleTextArea.current.dispatchEditCancel();
-      },
-      [],
-    );
+    const onEditCancel = useCallback(() => {
+      // console.log("[onEditCancel]", refBoardHeaderTitleTextArea.current);
+      if (!refBoardHeaderTitleTextArea.current) {
+        return;
+      }
+      refBoardHeaderTitleTextArea.current.dispatchEditCancel();
+    }, []);
+
+    const onBlur = useCallback(() => {
+      if (isEditMode) {
+        onEditCancel();
+      }
+    }, [isEditMode, onEditCancel]);
 
     const alertMessageOnRemoveBoard =
       typeof _alertMessageOnRemoveBoard === "undefined"
@@ -283,7 +279,13 @@ export const BoardHeader = withMemoAndRef<
 
     return (
       <BoardHeaderBase ref={refBase} {...otherProps}>
-        <BoardHeaderTitle ref={refBoardHeaderTitle}>
+        <BoardHeaderTitle ref={refBoardHeaderTitle} onBlur={onBlur}>
+          {isEditMode && (
+            <BoardHeaderTitleEditControllers>
+              <BoardHeaderTitleEditFinishButton onClick={onFinishEdit} />
+              <BoardHeaderTitleEditCancelButton onClick={onEditCancel} />
+            </BoardHeaderTitleEditControllers>
+          )}
           <BoardHeaderTitleTextArea
             ref={refBoardHeaderTitleTextArea}
             isEditMode={isEditMode}
@@ -295,13 +297,6 @@ export const BoardHeader = withMemoAndRef<
             onEditFinish={_onEditFinish}
             onEditKeyDown={_onEditKeyDown}
           />
-          {isEditMode && (
-            <BoardHeaderTitleEditControllers>
-              {/* Because seems like the antd component TextArea uses stopPropagation under-the-hood on click, we have to use `onPointerDown` instead of `onClick`. */}
-              <BoardHeaderTitleEditFinishButton onPointerDown={onFinishEdit} />
-              <BoardHeaderTitleEditCancelButton onPointerDown={onEditCancel} />
-            </BoardHeaderTitleEditControllers>
-          )}
           <BoardHeaderBoardControllers>
             <BoardHeaderDragHandle
               ref={refBoardHeaderDragHandle}

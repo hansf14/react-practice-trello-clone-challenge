@@ -10,12 +10,13 @@
 3. 쓰레기통 - task, board 삭제기능 & 삭제버튼
 5. board 생성 할 수 있는 form
 2. 모든 task state를 local storage에 저장 및 로드, 그리고 local storage 비우는 기능
+3. Hide drag handle on edit mode
+3. BoardHeader textarea scrollbar에는 border-radius 넣기
 - Card remove
 - Card update finish button
 - Edit focus 풀리면 text selection range 초기화 시키기
 - Board 삭제
 - Card drop area
-
 - drag scroll fallback scroll container (html, body)
 - customAttributes를 리턴하는 함수 만들기
 
@@ -33,5 +34,5 @@
 - edit mode 상태일떄 다른 board/card를 이용해 위치를 바꿔줄 경우 처음에는 edit가 풀리고 두번째에 똑같이 해보면 edit mode가 안 풀리는 버그 => 해결
 - 처음 BoardAdder 통해 모달이 열렸을 때 BoardAdderTextArea에 포커스 커서가 있는데 그 다음부터 열 때는 포커스 커서가 없는 문제 => setTimeout(..., 1)로 해결
 - BoardAdderModalBodyTextArea blur 되지 않는 문제 => 해결
-- 모바일에서 cancel 버튼이 계속 edit mode 활성화 시키려는 문제
-- 모바일에서 edit mode 활성화시 text range selection이 안 되어 있는 문제
+- 모바일에서 cancel 버튼이 계속 edit mode 활성화 시키려는 문제 => 해결
+- 모바일에서 edit mode 활성화시 text range selection이 안 되어 있는 문제 => alert 대신 custom modal로 해결
