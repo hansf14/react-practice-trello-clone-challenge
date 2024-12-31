@@ -155,13 +155,13 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
           const newBoardListContextIndexer = new BoardListContextIndexer(
             curBoardListContext.indexer,
           );
-          const newItem = {
+          const newChildItem = {
             id: generateUniqueRandomId(),
             content: value,
           } satisfies ChildItem;
           newBoardListContextIndexer.createChild({
             parentId: parentItemId,
-            child: newItem,
+            child: newChildItem,
             shouldAppend: false,
             shouldKeepRef: false,
           });
@@ -251,6 +251,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
         parentKeyName={parentKeyName}
         childKeyName={childKeyName}
         direction="horizontal"
+        addBoardModalTitle="Add Task Category"
       >
         {parentItems.map((parentItem, parentItemIndex) => {
           // console.log(parentItems.map((item) => item.id));

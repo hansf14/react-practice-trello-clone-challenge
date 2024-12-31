@@ -108,6 +108,7 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       onEditChange,
       onEditFinish,
     } = useTextArea({
+      initialIsEditMode: false,
       onEditStart: _onEditStart,
       onEditCancel: _onEditCancel,
       onEditChange: _onEditChange,

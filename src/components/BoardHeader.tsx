@@ -84,6 +84,7 @@ const BoardHeaderTitleTextArea = styled(TextArea)`
 
     &:not([readonly]) {
       min-height: 81px;
+      max-height: 116px;
     }
   }
 `;
@@ -246,8 +247,7 @@ export const BoardHeader = withMemoAndRef<
     const onEditCancel = useCallback<React.PointerEventHandler<SVGElement>>(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (event) => {
-        // console.log("[onEditCancel]", refBoardHeaderTitleTextArea.current);
-
+        console.log("[onEditCancel]", refBoardHeaderTitleTextArea.current);
         if (!refBoardHeaderTitleTextArea.current) {
           return;
         }
@@ -284,15 +284,9 @@ export const BoardHeader = withMemoAndRef<
     return (
       <BoardHeaderBase ref={refBase} {...otherProps}>
         <BoardHeaderTitle ref={refBoardHeaderTitle}>
-          {isEditMode && (
-            <BoardHeaderTitleEditControllers>
-              {/* Because seems like the antd component TextArea uses stopPropagation under-the-hood on click, we have to use `onPointerDown` instead of `onClick`. */}
-              <BoardHeaderTitleEditFinishButton onPointerDown={onFinishEdit} />
-              <BoardHeaderTitleEditCancelButton onPointerDown={onEditCancel} />
-            </BoardHeaderTitleEditControllers>
-          )}
           <BoardHeaderTitleTextArea
             ref={refBoardHeaderTitleTextArea}
+            isEditMode={isEditMode}
             value={parentItem.title}
             alertMessageOnEditStart={alertMessageOnEditStart}
             onEditStart={_onEditStart}
@@ -301,6 +295,13 @@ export const BoardHeader = withMemoAndRef<
             onEditFinish={_onEditFinish}
             onEditKeyDown={_onEditKeyDown}
           />
+          {isEditMode && (
+            <BoardHeaderTitleEditControllers>
+              {/* Because seems like the antd component TextArea uses stopPropagation under-the-hood on click, we have to use `onPointerDown` instead of `onClick`. */}
+              <BoardHeaderTitleEditFinishButton onPointerDown={onFinishEdit} />
+              <BoardHeaderTitleEditCancelButton onPointerDown={onEditCancel} />
+            </BoardHeaderTitleEditControllers>
+          )}
           <BoardHeaderBoardControllers>
             <BoardHeaderDragHandle
               ref={refBoardHeaderDragHandle}

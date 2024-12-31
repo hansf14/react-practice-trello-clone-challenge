@@ -5107,6 +5107,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "react-practice-trello-clone-challenge@workspace:."
   dependencies:
+    "@ant-design/icons": "npm:^5.5.2"
     "@hello-pangea/dnd": "npm:^17.0.0"
     "@testing-library/dom": "npm:^10.4.0"
     "@testing-library/jest-dom": "npm:^5.14.1"

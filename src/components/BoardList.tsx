@@ -14,7 +14,11 @@ import {
   OnDragStartResponder,
   OnDragUpdateResponder,
 } from "@hello-pangea/dnd";
-import { SmartMerge, StyledComponentProps } from "@/utils";
+import {
+  generateUniqueRandomId,
+  SmartMerge,
+  StyledComponentProps,
+} from "@/utils";
 import {
   DroppableCustomAttributesKvObj,
   BoardListContextIndexer,
@@ -22,6 +26,7 @@ import {
   BoardListContextParams,
   useBoardListContext,
   DraggablesContainerCustomAttributesKvObj,
+  ParentItem,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
@@ -37,19 +42,67 @@ import {
   useDragPositionPreview,
 } from "@/hooks/useDragPositionPreview";
 import { useRfd } from "@/hooks/useRfd";
+import { PlusCircleFilled } from "@ant-design/icons";
+import { Button, Modal } from "antd";
+import { TextArea, TextAreaHandle, useTextArea } from "@/components/TextArea";
+import { useAntdModal } from "@/hooks/useAntdModal";
 
 const BoardListBase = styled.div`
   height: 100%;
   padding: 10px;
+
+  display: flex;
+  align-items: center;
 `;
 
-type BoardListDropAreaProps = {
+const BoardAdder = styled.div`
+  position: relative;
+  margin: 0 25px;
+
+  &::after {
+    content: "";
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    position: absolute;
+    border: 3px solid white;
+    border-radius: 50%;
+
+    pointer-events: none;
+  }
+`;
+
+const BoardAdderIcon = styled(PlusCircleFilled)`
+  width: 60px;
+  height: 60px;
+  font-size: 60px;
+  color: #157a6b;
+  cursor: pointer;
+
+  clip-path: circle(47%);
+  background-color: white;
+`;
+
+const BoardAdderModalHeaderTitle = styled.div`
+  margin-bottom: 25px;
+`;
+
+const BoardAdderModalBody = styled.div`
+  margin-bottom: 15px;
+
+  background-color: rgb(212, 238, 236, 0.5);
+`;
+
+const BoardAdderModalBodyTextArea = styled(TextArea)``;
+
+type BoardListDropPreviewAreaProps = {
   isDraggingOver?: boolean;
 };
 
 const BoardListDropPreviewArea = styled.div.withConfig({
   shouldForwardProp: (prop) => !["isDraggingOver"].includes(prop),
-})<BoardListDropAreaProps>`
+})<BoardListDropPreviewAreaProps>`
   height: 100%;
   padding: 10px;
 
@@ -88,6 +141,7 @@ const BoardListDropAreaMinusMargin = styled.div`
 export type BoardListProps = SmartMerge<
   BoardListContextParams & {
     direction: "horizontal" | "vertical";
+    addBoardModalTitle?: string;
   }
 > &
   StyledComponentProps<"div">;
@@ -105,6 +159,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       parentKeyName,
       childKeyName,
       direction,
+      addBoardModalTitle = "Add Board",
       children,
       ...otherProps
     },
@@ -116,6 +171,8 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
+
+    const refBoardAdderTextArea = useRef<TextAreaHandle | null>(null);
 
     const { cbRefForDroppable } = useRfd();
 
@@ -386,6 +443,87 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       [boardListId, setStateBoardListContext, hideDragPositionPreview],
     );
 
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const { setModalOpen, setModalClose } = useAntdModal();
+
+    const openModalHandler = useCallback(() => {
+      setIsModalOpen(true);
+
+      setTimeout(() => {
+        const textarea =
+          refBoardAdderTextArea.current?.resizableTextArea?.textArea;
+        // console.log(textarea);
+        if (!textarea) {
+          return;
+        }
+
+        setModalOpen({
+          refAnyInnerElement: textarea,
+          cb: () => {
+            textarea.focus();
+          },
+        });
+      }, 1);
+    }, [setModalOpen]);
+
+    const closeModalHandler = useCallback(() => {
+      setIsModalOpen(false);
+
+      setTimeout(() => {
+        const textarea =
+          refBoardAdderTextArea.current?.resizableTextArea?.textArea;
+        // console.log(textarea);
+        if (!textarea) {
+          return;
+        }
+
+        setModalClose({
+          refAnyInnerElement: textarea,
+        });
+      }, 1);
+    }, [setModalClose]);
+
+    const {
+      isEditMode,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      enableEditMode,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      disableEditMode,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      toggleEditMode,
+      onEditStart,
+      onEditCancel,
+      onEditChange,
+      onEditFinish,
+    } = useTextArea({
+      initialIsEditMode: false,
+    });
+
+    // const onAddBoard = useCallback<On>(
+    //   (event) => {
+    //     setStateBoardListContext((curBoardListContext) => {
+    //       const newBoardListContextIndexer = new BoardListContextIndexer(
+    //         curBoardListContext.indexer,
+    //       );
+    //       const newParentItem = {
+    //         id: generateUniqueRandomId(),
+    //         title: value,
+    //         items: []
+    //       } satisfies ParentItem;
+    //       newBoardListContextIndexer.createParent({
+    //         parent:newParentItem,
+    //         shouldAppend: false,
+    //         shouldKeepRef: false,
+    //       });
+    //       return {
+    //         boardListId,
+    //         indexer: newBoardListContextIndexer,
+    //       };
+    //     });
+    //   },
+    //   [boardListId, setStateBoardListContext],
+    // );
+
     const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
       "data-droppable-id": boardListId,
@@ -425,6 +563,40 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                 {...droppableCustomAttributes}
                 {...otherProps}
               >
+                <BoardAdder onClick={openModalHandler}>
+                  <BoardAdderIcon />
+                </BoardAdder>
+                <Modal
+                  // centered
+                  width={"min(80%, 350px)"}
+                  open={isModalOpen}
+                  title={
+                    <BoardAdderModalHeaderTitle>
+                      {addBoardModalTitle}
+                    </BoardAdderModalHeaderTitle>
+                  }
+                  footer={[
+                    <Button key="submit" type="primary" onClick={() => {}}>
+                      Submit
+                    </Button>,
+                    <Button key="back" onClick={closeModalHandler}>
+                      Cancel
+                    </Button>,
+                  ]}
+                  onOk={() => {}}
+                  onCancel={closeModalHandler}
+                >
+                  <BoardAdderModalBody>
+                    <BoardAdderModalBodyTextArea
+                      ref={refBoardAdderTextArea}
+                      rows={2}
+                      onEditStart={onEditStart}
+                      onEditCancel={onEditCancel}
+                      onEditChange={onEditChange}
+                      onEditFinish={onEditFinish}
+                    />
+                  </BoardAdderModalBody>
+                </Modal>
                 <BoardListDropPreviewArea
                   isDraggingOver={droppableStateSnapshot.isDraggingOver}
                 >

@@ -1,6 +1,6 @@
 import { useCallback, useImperativeHandle, useRef, useState } from "react";
 import { styled } from "styled-components";
-import { Input } from "antd";
+import { Input, Modal } from "antd";
 import { TextAreaRef } from "antd/es/input/TextArea";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
@@ -25,10 +25,10 @@ const TextAreaBase = styled(AntdTextArea)`
     &:focus-within {
       outline: none;
       box-shadow: none;
-    }
 
-    &:not([readonly]) {
-      outline: 2px solid yellow;
+      &:not([readonly]) {
+        outline: 2px solid black;
+      }
     }
   }
 `;
@@ -112,7 +112,7 @@ export const TextArea = withMemoAndRef<
   Component: (
     {
       value = "",
-      isEditMode = false,
+      isEditMode = true,
       alertMessageOnEditStart: _alertMessageOnEditStart,
       onEditStart,
       onEditCancel,
@@ -134,7 +134,7 @@ export const TextArea = withMemoAndRef<
 
     // https://stackoverflow.com/a/3169849/11941803
     const resetTextSelectionRange = useCallback(() => {
-      console.log("[resetTextSelectionRange]");
+      // console.log("[resetTextSelectionRange]");
       if (!window) {
         return;
       }
@@ -188,31 +188,36 @@ export const TextArea = withMemoAndRef<
         setStateIsEditMode({
           newStateOrSetStateAction: true,
           cb: () => {
-            if (!refBase.current) {
-              return;
-            }
             if (alertMessageOnEditStart !== null) {
               alert(alertMessageOnEditStart);
+              // alert(alertMessageOnEditStart);
+            }
+
+            setTimeout(() => {
+              if (!refBase.current) {
+                return;
+              }
 
               refBase.current.focus({ cursor: "all" });
+              // refBase.current?.resizableTextArea?.textArea.focus();
+              // refBase.current?.resizableTextArea?.textArea.select();
+              // refBase.current?.resizableTextArea?.textArea.focus();
 
               // Delay execution to prevent interference. For example, `focus` event.
               // Introduce a small delay before execution using a setTimeout.
               // cf> https://stackoverflow.com/a/53702815/11941803
-              setTimeout(() =>
-                refBase.current?.resizableTextArea?.textArea.addEventListener(
-                  "blur",
-                  editCancelHandler,
-                  {
-                    once: true,
-                  },
-                ),
+              refBase.current.resizableTextArea?.textArea.addEventListener(
+                "blur",
+                editCancelHandler,
+                {
+                  once: true,
+                },
               );
-            }
 
-            onEditStart?.({
-              textAreaHandle: refBase.current,
-            });
+              onEditStart?.({
+                textAreaHandle: refBase.current,
+              });
+            }, 1);
           },
         });
       },
@@ -294,18 +299,21 @@ export const TextArea = withMemoAndRef<
     });
 
     return (
-      <TextAreaBase
-        ref={refBase}
-        value={stateValue}
-        // autoFocus
-        autoSize
-        readOnly={!stateIsEditMode}
-        onClick={editEnableHandler}
-        onKeyDown={editKeyDownHandler}
-        onChange={editChangeHandler}
-        onBlur={resetTextSelectionRange}
-        {...otherProps}
-      />
+      <>
+        <TextAreaBase
+          ref={refBase}
+          value={stateValue}
+          // autoFocus
+          autoSize
+          readOnly={!stateIsEditMode}
+          onClick={editEnableHandler}
+          onKeyDown={editKeyDownHandler}
+          onChange={editChangeHandler}
+          onBlur={resetTextSelectionRange}
+          {...otherProps}
+        />
+        {/* <Modal></Modal> */}
+      </>
     );
   },
 });
@@ -322,7 +330,7 @@ export type UseTextAreaParams = SmartMerge<
 
 export const useTextArea = (params?: UseTextAreaParams) => {
   const {
-    initialIsEditMode = false,
+    initialIsEditMode = true,
     onEditModeChange,
     onEditStart: _onEditStart,
     onEditCancel: _onEditCancel,

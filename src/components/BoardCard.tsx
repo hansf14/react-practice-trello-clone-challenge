@@ -241,6 +241,7 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
       onEditChange,
       onEditFinish,
     } = useTextArea({
+      initialIsEditMode: false,
       onEditStart: _onEditStart,
       onEditCancel: _onEditCancel,
       onEditChange: _onEditChange,
@@ -301,6 +302,7 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
             >
               <BoardCardContentTextArea
                 ref={refCardContentTextArea}
+                isEditMode={isEditMode}
                 value={childItem.content}
                 alertMessageOnEditStart={alertMessageOnEditStart}
                 onEditStart={onEditStart}
