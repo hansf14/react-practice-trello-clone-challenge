@@ -4,6 +4,7 @@ export type GetCssScrollbarParams = {
   width?: string;
   height?: string;
   border?: string;
+  borderRadius?: string;
   outline?: string;
   margin?: string;
   thumbBackground?: string;
@@ -15,6 +16,7 @@ export const getCssScrollbar = (params?: GetCssScrollbarParams) => {
     width = "10px",
     height = "10px",
     border = "1px solid white",
+    borderRadius = "none",
     outline = "none",
     margin = "0",
     thumbBackground = "#ccc",
@@ -27,8 +29,6 @@ export const getCssScrollbar = (params?: GetCssScrollbarParams) => {
       &::-webkit-scrollbar {
         width: ${width};
         height: ${height};
-        border: ${border};
-        outline: ${outline};
         // Add margin if outline is set.
         margin: ${margin};
       }
@@ -37,6 +37,9 @@ export const getCssScrollbar = (params?: GetCssScrollbarParams) => {
       }
       &::-webkit-scrollbar-track {
         background: ${trackBackground};
+        border: ${border};
+        borderradius: ${borderRadius};
+        outline: ${outline};
       }
 
       /* &::-webkit-scrollbar:horizontal {

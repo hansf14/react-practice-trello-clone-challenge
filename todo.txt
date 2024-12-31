@@ -8,10 +8,10 @@
 - Board update finish button
 - TaskAdder task 추가
 3. 쓰레기통 - task, board 삭제기능 & 삭제버튼
-5. board 생성 할 수 있는 form
 2. 모든 task state를 local storage에 저장 및 로드, 그리고 local storage 비우는 기능
-3. Hide drag handle on edit mode
-3. BoardHeader textarea scrollbar에는 border-radius 넣기
+- board 생성 할 수 있는 form
+- Hide drag handle on edit mode
+- BoardHeader textarea scrollbar에는 border-radius 넣기
 - Card remove
 - Card update finish button
 - Edit focus 풀리면 text selection range 초기화 시키기

@@ -44,7 +44,12 @@ import {
 import { useRfd } from "@/hooks/useRfd";
 import { PlusCircleFilled } from "@ant-design/icons";
 import { Button, Modal } from "antd";
-import { TextArea, TextAreaHandle, useTextArea } from "@/components/TextArea";
+import {
+  OnEditFinish,
+  TextArea,
+  TextAreaHandle,
+  useTextArea,
+} from "@/components/TextArea";
 import { useAntdModal } from "@/hooks/useAntdModal";
 
 const BoardListBase = styled.div`
@@ -85,7 +90,7 @@ const BoardAdderIcon = styled(PlusCircleFilled)`
 `;
 
 const BoardAdderModalHeaderTitle = styled.div`
-  margin-bottom: 25px;
+  margin-bottom: 20px;
 `;
 
 const BoardAdderModalBody = styled.div`
@@ -94,7 +99,11 @@ const BoardAdderModalBody = styled.div`
   background-color: rgb(212, 238, 236, 0.5);
 `;
 
-const BoardAdderModalBodyTextArea = styled(TextArea)``;
+const BoardAdderModalBodyTextArea = styled(TextArea)`
+  &&& {
+    max-height: 74px;
+  }
+`;
 
 type BoardListDropPreviewAreaProps = {
   isDraggingOver?: boolean;
@@ -484,7 +493,10 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
     }, [closeModalFixup]);
 
     const {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       isEditMode,
+      value: stateBoardTitle,
+      setValue: setStateBoardTitle,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       enableEditMode,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -499,30 +511,44 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       initialIsEditMode: false,
     });
 
-    // const onAddBoard = useCallback<On>(
-    //   (event) => {
-    //     setStateBoardListContext((curBoardListContext) => {
-    //       const newBoardListContextIndexer = new BoardListContextIndexer(
-    //         curBoardListContext.indexer,
-    //       );
-    //       const newParentItem = {
-    //         id: generateUniqueRandomId(),
-    //         title: value,
-    //         items: []
-    //       } satisfies ParentItem;
-    //       newBoardListContextIndexer.createParent({
-    //         parent:newParentItem,
-    //         shouldAppend: false,
-    //         shouldKeepRef: false,
-    //       });
-    //       return {
-    //         boardListId,
-    //         indexer: newBoardListContextIndexer,
-    //       };
-    //     });
-    //   },
-    //   [boardListId, setStateBoardListContext],
-    // );
+    const onAddBoard = useCallback<React.MouseEventHandler<HTMLElement>>(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (event) => {
+        setStateBoardListContext((curBoardListContext) => {
+          if (!refBoardAdderTextArea.current) {
+            return curBoardListContext;
+          }
+
+          const newBoardListContextIndexer = new BoardListContextIndexer(
+            curBoardListContext.indexer,
+          );
+          const newParentItem = {
+            id: generateUniqueRandomId(),
+            title: refBoardAdderTextArea.current.value,
+            items: [],
+          } satisfies ParentItem;
+          newBoardListContextIndexer.createParent({
+            parent: newParentItem,
+            shouldAppend: false,
+            shouldKeepRef: false,
+          });
+          return {
+            boardListId,
+            indexer: newBoardListContextIndexer,
+          };
+        });
+
+        // if (refBoardAdderTextArea.current?.resizableTextArea?.textArea) {
+        //   refBoardAdderTextArea.current.value = ""; // Not works (because it's a state value)
+        //   refBoardAdderTextArea.current.resizableTextArea.textArea.value = ""; // Not works (because it's a state value)
+        // }
+
+        setStateBoardTitle("");
+        closeModal();
+      },
+      [boardListId, setStateBoardListContext, setStateBoardTitle, closeModal],
+    );
+    console.log(stateBoardTitle);
 
     const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
@@ -576,7 +602,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                     </BoardAdderModalHeaderTitle>
                   }
                   footer={[
-                    <Button key="submit" type="primary" onClick={() => {}}>
+                    <Button key="submit" type="primary" onClick={onAddBoard}>
                       Submit
                     </Button>,
                     <Button key="back" onClick={closeModal}>
@@ -589,6 +615,7 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                     <BoardAdderModalBodyTextArea
                       ref={refBoardAdderTextArea}
                       rows={2}
+                      value={stateBoardTitle}
                       onEditStart={onEditStart}
                       onEditCancel={onEditCancel}
                       onEditChange={onEditChange}

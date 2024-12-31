@@ -20,6 +20,7 @@ import {
 } from "@/components/TextArea";
 import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { useRfd } from "@/hooks/useRfd";
+import { useClickAway } from "react-use";
 
 const BoardHeaderBase = styled.div``;
 
@@ -84,6 +85,10 @@ const BoardHeaderTitleTextArea = styled(TextArea)`
 
     min-height: 81px;
     max-height: 116px;
+
+    &::-webkit-scrollbar-track {
+      border-radius: 0 3px 3px 0;
+    }
   }
 `;
 
@@ -231,7 +236,7 @@ export const BoardHeader = withMemoAndRef<
     });
 
     const onFinishEdit = useCallback(() => {
-      // console.log("[onFinishEdit]", refBoardHeaderTitleTextArea.current);
+      console.log("[onFinishEdit]", refBoardHeaderTitleTextArea.current);
       if (!refBoardHeaderTitleTextArea.current) {
         return;
       }
@@ -239,18 +244,21 @@ export const BoardHeader = withMemoAndRef<
     }, []);
 
     const onEditCancel = useCallback(() => {
-      // console.log("[onEditCancel]", refBoardHeaderTitleTextArea.current);
+      console.log("[onEditCancel]", refBoardHeaderTitleTextArea.current);
       if (!refBoardHeaderTitleTextArea.current) {
         return;
       }
       refBoardHeaderTitleTextArea.current.dispatchEditCancel();
     }, []);
 
-    const onBlur = useCallback(() => {
+    const onClickAway = useCallback(() => {
       if (isEditMode) {
+        // console.log("[onBlur]");
         onEditCancel();
       }
     }, [isEditMode, onEditCancel]);
+
+    useClickAway(refBoardHeaderTitle, onClickAway, ["click"]);
 
     const alertMessageOnRemoveBoard =
       typeof _alertMessageOnRemoveBoard === "undefined"
@@ -279,7 +287,7 @@ export const BoardHeader = withMemoAndRef<
 
     return (
       <BoardHeaderBase ref={refBase} {...otherProps}>
-        <BoardHeaderTitle ref={refBoardHeaderTitle} onBlur={onBlur}>
+        <BoardHeaderTitle ref={refBoardHeaderTitle}>
           {isEditMode && (
             <BoardHeaderTitleEditControllers>
               <BoardHeaderTitleEditFinishButton onClick={onFinishEdit} />
@@ -297,17 +305,19 @@ export const BoardHeader = withMemoAndRef<
             onEditFinish={_onEditFinish}
             onEditKeyDown={_onEditKeyDown}
           />
-          <BoardHeaderBoardControllers>
-            <BoardHeaderDragHandle
-              ref={refBoardHeaderDragHandle}
-              boardListId={boardListId}
-              parentItemId={parentItem.id}
-              onPointerDown={fixRfdBlurBugOnDragHandle}
-              {...draggableDragHandleProps}
-              {...draggableHandleCustomAttributes}
-            />
-            <BoardHeaderBoardRemoveButton onPointerDown={onRemoveBoard} />
-          </BoardHeaderBoardControllers>
+          {!isEditMode && (
+            <BoardHeaderBoardControllers>
+              <BoardHeaderDragHandle
+                ref={refBoardHeaderDragHandle}
+                boardListId={boardListId}
+                parentItemId={parentItem.id}
+                onPointerDown={fixRfdBlurBugOnDragHandle}
+                {...draggableDragHandleProps}
+                {...draggableHandleCustomAttributes}
+              />
+              <BoardHeaderBoardRemoveButton onPointerDown={onRemoveBoard} />
+            </BoardHeaderBoardControllers>
+          )}
         </BoardHeaderTitle>
       </BoardHeaderBase>
     );

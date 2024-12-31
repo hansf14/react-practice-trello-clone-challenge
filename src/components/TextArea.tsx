@@ -1,5 +1,6 @@
 import React, {
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -138,6 +139,9 @@ export const TextArea = withMemoAndRef<
         initialState: isEditMode,
       });
     const [stateValue, setStateValue] = useState<string>(value);
+    useEffect(() => {
+      setStateValue(value);
+    }, [value]);
     const refValueBackup = useRef<string>(value);
 
     const refBase = useRef<TextAreaHandle | null>(null);
@@ -400,6 +404,7 @@ export const useTextArea = (params?: UseTextAreaParams) => {
 
   const [stateIsEditMode, setStateIsEditMode] =
     useState<boolean>(initialIsEditMode);
+  const [stateValue, setStateValue] = useState<string>("");
 
   const enableEditMode = useCallback(() => {
     setStateIsEditMode(true);
@@ -443,6 +448,7 @@ export const useTextArea = (params?: UseTextAreaParams) => {
 
   const onEditChange = useCallback<OnEditChange>(
     ({ textAreaHandle, event, oldValue, newValue }) => {
+      setStateValue(newValue);
       _onEditChange?.({
         textAreaHandle,
         event,
@@ -455,6 +461,7 @@ export const useTextArea = (params?: UseTextAreaParams) => {
 
   const onEditFinish = useCallback<OnEditFinish>(
     ({ textAreaHandle, oldValue, newValue }) => {
+      setStateValue(newValue);
       _onEditFinish?.({ textAreaHandle, oldValue, newValue });
       disableEditMode();
     },
@@ -463,6 +470,8 @@ export const useTextArea = (params?: UseTextAreaParams) => {
 
   return {
     isEditMode: stateIsEditMode,
+    value: stateValue,
+    setValue: setStateValue,
     enableEditMode,
     disableEditMode,
     toggleEditMode,

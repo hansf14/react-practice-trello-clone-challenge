@@ -21,6 +21,7 @@ import {
 } from "@/components/TextArea";
 import { Draggable } from "@hello-pangea/dnd";
 import { useRfd } from "@/hooks/useRfd";
+import { useClickAway } from "react-use";
 
 type BoardCardBaseProps = {
   isDragging?: boolean;
@@ -64,6 +65,8 @@ const BoardCardControllers = styled.div`
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
+
+  height: 30px;
 `;
 
 const BoardCardDragHandleBase = styled.div`
@@ -77,9 +80,10 @@ const BoardCardDragHandleIcon = styled(GripVertical)`
 `;
 
 const BoardCardEditControllers = styled.div`
+  grid-column: 1 / -1;
+  width: 100%;
   display: flex;
-  justify-content: center;
-  gap: 5px;
+  justify-content: space-between;
 `;
 
 const BoardCardEditFinishButton = styled(CheckLg)`
@@ -263,11 +267,14 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
       refCardContentTextArea.current.dispatchEditCancel();
     }, []);
 
-    const onBlur = useCallback(() => {
+    const onClickAway = useCallback(() => {
       if (isEditMode) {
+        // console.log("[onBlur]");
         onEditCancelHandler();
       }
     }, [isEditMode, onEditCancelHandler]);
+
+    useClickAway(refBase, onClickAway, ["click"]);
 
     return (
       <Draggable
@@ -290,7 +297,6 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
                 draggableProvidedInnerRef: draggableProvided.innerRef,
               })}
               isDragging={draggableStateSnapshot.isDragging}
-              onBlur={onBlur}
               {...draggableProvided.draggableProps}
               {...draggableCustomAttributes}
               {...otherProps}
@@ -307,24 +313,24 @@ export const BoardCard = withMemoAndRef<"div", HTMLDivElement, BoardCardProps>({
                 onEditKeyDown={onEditKeyDown}
               />
               <BoardCardControllers>
-                <BoardCardDragHandle
-                  boardListId={boardListId}
-                  childItemId={childItem.id}
-                  onPointerDown={fixRfdBlurBugOnDragHandle}
-                  {...draggableProvided.dragHandleProps}
-                  {...draggableHandleCustomAttributes}
-                />
+                {!isEditMode && (
+                  <BoardCardDragHandle
+                    boardListId={boardListId}
+                    childItemId={childItem.id}
+                    onPointerDown={fixRfdBlurBugOnDragHandle}
+                    {...draggableProvided.dragHandleProps}
+                    {...draggableHandleCustomAttributes}
+                  />
+                )}
                 {isEditMode && (
                   <BoardCardEditControllers>
-                    <BoardCardEditFinishButton
-                      onPointerDown={onFinishEditHandler} // Should use `onPointerDown`, not `onClick`. Because seems like the antd component TextArea uses stopPropagation under-the-hood on click
-                    />
-                    <BoardCardEditCancelButton
-                      onPointerDown={onEditCancelHandler}
-                    />
+                    <BoardCardEditFinishButton onClick={onFinishEditHandler} />
+                    <BoardCardEditCancelButton onClick={onEditCancelHandler} />
                   </BoardCardEditControllers>
                 )}
-                <BoardCardRemoveButton onClick={onRemoveCard} />
+                {!isEditMode && (
+                  <BoardCardRemoveButton onClick={onRemoveCard} />
+                )}
               </BoardCardControllers>
             </BoardCardBase>
           );

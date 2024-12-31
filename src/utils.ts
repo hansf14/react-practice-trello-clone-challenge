@@ -464,6 +464,7 @@ export function getEmptyArray<T>() {
   return emptyArray as T[];
 }
 
+// Not being used and only applicable to string[], so abandoned but is worth refer to.
 const memoizedArrayMap = new MultiMap<string[], unknown>();
 export function getMemoizedArray<T, R extends string>({
   arr,
