@@ -268,6 +268,8 @@ const recoilKeys = createKeyValueMapping({
   arr: ["boardListContextAtomFamily"],
 });
 
+export type ItemType = "parent" | "child";
+
 export type ParentItem = SmartMerge<
   NestedIndexerBaseItem & {
     title: string;

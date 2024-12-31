@@ -130,6 +130,7 @@ export const Board = withMemoAndRef<"div", HTMLDivElement, BoardProps>({
       >
         {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
         {(draggableProvided, draggableStateSnapshot, draggableRubric) => {
+          // console.log(draggableStateSnapshot.draggingOver); // trash-can-parent
           return (
             <BoardBase
               ref={cbRefForDraggable({

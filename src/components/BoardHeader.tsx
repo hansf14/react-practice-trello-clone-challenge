@@ -236,7 +236,7 @@ export const BoardHeader = withMemoAndRef<
     });
 
     const onFinishEdit = useCallback(() => {
-      console.log("[onFinishEdit]", refBoardHeaderTitleTextArea.current);
+      // console.log("[onFinishEdit]", refBoardHeaderTitleTextArea.current);
       if (!refBoardHeaderTitleTextArea.current) {
         return;
       }
@@ -244,7 +244,7 @@ export const BoardHeader = withMemoAndRef<
     }, []);
 
     const onEditCancel = useCallback(() => {
-      console.log("[onEditCancel]", refBoardHeaderTitleTextArea.current);
+      // console.log("[onEditCancel]", refBoardHeaderTitleTextArea.current);
       if (!refBoardHeaderTitleTextArea.current) {
         return;
       }

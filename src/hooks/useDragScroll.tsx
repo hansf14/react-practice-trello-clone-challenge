@@ -315,7 +315,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
     (event: TouchEvent) => {
       const isTouchDevice = getIsTouchDevice();
       if (isTouchDevice && isDragging) {
-        console.log("[preventDefaultScrollOnDragInTouchDevice]");
+        // console.log("[preventDefaultScrollOnDragInTouchDevice]");
         event.preventDefault();
       }
     },
@@ -326,7 +326,7 @@ export const useDragScroll = ({ isDragging }: { isDragging: boolean }) => {
     (event: MouseEvent) => {
       const isTouchDevice = getIsTouchDevice();
       if (isTouchDevice && isDragging) {
-        console.log("[preventContextMenuAndWheelOnDrag]");
+        // console.log("[preventContextMenuAndWheelOnDrag]");
         event.preventDefault();
       }
     },
