@@ -65,188 +65,72 @@ const BoardListControllers = styled.div`
   gap: 25px;
 `;
 
-const BoardAdder = styled.div`
-  position: relative;
-  cursor: pointer;
-
-  &::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border: 3px solid white;
-    border-radius: 50%;
-
-    pointer-events: none;
-  }
-`;
-
-const BoardAdderIcon = styled(PlusCircleFilled)`
-  width: 60px;
-  height: 60px;
-  font-size: 60px;
-  color: #157a6b;
-
-  clip-path: circle(47%);
-  background-color: #111;
-`;
-
-// const TrashCanParentDropZone = styled.div``;
-
-// const TrashCanChildDropZone = styled.div``;
-
-// const TrashCan = styled.div`
-//   transform-style: preserve-3d;
-//   position: relative;
-//   cursor: pointer;
-//   width: 60px;
-//   height: 60px;
-
-//   &::before {
-//     content: "";
-//     position: absolute;
-//     top: 0;
-//     left: 0;
-//     right: 0;
-//     bottom: 0;
-//     border: 3px solid white;
-//     border-radius: 50%;
-//     background-color: orange;
-
-//     pointer-events: none;
-//   }
-// `;
-
-// const TrashCanIcon = styled(Trash3Fill)`
-//   transform: translate3d(-50%, -50%, 10px);
-//   width: 40px;
-//   height: 40px;
-//   color: #111;
-
-//   position: absolute;
-//   top: 50%;
-//   left: 50%;
-// `;
-
-const SaveCurrentBoardListLocalStorage = styled.div`
+const cssBoardListButton = css`
   transform-style: preserve-3d;
-  position: relative;
   cursor: pointer;
+
   width: 60px;
   height: 60px;
-
   display: flex;
   justify-content: center;
   align-items: center;
 
   border-radius: 50%;
-  background: linear-gradient(145deg, #ffffff, #e0f3e0);
-  // box-shadow: 0 8px 16px 0 rgba(31, 38, 135, 0.37);
-  box-shadow: 
-    5px 5px 10px rgba(0, 0, 0, 0.3),
-    -1px -1px 10px rgba(255, 255, 255, 0.5);
+  background: transparent;
+  box-shadow:
+    -1px -1px 3px white,
+    1px 1px 3px black;
   transition: all 0.2s ease-in-out;
 
   &:active {
-    box-shadow: 
-      inset 5px 5px 10px rgba(0, 0, 0, 0.2),
-      inset -5px -5px 10px rgba(255, 255, 255, 0.5);
+    box-shadow:
+      -1px -1px 3px white,
+      1px 1px 3px black,
+      inset -1px -1px 3px white,
+      inset 1px 1px 3px black;
     transform: scale(0.94);
   }
+`;
 
-  &::before {
-    content: "";
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    right: 4px;
-    bottom: 4px;
+const BoardAdder = styled.div`
+  ${cssBoardListButton}
+`;
 
-    border-radius: 50%;
-    background: linear-gradient(145deg, #e0f3e0, rgb(122, 240, 132));
-
-    pointer-events: none;
+const BoardAdderIcon = styled(PlusCircleFilled)`
+  transform: translateZ(10px);
+  svg {
+    width: 30px;
+    height: 30px;
   }
+
+  color: white;
+  filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));
+`;
+
+const SaveCurrentBoardListLocalStorage = styled.div`
+  ${cssBoardListButton}
 `;
 
 const SaveCurrentBoardListLocalStorageIcon = styled(Floppy2Fill)`
   transform: translateZ(10px);
   width: 30px;
   height: 30px;
-  color: #111;
 
-  // Slight glow effect for skeuomorphic polish
+  color: #a8ffcf;
   filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));
 `;
 
-// const SaveCurrentBoardListLocalStorage = styled.div`
-//   transform-style: preserve-3d;
-//   position: relative;
-//   cursor: pointer;
-//   width: 60px;
-//   height: 60px;
-
-//   display: flex;
-//   justify-content: center;
-//   align-items: center;
-
-//   &::before {
-//     content: "";
-//     position: absolute;
-//     top: 0;
-//     left: 0;
-//     right: 0;
-//     bottom: 0;
-//     border: 3px solid #fff;
-//     border-radius: 50%;
-
-//     background-color: rgb(141, 241, 150);
-//     box-shadow: 0px 5px 15px 0px rgb(141, 241, 150, 0.37);
-
-//     pointer-events: none;
-//   }
-// `;
-
-// const SaveCurrentBoardListLocalStorageIcon = styled(Floppy2Fill)`
-//   transform: translateZ(10px);
-//   width: 30px;
-//   height: 30px;
-//   color: #111;
-// `;
-
 const ResetCurrentBoardListLocalStorage = styled.div`
-  transform-style: preserve-3d;
-  position: relative;
-  cursor: pointer;
-  width: 60px;
-  height: 60px;
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  &::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border: 3px solid white;
-    border-radius: 50%;
-    background-color: red;
-
-    pointer-events: none;
-  }
+  ${cssBoardListButton}
 `;
 
 const ResetCurrentBoardListLocalStorageIconBase = styled.svg`
   transform: translateZ(10px);
-  width: 40px;
-  height: 40px;
-  fill: #111;
+  width: 30px;
+  height: 30px;
+
+  fill: red;
+  filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));
 `;
 
 const ResetCurrentBoardListLocalStorageIcon = () => {
@@ -926,6 +810,43 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
 // )
 
 // * TrashCan
+// const TrashCanParentDropZone = styled.div``;
+
+// const TrashCanChildDropZone = styled.div``;
+
+// const TrashCan = styled.div`
+//   transform-style: preserve-3d;
+//   position: relative;
+//   cursor: pointer;
+//   width: 60px;
+//   height: 60px;
+
+//   &::before {
+//     content: "";
+//     position: absolute;
+//     top: 0;
+//     left: 0;
+//     right: 0;
+//     bottom: 0;
+//     border: 3px solid white;
+//     border-radius: 50%;
+//     background-color: orange;
+
+//     pointer-events: none;
+//   }
+// `;
+
+// const TrashCanIcon = styled(Trash3Fill)`
+//   transform: translate3d(-50%, -50%, 10px);
+//   width: 40px;
+//   height: 40px;
+//   color: #111;
+
+//   position: absolute;
+//   top: 50%;
+//   left: 50%;
+// `;
+
 // <Droppable
 // droppableId="trash-can-parent"
 // direction="horizontal"
