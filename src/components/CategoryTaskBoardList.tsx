@@ -110,7 +110,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
               newBoardListContextIndexer.updateChild({
                 oldChildId: childItem.id,
                 newChild: {
-                  id: childItem.id,
+                  ...childItem,
                   content: newValue,
                 },
                 shouldKeepRef: false,
@@ -252,6 +252,12 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       [],
     );
 
+    const alertMessageOnClearChildItems =
+      "Are you sure you want to remove all the tasks from this task category?";
+
+    const alertMessageOnAddChildItem =
+      "Would you like to add a task to this task category?";
+
     console.log(stateBoardListContext);
 
     return (
@@ -307,6 +313,10 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
                       boardListId={boardListId}
                       parentItem={parentItem}
                       direction="vertical"
+                      alertMessageOnClearChildItems={
+                        alertMessageOnClearChildItems
+                      }
+                      alertMessageOnAddChildItem={alertMessageOnAddChildItem}
                       onClearChildItems={onClearChildItems}
                       onAddChildItemSuccess={onAddChildItemSuccess}
                     >

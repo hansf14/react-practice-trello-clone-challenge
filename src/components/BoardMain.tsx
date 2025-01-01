@@ -181,6 +181,7 @@ export type OnClearChildItems = ({
   parentItemId,
 }: {
   parentItemId: string;
+  alertMessage?: string | null;
 }) => void;
 
 export type OnAddChildItem = ({
@@ -189,12 +190,15 @@ export type OnAddChildItem = ({
 }: {
   parentItemId: string;
   value: string;
+  alertMessage?: string | null;
 }) => void;
 
 export type BoardMainProps = {
   boardListId: string;
   parentItem: ParentItem;
   direction: "horizontal" | "vertical";
+  alertMessageOnClearChildItems?: string | null;
+  alertMessageOnAddChildItem?: string | null;
   childItemAdderInputScrollDownStepSize?: number;
   childItemAdderInputScrollDownBehavior?: ScrollBehavior;
   childItemAdderInputScrollUpStepSize?: number;
@@ -210,6 +214,8 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
       boardListId,
       parentItem,
       direction,
+      alertMessageOnClearChildItems = "Are you sure you want to remove all the cards from this board?",
+      alertMessageOnAddChildItem = "Would you like to add a card to this board?",
       childItemAdderInputScrollDownStepSize = 22,
       childItemAdderInputScrollDownBehavior = "smooth",
       childItemAdderInputScrollUpStepSize = 22,
@@ -258,9 +264,15 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
     const onClearChildItems = useCallback<React.MouseEventHandler<SVGElement>>(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (event) => {
+        if (alertMessageOnClearChildItems !== null) {
+          const result = confirm(alertMessageOnClearChildItems);
+          if (!result) {
+            return;
+          }
+        }
         _onClearChildItems?.({ parentItemId: parentItem.id });
       },
-      [parentItem.id, _onClearChildItems],
+      [parentItem.id, alertMessageOnClearChildItems, _onClearChildItems],
     );
 
     const {
@@ -292,7 +304,7 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
           fn: (event?: React.MouseEvent<SVGElement>) => {
             const { shouldUseAlert = true } = params ?? {};
             if (shouldUseAlert) {
-              const result = confirm("Do you want to clear the input?");
+              const result = confirm("Would you like to clear the input?");
               if (!result) {
                 return;
               }
@@ -330,6 +342,12 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
       (data: FormData, event) => {
         // console.log(data.childItemContent);
 
+        if (alertMessageOnAddChildItem !== null) {
+          const result = confirm(alertMessageOnAddChildItem);
+          if (!result) {
+            return;
+          }
+        }
         _onAddChildItemSuccess?.({
           parentItemId: parentItem.id,
           value: data.childItemContent,
@@ -337,7 +355,12 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
 
         onClearChildItemInput({ shouldUseAlert: false })();
       },
-      [parentItem.id, _onAddChildItemSuccess, onClearChildItemInput],
+      [
+        parentItem.id,
+        alertMessageOnAddChildItem,
+        _onAddChildItemSuccess,
+        onClearChildItemInput,
+      ],
     );
 
     const onChangeChildItemInput = useCallback<

@@ -29,6 +29,7 @@ import {
   useBoardListContext,
   DraggablesContainerCustomAttributesKvObj,
   ParentItem,
+  recoilKeys,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
@@ -66,6 +67,7 @@ const BoardListControllers = styled.div`
 
 const BoardAdder = styled.div`
   position: relative;
+  cursor: pointer;
 
   &::after {
     content: "";
@@ -86,7 +88,6 @@ const BoardAdderIcon = styled(PlusCircleFilled)`
   height: 60px;
   font-size: 60px;
   color: #157a6b;
-  cursor: pointer;
 
   clip-path: circle(47%);
   background-color: #111;
@@ -99,6 +100,7 @@ const BoardAdderIcon = styled(PlusCircleFilled)`
 // const TrashCan = styled.div`
 //   transform-style: preserve-3d;
 //   position: relative;
+//   cursor: pointer;
 //   width: 60px;
 //   height: 60px;
 
@@ -128,9 +130,10 @@ const BoardAdderIcon = styled(PlusCircleFilled)`
 //   left: 50%;
 // `;
 
-const SaveAll = styled.div`
+const SaveCurrentBoardListLocalStorage = styled.div`
   transform-style: preserve-3d;
   position: relative;
+  cursor: pointer;
   width: 60px;
   height: 60px;
 
@@ -138,31 +141,85 @@ const SaveAll = styled.div`
   justify-content: center;
   align-items: center;
 
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffffff, #e0f3e0);
+  // box-shadow: 0 8px 16px 0 rgba(31, 38, 135, 0.37);
+  box-shadow: 
+    5px 5px 10px rgba(0, 0, 0, 0.3),
+    -1px -1px 10px rgba(255, 255, 255, 0.5);
+  transition: all 0.2s ease-in-out;
+
+  &:active {
+    box-shadow: 
+      inset 5px 5px 10px rgba(0, 0, 0, 0.2),
+      inset -5px -5px 10px rgba(255, 255, 255, 0.5);
+    transform: scale(0.94);
+  }
+
   &::before {
     content: "";
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border: 3px solid white;
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+
     border-radius: 50%;
-    background-color: #61f06d;
+    background: linear-gradient(145deg, #e0f3e0, rgb(122, 240, 132));
 
     pointer-events: none;
   }
 `;
 
-const SaveAllIcon = styled(Floppy2Fill)`
+const SaveCurrentBoardListLocalStorageIcon = styled(Floppy2Fill)`
   transform: translateZ(10px);
-  width: 35px;
-  height: 35px;
+  width: 30px;
+  height: 30px;
   color: #111;
+
+  // Slight glow effect for skeuomorphic polish
+  filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));
 `;
 
-const ResetLocalStorage = styled.div`
+// const SaveCurrentBoardListLocalStorage = styled.div`
+//   transform-style: preserve-3d;
+//   position: relative;
+//   cursor: pointer;
+//   width: 60px;
+//   height: 60px;
+
+//   display: flex;
+//   justify-content: center;
+//   align-items: center;
+
+//   &::before {
+//     content: "";
+//     position: absolute;
+//     top: 0;
+//     left: 0;
+//     right: 0;
+//     bottom: 0;
+//     border: 3px solid #fff;
+//     border-radius: 50%;
+
+//     background-color: rgb(141, 241, 150);
+//     box-shadow: 0px 5px 15px 0px rgb(141, 241, 150, 0.37);
+
+//     pointer-events: none;
+//   }
+// `;
+
+// const SaveCurrentBoardListLocalStorageIcon = styled(Floppy2Fill)`
+//   transform: translateZ(10px);
+//   width: 30px;
+//   height: 30px;
+//   color: #111;
+// `;
+
+const ResetCurrentBoardListLocalStorage = styled.div`
   transform-style: preserve-3d;
   position: relative;
+  cursor: pointer;
   width: 60px;
   height: 60px;
 
@@ -185,21 +242,21 @@ const ResetLocalStorage = styled.div`
   }
 `;
 
-const ResetLocalStorageIconBase = styled.svg`
+const ResetCurrentBoardListLocalStorageIconBase = styled.svg`
   transform: translateZ(10px);
   width: 40px;
   height: 40px;
   fill: #111;
 `;
 
-const ResetLocalStorageIcon = () => {
+const ResetCurrentBoardListLocalStorageIcon = () => {
   return (
-    <ResetLocalStorageIconBase
+    <ResetCurrentBoardListLocalStorageIconBase
       viewBox="0 0 512 512"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path d="M390.5 144.1l12.83-12.83c6.25-6.25 6.25-16.37 0-22.62s-16.37-6.25-22.62 0L367.9 121.5l-35.24-35.17c-8.428-8.428-22.09-8.428-30.52 0l-22.58 22.58C257.2 100.7 233.2 96 208 96C93.13 96 0 189.1 0 304S93.13 512 208 512S416 418.9 416 304c0-25.18-4.703-49.21-12.9-71.55l22.58-22.58c8.428-8.428 8.428-22.09 0-30.52L390.5 144.1zM208 192C146.3 192 96 242.3 96 304C96 312.8 88.84 320 80 320S64 312.8 64 304C64 224.6 128.6 160 208 160C216.8 160 224 167.2 224 176S216.8 192 208 192zM509.1 59.21l-39.73-16.57L452.8 2.918c-1.955-3.932-7.652-3.803-9.543 0l-16.57 39.72l-39.73 16.57c-3.917 1.961-3.786 7.648 0 9.543l39.73 16.57l16.57 39.72c1.876 3.775 7.574 3.96 9.543 0l16.57-39.72l39.73-16.57C512.9 66.86 513 61.17 509.1 59.21z" />
-    </ResetLocalStorageIconBase>
+    </ResetCurrentBoardListLocalStorageIconBase>
   );
 };
 
@@ -684,6 +741,34 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
       [boardListId, setStateBoardListContext, setStateBoardTitle, closeModal],
     );
 
+    const saveCurrentBoardListLocalStorage = useCallback(() => {
+      const result = confirm(
+        "This will save all the current board data permanently at your device.\nWould you like to proceed?",
+      );
+      if (!result) {
+        return;
+      }
+
+      setStateBoardListContext((curBoardListContext) => {
+        return {
+          boardListId,
+          indexer: curBoardListContext.indexer,
+        };
+      });
+    }, [boardListId, setStateBoardListContext]);
+
+    const resetCurrentBoardListLocalStorage = useCallback(() => {
+      const result = confirm(
+        "This will remove all the currently saved board data and load with the default dummy data at the next load.\nThe only way to revert this is to click the green save button and confirm before your next load.\nAre you sure you want to proceed?",
+      );
+      if (!result) {
+        return;
+      }
+
+      const localStorageKey = `${recoilKeys["boardListContextAtomFamily"]}__${boardListId}__${parentKeyName}__${childKeyName}`;
+      localStorage.removeItem(localStorageKey);
+    }, [boardListId, parentKeyName, childKeyName]);
+
     const droppableCustomAttributes: DroppableCustomAttributesKvObj = {
       "data-board-list-id": boardListId,
       "data-droppable-id": boardListId,
@@ -728,12 +813,16 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
                   <BoardAdder onClick={openModal}>
                     <BoardAdderIcon />
                   </BoardAdder>
-                  <SaveAll>
-                    <SaveAllIcon />
-                  </SaveAll>
-                  <ResetLocalStorage>
-                    <ResetLocalStorageIcon />
-                  </ResetLocalStorage>
+                  <SaveCurrentBoardListLocalStorage>
+                    <SaveCurrentBoardListLocalStorageIcon
+                      onClick={saveCurrentBoardListLocalStorage}
+                    />
+                  </SaveCurrentBoardListLocalStorage>
+                  <ResetCurrentBoardListLocalStorage
+                    onClick={resetCurrentBoardListLocalStorage}
+                  >
+                    <ResetCurrentBoardListLocalStorageIcon />
+                  </ResetCurrentBoardListLocalStorage>
                 </BoardListControllers>
                 <Modal
                   // centered

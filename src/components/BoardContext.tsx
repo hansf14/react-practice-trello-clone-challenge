@@ -264,7 +264,7 @@ const { persistAtom } = recoilPersist({
   converter: JSON, // configure how values will be serialized/deserialized in storage
 });
 
-const recoilKeys = createKeyValueMapping({
+export const recoilKeys = createKeyValueMapping({
   arr: ["boardListContextAtomFamily"],
 });
 
@@ -342,6 +342,7 @@ export const boardListContextAtomFamily = atomFamily<
       //     console.error("Error parsing localStorage value:", error);
       //   }
       // }
+
       // Save value to localStorage whenever it changes
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       onSet((newValue, oldValue, isReset) => {
