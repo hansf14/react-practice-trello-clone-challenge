@@ -95,7 +95,7 @@ const ChildItemAdderInput = styled(TextArea)`
     resize: none;
     transition: none;
 
-    background-color: rgb(204, 221, 223);
+    background-color: white;
     color: black;
   }
 `;

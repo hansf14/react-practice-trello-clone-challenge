@@ -37,6 +37,15 @@ const BoardBase = styled.div.withConfig({
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.18);
 
+  // https://stackoverflow.com/a/15144988/11941803
+  -webkit-box-reflect: below
+    25px -webkit-linear-gradient(
+      bottom,
+      rgba(255, 255, 255, 0.3) 0%,
+      transparent 40%,
+      transparent 100%
+    );
+
   ${({ isDragging }) => {
     return css`
       ${(isDragging ?? false)

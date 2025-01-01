@@ -21,6 +21,7 @@
 - Card drop area
 - drag scroll fallback scroll container (html, body)
 - customAttributes를 리턴하는 함수 만들기
+1. drag start: drag position preview
 
 * 버그/사소한기능 해결/완료
 - 모바일(에뮬레이터 말고)에서 스크롤 laggy (delayed) => 해결 (Stats class 문제여서 사용 안 하기로 함)

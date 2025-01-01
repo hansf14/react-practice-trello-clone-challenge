@@ -129,7 +129,7 @@ const ResetCurrentBoardListLocalStorageIconBase = styled.svg`
   width: 30px;
   height: 30px;
 
-  fill: red;
+  fill: tomato;
   filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));
 `;
 
@@ -393,8 +393,15 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         // ㄴ Happens when I drag a BoardCard over the TrashCan
 
         setIsDragging(true);
+
+        const { source: src } = start;
+        showDragPositionPreview({
+          boardListId,
+          src,
+          dst: src,
+        });
       },
-      [],
+      [boardListId, showDragPositionPreview],
     );
 
     const onDragUpdate = useCallback<OnDragUpdateResponder>(

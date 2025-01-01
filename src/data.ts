@@ -43,26 +43,26 @@ export const defaultCategoryTaskItems: Category[] = [
         // text: "ToDo2",
         text: "7c1ff38e-d7de-4093-bcda-16fcfd1644d0",
       },
-      // {
-      //   id: "1288c3bd-5a96-46cd-8eb8-28d191f11da9",
-      //   // text: "ToDo3",
-      //   text: "1288c3bd-5a96-46cd-8eb8-28d191f11da9",
-      // },
-      // {
-      //   id: "16def70c-2057-4ad5-9261-cb833728f30a",
-      //   // text: "ToDo4",
-      //   text: "16def70c-2057-4ad5-9261-cb833728f30a",
-      // },
-      // {
-      //   id: "0cd50106-6130-4da0-b0a0-39e0496da2ca",
-      //   // text: "ToDo5",
-      //   text: "0cd50106-6130-4da0-b0a0-39e0496da2ca",
-      // },
-      // {
-      //   id: "5f3cf3e9-0a7a-4445-b571-74a1c64c996e",
-      //   // text: "ToDo6",
-      //   text: "5f3cf3e9-0a7a-4445-b571-74a1c64c996e",
-      // },
+      {
+        id: "1288c3bd-5a96-46cd-8eb8-28d191f11da9",
+        // text: "ToDo3",
+        text: "1288c3bd-5a96-46cd-8eb8-28d191f11da9",
+      },
+      {
+        id: "16def70c-2057-4ad5-9261-cb833728f30a",
+        // text: "ToDo4",
+        text: "16def70c-2057-4ad5-9261-cb833728f30a",
+      },
+      {
+        id: "0cd50106-6130-4da0-b0a0-39e0496da2ca",
+        // text: "ToDo5",
+        text: "0cd50106-6130-4da0-b0a0-39e0496da2ca",
+      },
+      {
+        id: "5f3cf3e9-0a7a-4445-b571-74a1c64c996e",
+        // text: "ToDo6",
+        text: "5f3cf3e9-0a7a-4445-b571-74a1c64c996e",
+      },
     ],
   },
   {
@@ -80,21 +80,21 @@ export const defaultCategoryTaskItems: Category[] = [
         // text: "Doing2",
         text: "087af1ed-4512-4e7e-a304-7d3e9514fb15",
       },
-      // {
-      //   id: "2de48379-73a6-4cc1-8663-baf47d12af9d",
-      //   // text: "Doing3",
-      //   text: "2de48379-73a6-4cc1-8663-baf47d12af9d",
-      // },
-      // {
-      //   id: "d5c0ba6f-2eb3-4511-8234-d528c60ab154",
-      //   // text: "Doing4",
-      //   text: "d5c0ba6f-2eb3-4511-8234-d528c60ab154",
-      // },
-      // {
-      //   id: "fc6eb2f6-8ed8-47e6-a164-f9bd804aec88",
-      //   // text: "Doing5",
-      //   text: "fc6eb2f6-8ed8-47e6-a164-f9bd804aec88",
-      // },
+      {
+        id: "2de48379-73a6-4cc1-8663-baf47d12af9d",
+        // text: "Doing3",
+        text: "2de48379-73a6-4cc1-8663-baf47d12af9d",
+      },
+      {
+        id: "d5c0ba6f-2eb3-4511-8234-d528c60ab154",
+        // text: "Doing4",
+        text: "d5c0ba6f-2eb3-4511-8234-d528c60ab154",
+      },
+      {
+        id: "fc6eb2f6-8ed8-47e6-a164-f9bd804aec88",
+        // text: "Doing5",
+        text: "fc6eb2f6-8ed8-47e6-a164-f9bd804aec88",
+      },
     ],
   },
   {
@@ -112,16 +112,16 @@ export const defaultCategoryTaskItems: Category[] = [
         // text: "Done2",
         text: "0c352776-4a3b-4a9c-aace-8765dd6c0f7a",
       },
-      // {
-      //   id: "d78baa56-4f74-46ff-9193-c6068aec8524",
-      //   // text: "Done3",
-      //   text: "d78baa56-4f74-46ff-9193-c6068aec8524",
-      // },
-      // {
-      //   id: "82734eea-6208-4750-a52c-6f5c1c99ade4",
-      //   // text: "Done4",
-      //   text: "82734eea-6208-4750-a52c-6f5c1c99ade4",
-      // },
+      {
+        id: "d78baa56-4f74-46ff-9193-c6068aec8524",
+        // text: "Done3",
+        text: "d78baa56-4f74-46ff-9193-c6068aec8524",
+      },
+      {
+        id: "82734eea-6208-4750-a52c-6f5c1c99ade4",
+        // text: "Done4",
+        text: "82734eea-6208-4750-a52c-6f5c1c99ade4",
+      },
     ],
   },
 ];
