@@ -8,7 +8,8 @@
 - Board update finish button
 - TaskAdder task 추가
 X 쓰레기통 - task, board 삭제기능 & 삭제버튼 => @hello-pangea/dnd에서 drag threshold를 조절 할 수 없어서 쓰레기통 근처만 가도 Drop zone을 BoardList가 아닌 쓰레기통으로 설정됨. UX가 좋지 못함. 해당 기능 구현 안 하기로 결정. => 버튼으로 대체
-2. 모든 task state를 local storage에 저장 및 로드, 그리고 local storage 비우는 기능
+- 모든 board state를 local storage에 저장 및 로드
+1. local storage 비우는 기능
 - board 생성 할 수 있는 form
 - Hide drag handle on edit mode
 - BoardHeader textarea scrollbar에는 border-radius 넣기

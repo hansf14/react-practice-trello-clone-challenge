@@ -661,9 +661,7 @@ export class NestedIndexer<
     !shouldAppend
       ? parentIdList.unshift(parent.id)
       : parentIdList.push(parent.id);
-    if (shouldKeepRef) {
-      this._setParentIdList({ parentIdList, shouldKeepRef });
-    }
+    this._setParentIdList({ parentIdList, shouldKeepRef });
   }
 
   // `parentId` (prev) and `parent.id` (new) can be different. (updating parent's id is allowed.)
@@ -853,13 +851,11 @@ export class NestedIndexer<
     !shouldAppend
       ? childIdListOfParentId.unshift(child.id)
       : childIdListOfParentId.push(child.id);
-    if (shouldKeepRef) {
-      this._setChildIdListOfParentId({
-        parentId,
-        childIdListOfParentId,
-        shouldKeepRef,
-      });
-    }
+    this._setChildIdListOfParentId({
+      parentId,
+      childIdListOfParentId,
+      shouldKeepRef,
+    });
   }
 
   // `childId` (prev) and `child.id` (new) can be different. (updating child's id is allowed.)

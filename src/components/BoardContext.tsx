@@ -326,26 +326,26 @@ export const boardListContextAtomFamily = atomFamily<
   },
   // dangerouslyAllowMutability: true,
   effects_UNSTABLE: [persistAtom],
-  effects: [
+  effects: ({ boardListId, parentKeyName, childKeyName }) => [
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ({ setSelf, onSet }) => {
-      const localStorageKey = recoilKeys["boardListContextAtomFamily"];
+      const localStorageKey = `${recoilKeys["boardListContextAtomFamily"]}__${boardListId}__${parentKeyName}__${childKeyName}`;
 
-      // Load initial value from localStorage (if available)
-      const storedValue = localStorage.getItem(localStorageKey);
-      if (storedValue) {
-        try {
-          const parsedValue = JSON.parse(storedValue) as BoardListContext;
-          setSelf(parsedValue);
-        } catch (error) {
-          console.error("Error parsing localStorage value:", error);
-        }
-      }
-
+      // // Load initial value from localStorage (if available)
+      // const storedValue = localStorage.getItem(localStorageKey);
+      // if (storedValue) {
+      //   try {
+      //     const parsedValue = JSON.parse(storedValue) as BoardListContext;
+      //     console.log(parsedValue);
+      //     setSelf(parsedValue);
+      //   } catch (error) {
+      //     console.error("Error parsing localStorage value:", error);
+      //   }
+      // }
       // Save value to localStorage whenever it changes
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       onSet((newValue, oldValue, isReset) => {
-        console.log(newValue);
+        // console.log(newValue);
         try {
           if (isReset) {
             localStorage.removeItem(localStorageKey);
@@ -378,28 +378,75 @@ export const BoardListContextProvider__Internal = ({
 
   const initBoardListContext = useRecoilCallback(
     ({ set }) =>
-      ({ parentItems }: { parentItems: ParentItem[] }) => {
-        const newDefaultBoardListContextIndexer = new BoardListContextIndexer({
-          parentKeyName,
-          childKeyName,
-          parentItems,
-        });
-        // console.log(
-        //   "newDefaultBoardListContextIndexer:",
-        //   newDefaultBoardListContextIndexer,
-        // );
+      ({
+        boardListContextInstance,
+        parentItems,
+      }: {
+        boardListContextInstance?: BoardListContext;
+        parentItems?: ParentItem[];
+      }) => {
+        if (boardListContextInstance) {
+          const newDefaultBoardListContextIndexer = new BoardListContextIndexer(
+            boardListContextInstance.indexer,
+          );
+          // console.log(
+          //   "newDefaultBoardListContextIndexer:",
+          //   newDefaultBoardListContextIndexer,
+          // );
 
-        set(boardListContextAtomFamily(boardListContextParams), {
-          boardListId,
-          indexer: newDefaultBoardListContextIndexer,
-        });
+          set(boardListContextAtomFamily(boardListContextParams), {
+            boardListId,
+            indexer: newDefaultBoardListContextIndexer,
+          });
+          return;
+        }
+
+        if (parentItems) {
+          const newDefaultBoardListContextIndexer = new BoardListContextIndexer(
+            {
+              parentKeyName,
+              childKeyName,
+              parentItems,
+            },
+          );
+          // console.log(
+          //   "newDefaultBoardListContextIndexer:",
+          //   newDefaultBoardListContextIndexer,
+          // );
+
+          set(boardListContextAtomFamily(boardListContextParams), {
+            boardListId,
+            indexer: newDefaultBoardListContextIndexer,
+          });
+          return;
+        }
       },
     [boardListContextParams, boardListId, parentKeyName, childKeyName],
   );
 
   useIsomorphicLayoutEffect(() => {
-    initBoardListContext({ parentItems: defaultItems ?? [] });
-  }, [defaultItems, initBoardListContext]);
+    const localStorageKey = `${recoilKeys["boardListContextAtomFamily"]}__${boardListId}__${parentKeyName}__${childKeyName}`;
+    // Load initial value from localStorage (if available)
+    const storedValue = localStorage.getItem(localStorageKey);
+    if (storedValue) {
+      try {
+        const parsedValue = JSON.parse(storedValue) as BoardListContext;
+        console.log(parsedValue);
+        initBoardListContext({ boardListContextInstance: parsedValue });
+      } catch (error) {
+        console.error("Error parsing localStorage value:", error);
+        localStorage.removeItem(localStorageKey);
+      }
+    } else {
+      initBoardListContext({ parentItems: defaultItems ?? [] });
+    }
+  }, [
+    boardListId,
+    parentKeyName,
+    childKeyName,
+    defaultItems,
+    initBoardListContext,
+  ]);
 
   return <>{children}</>;
 };

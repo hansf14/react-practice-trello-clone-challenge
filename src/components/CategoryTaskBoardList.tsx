@@ -252,6 +252,8 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
       [],
     );
 
+    console.log(stateBoardListContext);
+
     return (
       <CategoryTaskBoardListInternalBase
         ref={ref}
