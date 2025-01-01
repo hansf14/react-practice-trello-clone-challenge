@@ -1,4 +1,4 @@
-import { createContext, useMemo } from "react";
+import { useMemo } from "react";
 import {
   atomFamily,
   RecoilRoot,
@@ -114,53 +114,53 @@ export function getDraggable(
 
 ///////////////////////////////////////
 
-export type BoardContextValue = {
-  setActivatorNodeRef: ((el: HTMLElement | null) => void) | undefined;
-  // draggableHandleAttributes: DraggableAttributes | undefined;
-  // draggableHandleListeners: SyntheticListenerMap | undefined;
-};
+// export type BoardContextValue = {
+//   setActivatorNodeRef: ((el: HTMLElement | null) => void) | undefined;
+//   // draggableHandleAttributes: DraggableAttributes | undefined;
+//   // draggableHandleListeners: SyntheticListenerMap | undefined;
+// };
 
-export const BoardContext = createContext<BoardContextValue>({
-  setActivatorNodeRef: undefined,
-  // draggableHandleAttributes: undefined,
-  // draggableHandleListeners: undefined,
-});
+// export const BoardContext = createContext<BoardContextValue>({
+//   setActivatorNodeRef: undefined,
+//   // draggableHandleAttributes: undefined,
+//   // draggableHandleListeners: undefined,
+// });
 
-export const BoardContextProvider = ({
-  value,
-  children,
-}: {
-  value: BoardContextValue;
-  children: React.ReactNode;
-}) => {
-  return (
-    <BoardContext.Provider value={value}>{children}</BoardContext.Provider>
-  );
-};
+// export const BoardContextProvider = ({
+//   value,
+//   children,
+// }: {
+//   value: BoardContextValue;
+//   children: React.ReactNode;
+// }) => {
+//   return (
+//     <BoardContext.Provider value={value}>{children}</BoardContext.Provider>
+//   );
+// };
 
 ///////////////////////////////////////
 
-export type CardContextValue = {
-  setActivatorNodeRef: ((el: HTMLElement | null) => void) | undefined;
-  // draggableHandleAttributes: DraggableAttributes | undefined;
-  // draggableHandleListeners: SyntheticListenerMap | undefined;
-};
+// export type CardContextValue = {
+//   setActivatorNodeRef: ((el: HTMLElement | null) => void) | undefined;
+//   // draggableHandleAttributes: DraggableAttributes | undefined;
+//   // draggableHandleListeners: SyntheticListenerMap | undefined;
+// };
 
-export const CardContext = createContext<CardContextValue>({
-  setActivatorNodeRef: undefined,
-  // draggableHandleAttributes: undefined,
-  // draggableHandleListeners: undefined,
-});
+// export const CardContext = createContext<CardContextValue>({
+//   setActivatorNodeRef: undefined,
+//   // draggableHandleAttributes: undefined,
+//   // draggableHandleListeners: undefined,
+// });
 
-export const CardContextProvider = ({
-  value,
-  children,
-}: {
-  value: CardContextValue;
-  children: React.ReactNode;
-}) => {
-  return <CardContext.Provider value={value}>{children}</CardContext.Provider>;
-};
+// export const CardContextProvider = ({
+//   value,
+//   children,
+// }: {
+//   value: CardContextValue;
+//   children: React.ReactNode;
+// }) => {
+//   return <CardContext.Provider value={value}>{children}</CardContext.Provider>;
+// };
 
 ///////////////////////////////////////
 
@@ -329,29 +329,32 @@ export const boardListContextAtomFamily = atomFamily<
   effects: [
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     ({ setSelf, onSet }) => {
-      // const localStorageKey = recoilKeys["nestedIndexerAtom"];
+      const localStorageKey = recoilKeys["boardListContextAtomFamily"];
 
-      // // Load initial value from localStorage (if available)
-      // const storedValue = localStorage.getItem(localStorageKey);
-      // if (storedValue) {
-      //   try {
-      //     const parsedValue = JSON.parse(storedValue);
-      //     setSelf(new NestedIndexer(parsedValue));
-      //   } catch (error) {
-      //     console.error("Error parsing localStorage value:", error);
-      //   }
-      // }
+      // Load initial value from localStorage (if available)
+      const storedValue = localStorage.getItem(localStorageKey);
+      if (storedValue) {
+        try {
+          const parsedValue = JSON.parse(storedValue) as BoardListContext;
+          setSelf(parsedValue);
+        } catch (error) {
+          console.error("Error parsing localStorage value:", error);
+        }
+      }
 
       // Save value to localStorage whenever it changes
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      onSet((newValue) => {
-        // console.log(JSON.stringify(newValue.toPlain()));
-        // console.log(JSON.stringify(newValue.toString()));
-        // try {
-        //   localStorage.setItem(localStorageKey, JSON.stringify(newValue));
-        // } catch (error) {
-        //   console.error("Error saving to localStorage:", error);
-        // }
+      onSet((newValue, oldValue, isReset) => {
+        console.log(newValue);
+        try {
+          if (isReset) {
+            localStorage.removeItem(localStorageKey);
+            return;
+          }
+          localStorage.setItem(localStorageKey, JSON.stringify(newValue));
+        } catch (error) {
+          console.error("Error saving to localStorage:", error);
+        }
       });
     },
   ],

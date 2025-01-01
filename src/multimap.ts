@@ -1,6 +1,11 @@
 import "reflect-metadata";
 export { default as MultiRefMap } from "many-keys-map";
-import { Expose, instanceToPlain } from "class-transformer";
+import {
+  Expose,
+  instanceToPlain,
+  plainToInstance,
+  Type,
+} from "class-transformer";
 
 // Multi-key
 // Multi-value
@@ -9,8 +14,8 @@ export class MultiMap<
   A extends any = any,
   V extends A[] = A[],
 > {
-  // @Type(() => Map)
   @Expose()
+  @Type(() => Map)
   public _map = new Map<string, V>();
 
   constructor();
@@ -48,14 +53,28 @@ export class MultiMap<
   }
 
   // Convert to a plain object
-  toPlain(): object {
-    return instanceToPlain(this, { strategy: "excludeAll" });
+  toJSON(): object {
+    return instanceToPlain(this);
+    // return instanceToPlain(this, {
+    //   strategy: "excludeAll",
+    // });
     // The strategy option in the transformation settings controls the default behavior for including or excluding properties. The "excludeAll" strategy means only properties explicitly marked with @Expose will be included in the resulting plain object.
+  }
+
+  // T: Use of a Polymorphic `this` Type in the Base Class
+  // We can make the base class’s `fromJSON` return an instance of the "current" class rather than `MultiMap` specifically. We do this via a bound `this` type on a static method.
+  static fromJSON<
+    K extends string[] = string[],
+    A extends any = any,
+    V extends A[] = A[],
+    T extends MultiMap<K, A, V> = MultiMap<K, A, V>,
+  >(this: new (...args: any[]) => T, json: string): MultiMap<K, A, V> {
+    return plainToInstance(this, json) as T;
   }
 
   // Convert to a JSON string
   toString(): string {
-    return JSON.stringify(this.toPlain());
+    return JSON.stringify(this.toJSON());
   }
 
   // unshift({ keys, value }: { keys: K; value: A | V }) {

@@ -7,8 +7,9 @@ import {
   XCircleFill,
 } from "react-bootstrap-icons";
 import { SubmitHandler, useForm } from "react-hook-form";
-import { memoizeCallback, StyledComponentProps } from "@/utils";
 import { Input } from "antd";
+import { TextAreaRef } from "antd/es/input/TextArea";
+import { memoizeCallback, StyledComponentProps } from "@/utils";
 import {
   DraggablesContainerCustomAttributesKvObj,
   DroppableCustomAttributesKvObj,
@@ -18,7 +19,6 @@ import {
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { Droppable } from "@hello-pangea/dnd";
 import { getPlaceholder } from "@/hooks/useDragScroll";
-import { TextAreaRef } from "antd/es/input/TextArea";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 const { TextArea } = Input;
 
@@ -328,7 +328,7 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
     const onValid = useCallback<SubmitHandler<FormData>>(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (data: FormData, event) => {
-        console.log(data.childItemContent);
+        // console.log(data.childItemContent);
 
         _onAddChildItemSuccess?.({
           parentItemId: parentItem.id,

@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { styled } from "styled-components";
 import { Board } from "@/components/Board";
 import { BoardHeader, OnRemoveBoard } from "@/components/BoardHeader";
 import {
@@ -22,7 +23,6 @@ import {
   OnClearChildItems,
 } from "@/components/BoardMain";
 import { BoardCard, OnRemoveCard } from "@/components/BoardCard";
-import { styled } from "styled-components";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import { useMemoizeCallbackId } from "@/hooks/useMemoizeCallbackId";
 import { OnEditFinish, OnEditKeyDown } from "@/components/TextArea";
@@ -139,6 +139,7 @@ export const CategoryTaskBoardListInternal = withMemoAndRef<
           );
           newBoardListContextIndexer.clearChildIdListOfParentId({
             parentId: parentItemId,
+            shouldKeepRef: false,
           });
           return {
             boardListId,

@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 // import { ReactQueryDevtools } from "react-query/devtools";
 import { lightTheme } from "./theme";
 import { CategoryTaskBoardList } from "@/components/CategoryTaskBoardList";
-import { defaultCategoryTaskItems } from "@/data";
+import { defaultItems } from "@/data";
 import { getCssScrollbar } from "@/csses/scrollbar";
 
 /* @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap'); */
@@ -156,7 +156,7 @@ function App() {
         <Main>
           <CategoryTaskBoardList
             boardListId="category-task-board"
-            defaultItems={defaultCategoryTaskItems}
+            defaultItems={defaultItems}
             parentKeyName="category"
             childKeyName="task"
           />

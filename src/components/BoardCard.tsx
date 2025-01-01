@@ -6,6 +6,8 @@ import {
   GripVertical,
   XCircleFill,
 } from "react-bootstrap-icons";
+import { Draggable } from "@hello-pangea/dnd";
+import { useClickAway } from "react-use";
 import {
   ChildItem,
   DraggableCustomAttributesKvObj,
@@ -19,9 +21,7 @@ import {
   TextAreaHandle,
   useTextArea,
 } from "@/components/TextArea";
-import { Draggable } from "@hello-pangea/dnd";
 import { useRfd } from "@/hooks/useRfd";
-import { useClickAway } from "react-use";
 
 type BoardCardBaseProps = {
   isDragging?: boolean;

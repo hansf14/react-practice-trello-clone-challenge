@@ -1,4 +1,4 @@
-import { useCallback, useContext, useImperativeHandle, useRef } from "react";
+import { useCallback, useImperativeHandle, useRef } from "react";
 import { styled } from "styled-components";
 import {
   GripVertical,
@@ -6,9 +6,10 @@ import {
   CheckLg,
   XCircleFill,
 } from "react-bootstrap-icons";
+import { useClickAway } from "react-use";
+import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
 import {
-  BoardContext,
   DraggableHandleCustomAttributesKvObj,
   ParentItem,
 } from "@/components/BoardContext";
@@ -18,9 +19,7 @@ import {
   TextAreaHandle,
   TextAreaExtendProps,
 } from "@/components/TextArea";
-import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { useRfd } from "@/hooks/useRfd";
-import { useClickAway } from "react-use";
 
 const BoardHeaderBase = styled.div``;
 
@@ -138,20 +137,10 @@ export const BoardHeaderDragHandle = withMemoAndRef<
 >({
   displayName: "BoardHeaderDragHandle",
   Component: ({ boardListId, parentItemId, ...otherProps }, ref) => {
-    const { setActivatorNodeRef } = useContext(BoardContext);
-
     const refBase = useRef<HTMLDivElement | null>(null);
     useImperativeHandle(ref, () => {
       return refBase.current as HTMLDivElement;
     });
-
-    const baseCbRef = useCallback(
-      (el: HTMLDivElement | null) => {
-        refBase.current = el;
-        setActivatorNodeRef?.(el);
-      },
-      [setActivatorNodeRef],
-    );
 
     const draggableHandleCustomAttributes: DraggableHandleCustomAttributesKvObj =
       {
@@ -161,7 +150,7 @@ export const BoardHeaderDragHandle = withMemoAndRef<
 
     return (
       <BoardHeaderDragHandleBase
-        ref={baseCbRef}
+        ref={refBase}
         {...draggableHandleCustomAttributes}
         {...otherProps}
       >

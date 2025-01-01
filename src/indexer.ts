@@ -292,16 +292,22 @@ export type NestedIndexerParentItem = SmartMerge<
 export type NestedIndexerEntry<
   Parent extends NestedIndexerParentItem = NestedIndexerParentItem,
   Child extends NestedIndexerChildItem = NestedIndexerChildItem,
-> = [NestedIndexerKey, string[] | [string] | [Parent] | [Child]];
+> = [NestedIndexerKey, string[] | Parent[] | Child[]];
 
 export class NestedIndexer<
   Parent extends NestedIndexerParentItem = NestedIndexerParentItem,
   Child extends NestedIndexerChildItem = NestedIndexerChildItem,
-> extends MultiMap<NestedIndexerKey, string | Parent | Child> {
+> extends MultiMap<
+  NestedIndexerKey,
+  string | Parent | Child,
+  string[] | Parent[] | Child[]
+> {
   @Expose()
   parentKeyName: string;
+
   @Expose()
   childKeyName: string;
+
   @Expose()
   parentItems: Parent[];
 
@@ -403,16 +409,22 @@ export class NestedIndexer<
   }
 
   // Convert to a plain object
-  override toPlain(): object {
-    return instanceToPlain(
-      this,
-      //{ strategy: "excludeAll" }
-    );
+  override toJSON(): object {
+    return instanceToPlain(this);
   }
+
+  // static fromJSON<
+  //   Parent extends NestedIndexerParentItem = NestedIndexerParentItem,
+  //   Child extends NestedIndexerChildItem = NestedIndexerChildItem,
+  // >(json: string): NestedIndexer<Parent, Child> {
+  //   return plainToInstance(NestedIndexer<Parent, Child>, json);
+  // }
+  // ㄴ No need to define
+  // Base class `MultiMap` has Polymorphic `this` Type converting `fromJSON` static method.
 
   // Convert to a JSON string
   override toString(): string {
-    return JSON.stringify(this.toPlain());
+    return JSON.stringify(this.toJSON());
   }
 
   getParentIdList() {
@@ -431,11 +443,12 @@ export class NestedIndexer<
     const _parentIdList =
       (this.getParentIdList() as string[] | undefined) ?? [];
 
+    if (shouldKeepRef) {
+      _parentIdList.splice(0, _parentIdList.length, ...parentIdList);
+    }
     this.set({
       keys: [`${this.parentKeyName}IdList`],
-      value: shouldKeepRef
-        ? _parentIdList.splice(0, _parentIdList.length, ...parentIdList)
-        : parentIdList,
+      value: shouldKeepRef ? _parentIdList : parentIdList,
     });
   }
 
@@ -446,7 +459,7 @@ export class NestedIndexer<
     parentId: string;
     shouldKeepRef?: boolean;
   }) {
-    const parentIdList = this.getParentIdList() ?? [];
+    const parentIdList = [...(this.getParentIdList() ?? [])];
     const parentIndex = parentIdList.findIndex(
       (_parentId) => _parentId === parentId,
     );
@@ -513,19 +526,20 @@ export class NestedIndexer<
     childIdListOfParentId: string[];
     shouldKeepRef?: boolean;
   }) {
-    const oldChildIdListOfParentId =
+    const _childIdListOfParentId =
       (this.getChildIdListOfParentId({ parentId }) as string[] | undefined) ??
       [];
 
+    if (shouldKeepRef) {
+      _childIdListOfParentId.splice(
+        0,
+        _childIdListOfParentId.length,
+        ...childIdListOfParentId,
+      );
+    }
     this.set({
       keys: [`${this.parentKeyName}Id`, parentId, `${this.childKeyName}IdList`],
-      value: shouldKeepRef
-        ? oldChildIdListOfParentId.splice(
-            0,
-            oldChildIdListOfParentId.length,
-            ...childIdListOfParentId,
-          )
-        : childIdListOfParentId,
+      value: shouldKeepRef ? _childIdListOfParentId : childIdListOfParentId,
     });
   }
 
@@ -592,6 +606,7 @@ export class NestedIndexer<
     const _parentIdListOfChild =
       (this.getParentIdListOfChildId({ childId }) as string[] | undefined) ??
       [];
+
     if (shouldKeepRef) {
       _parentIdListOfChild.splice(
         0,
@@ -642,11 +657,7 @@ export class NestedIndexer<
         shouldKeepRef,
       });
     }
-    parentIdList = this.getParentIdList();
-    if (!parentIdList) {
-      console.warn("[createParent] !parentIdList");
-      return;
-    }
+    parentIdList = [...(this.getParentIdList() ?? [])];
     !shouldAppend
       ? parentIdList.unshift(parent.id)
       : parentIdList.push(parent.id);
@@ -689,7 +700,7 @@ export class NestedIndexer<
       this._removeParent({ parentId: oldParentId });
       this._setParent({ parent: newParent });
 
-      const parentIdList = this.getParentIdList() ?? [];
+      const parentIdList = [...(this.getParentIdList() ?? [])];
       const oldParentIndex = parentIdList.findIndex(
         (parentId) => parentId === oldParentId,
       );
@@ -703,35 +714,39 @@ export class NestedIndexer<
         shouldKeepRef,
       });
 
-      const childIdListOfOldParentId =
-        this.getChildIdListOfParentId({
+      const childIdListOfOldParentId = [
+        ...(this.getChildIdListOfParentId({
           parentId: oldParentId,
-        }) ?? [];
-      this._removeChildIdListOfParentId({ parentId: oldParentId });
-      this._setChildIdListOfParentId({
-        parentId: newParent.id,
-        childIdListOfParentId: childIdListOfOldParentId,
-        shouldKeepRef,
-      });
+        }) ?? []),
+      ];
 
       childIdListOfOldParentId.forEach((childId) => {
-        const parentIdListOfChildId =
-          this.getParentIdListOfChildId({
+        const parentIdListOfChildId = [
+          ...(this.getParentIdListOfChildId({
             childId,
-          }) ?? [];
-        const parentIndex = parentIdListOfChildId.findIndex(
+          }) ?? []),
+        ];
+        const oldParentIndex = parentIdListOfChildId.findIndex(
           (parentId) => parentId === oldParentId,
         );
-        if (parentIndex === -1) {
+        if (oldParentIndex === -1) {
           console.warn("[updateParent] parentIndex === -1");
           return;
         }
-        parentIdListOfChildId[parentIndex] = newParent.id;
+        parentIdListOfChildId[oldParentIndex] = newParent.id;
         this._setParentIdListOfChildId({
           childId,
           parentIdListOfChildId,
           shouldKeepRef,
         });
+      });
+
+      this._removeChildIdListOfParentId({ parentId: oldParentId });
+
+      this._setChildIdListOfParentId({
+        parentId: newParent.id,
+        childIdListOfParentId: childIdListOfOldParentId,
+        shouldKeepRef,
       });
     }
   }
@@ -762,17 +777,16 @@ export class NestedIndexer<
       shouldKeepRef,
     });
 
-    this._removeChildIdListOfParentId({ parentId });
-
     const childIdListOfParentId =
       this.getChildIdListOfParentId({
         parentId,
       }) ?? [];
     childIdListOfParentId.forEach((childId) => {
-      const parentIdListOfChildId =
-        this.getParentIdListOfChildId({
+      const parentIdListOfChildId = [
+        ...(this.getParentIdListOfChildId({
           childId,
-        }) ?? [];
+        }) ?? []),
+      ];
       const parentIndex = parentIdListOfChildId.findIndex(
         (_parentId) => _parentId === parentId,
       );
@@ -787,6 +801,8 @@ export class NestedIndexer<
         shouldKeepRef,
       });
     });
+
+    this._removeChildIdListOfParentId({ parentId });
   }
 
   createChild({
@@ -831,11 +847,9 @@ export class NestedIndexer<
       shouldKeepRef,
     });
 
-    const childIdListOfParentId = this.getChildIdListOfParentId({ parentId });
-    if (!childIdListOfParentId) {
-      console.warn("[createChild] !childIdList");
-      return;
-    }
+    const childIdListOfParentId = [
+      ...(this.getChildIdListOfParentId({ parentId }) ?? []),
+    ];
     !shouldAppend
       ? childIdListOfParentId.unshift(child.id)
       : childIdListOfParentId.push(child.id);
@@ -873,45 +887,43 @@ export class NestedIndexer<
       }
     });
 
-    const oldChild = this.getChild({ childId: oldChildId });
-    if (!oldChild) {
-      console.warn("[updateChild] !oldChild");
-      return;
-    }
-
     if (oldChildId === newChild.id) {
       this._setChild({ child: newChild });
     } else {
       this._removeChild({ childId: oldChildId });
       this._setChild({ child: newChild });
 
-      const parentIdListOfOldChildId =
-        this.getParentIdListOfChildId({ childId: oldChildId }) ?? [];
-      this._removeParentIdListOfChildId({ childId: oldChildId });
-      this._setParentIdListOfChildId({
-        childId: newChild.id,
-        parentIdListOfChildId: parentIdListOfOldChildId,
-        shouldKeepRef,
-      });
+      const parentIdListOfChildId = [
+        ...(this.getParentIdListOfChildId({ childId: oldChildId }) ?? []),
+      ];
 
-      parentIdListOfOldChildId.forEach((parentId) => {
-        const childIdListOfParentId =
-          this.getChildIdListOfParentId({
+      parentIdListOfChildId.forEach((parentId) => {
+        const childIdListOfParentId = [
+          ...(this.getChildIdListOfParentId({
             parentId,
-          }) ?? [];
-        const childIndex = childIdListOfParentId.findIndex(
+          }) ?? []),
+        ];
+        const oldChildIndex = childIdListOfParentId.findIndex(
           (childId) => childId === oldChildId,
         );
-        if (childIndex === -1) {
+        if (oldChildIndex === -1) {
           console.warn("[updateChild] childIndex === -1");
           return;
         }
-        childIdListOfParentId[childIndex] = newChild.id;
+        childIdListOfParentId[oldChildIndex] = newChild.id;
         this._setChildIdListOfParentId({
           parentId,
           childIdListOfParentId,
           shouldKeepRef,
         });
+      });
+
+      this._removeParentIdListOfChildId({ childId: oldChildId });
+
+      this._setParentIdListOfChildId({
+        childId: newChild.id,
+        parentIdListOfChildId: parentIdListOfChildId,
+        shouldKeepRef,
       });
     }
   }
@@ -940,17 +952,16 @@ export class NestedIndexer<
 
     this._removeChild({ childId });
 
-    this._removeParentIdListOfChildId({ childId });
-
     const parentIdListOfChildId =
       this.getParentIdListOfChildId({
         childId,
       }) ?? [];
     parentIdListOfChildId.forEach((parentId) => {
-      const childIdListOfParentId =
-        this.getChildIdListOfParentId({
+      const childIdListOfParentId = [
+        ...(this.getChildIdListOfParentId({
           parentId,
-        }) ?? [];
+        }) ?? []),
+      ];
       const childIndex = childIdListOfParentId.findIndex(
         (_childId) => _childId === childId,
       );
@@ -965,6 +976,8 @@ export class NestedIndexer<
         shouldKeepRef,
       });
     });
+
+    this._removeParentIdListOfChildId({ childId });
   }
 
   moveParent({
@@ -1023,14 +1036,16 @@ export class NestedIndexer<
     indexTo: number;
     shouldKeepRef?: boolean;
   }) {
-    const childIdListOfParentIdFrom =
-      this.getChildIdListOfParentId({
+    const childIdListOfParentIdFrom = [
+      ...(this.getChildIdListOfParentId({
         parentId: parentIdFrom,
-      }) ?? [];
-    const childIdListOfParentIdTo =
-      this.getChildIdListOfParentId({
+      }) ?? []),
+    ];
+    const childIdListOfParentIdTo = [
+      ...(this.getChildIdListOfParentId({
         parentId: parentIdTo,
-      }) ?? [];
+      }) ?? []),
+    ];
 
     if (parentIdFrom === parentIdTo) {
       const targetParentIndex = this.parentItems.findIndex(
@@ -1055,7 +1070,7 @@ export class NestedIndexer<
         this.parentItems[targetParentIndex].items = childItems;
       } else {
         arrayMoveElement({
-          arr: this.parentItems,
+          arr: this.parentItems[targetParentIndex].items,
           indexFrom,
           indexTo,
         });
@@ -1065,6 +1080,11 @@ export class NestedIndexer<
         arr: childIdListOfParentIdFrom,
         indexFrom,
         indexTo,
+      });
+      this._setChildIdListOfParentId({
+        parentId: parentIdFrom,
+        childIdListOfParentId: childIdListOfParentIdFrom,
+        shouldKeepRef,
       });
     } else {
       const targetParentIndexOfParentIdFrom = this.parentItems.findIndex(
@@ -1090,7 +1110,7 @@ export class NestedIndexer<
       }
       if (!this.parentItems[targetParentIndexOfParentIdTo].items) {
         console.warn(
-          "[moveChild] !this.items[targetParentIndexOfParentIdFrom].items",
+          "[moveChild] !this.items[targetParentIndexOfParentIdTo].items",
         );
         return;
       }
@@ -1120,11 +1140,22 @@ export class NestedIndexer<
 
       const [targetChildId] = childIdListOfParentIdFrom.splice(indexFrom, 1);
       childIdListOfParentIdTo.splice(indexTo, 0, targetChildId);
+      this._setChildIdListOfParentId({
+        parentId: parentIdFrom,
+        childIdListOfParentId: childIdListOfParentIdFrom,
+        shouldKeepRef,
+      });
+      this._setChildIdListOfParentId({
+        parentId: parentIdTo,
+        childIdListOfParentId: childIdListOfParentIdTo,
+        shouldKeepRef,
+      });
 
-      const parentIdListOfTargetChildId =
-        this.getParentIdListOfChildId({
+      const parentIdListOfTargetChildId = [
+        ...(this.getParentIdListOfChildId({
           childId: targetChildId,
-        }) ?? [];
+        }) ?? []),
+      ];
       const indexParentIdFrom = parentIdListOfTargetChildId.findIndex(
         (parentId) => parentId === parentIdFrom,
       );

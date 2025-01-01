@@ -14,6 +14,8 @@ import {
   OnDragStartResponder,
   OnDragUpdateResponder,
 } from "@hello-pangea/dnd";
+import { Floppy2Fill } from "react-bootstrap-icons";
+import { Button, Modal } from "antd";
 import {
   generateUniqueRandomId,
   SmartMerge,
@@ -27,7 +29,6 @@ import {
   useBoardListContext,
   DraggablesContainerCustomAttributesKvObj,
   ParentItem,
-  ItemType,
 } from "@/components/BoardContext";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
 import {
@@ -44,10 +45,8 @@ import {
 } from "@/hooks/useDragPositionPreview";
 import { useRfd } from "@/hooks/useRfd";
 import { PlusCircleFilled } from "@ant-design/icons";
-import { Button, Modal } from "antd";
 import { TextArea, TextAreaHandle, useTextArea } from "@/components/TextArea";
 import { useAntdModal } from "@/hooks/useAntdModal";
-import { Floppy2Fill, Trash3Fill } from "react-bootstrap-icons";
 
 const BoardListBase = styled.div`
   height: 100%;
@@ -470,10 +469,10 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
           draggableId: srcDraggableId,
         } = update;
 
-        console.log(dst);
+        // console.log(dst);
         if (
-          !dst ||
-          ["trash-can-parent", "trash-can-child"].includes(dst.droppableId)
+          !dst
+          //  || ["trash-can-parent", "trash-can-child"].includes(dst.droppableId)
         ) {
           hideDragPositionPreview();
           return;
@@ -537,9 +536,9 @@ export const BoardList = withMemoAndRef<"div", HTMLDivElement, BoardListProps>({
         if (!destination) {
           return;
         }
-        console.log(type);
-        console.log(source);
-        console.log(destination);
+        // console.log(type);
+        // console.log(source);
+        // console.log(destination);
 
         const { droppableId: srcDroppableId, index: srcDraggableIndex } =
           source;

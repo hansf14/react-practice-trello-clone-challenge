@@ -1,12 +1,12 @@
+import React, { useImperativeHandle, useRef } from "react";
+import { Draggable, DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { css, styled } from "styled-components";
 import { SmartMerge, SmartOmit, StyledComponentProps } from "@/utils";
 import { withMemoAndRef } from "@/hocs/withMemoAndRef";
-import React, { useImperativeHandle, useRef } from "react";
 import {
   DraggableCustomAttributesKvObj,
   ParentItem,
 } from "@/components/BoardContext";
-import { Draggable, DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { TextAreaPropsListeners, useTextArea } from "@/components/TextArea";
 import { useRfd } from "@/hooks/useRfd";
 
