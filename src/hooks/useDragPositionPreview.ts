@@ -168,16 +168,51 @@ export const useDragPositionPreview = () => {
             )
           : [offsets[0].top, offsets[0].bottom];
 
-      const activeDraggableClone = activeDraggable.cloneNode(
-        true,
-      ) as HTMLElement;
+      // const activeDraggableClone = activeDraggable.cloneNode(
+      //   true,
+      // ) as HTMLElement;
 
-      // Remove all `data-*` attributes
-      Array.from(activeDraggableClone.attributes).forEach((attr) => {
-        if (attr.name.startsWith("data-")) {
-          activeDraggableClone.removeAttribute(attr.name);
-        }
-      });
+      // Array.from([
+      //   activeDraggableClone,
+      //   ...activeDraggableClone.querySelectorAll("*"),
+      // ]).forEach((element) => {
+      //   Array.from(element.attributes).forEach((attr) => {
+      //     if (attr.name.startsWith("data-rfd")) {
+      //       // console.log(attr);
+      //       activeDraggableClone.removeAttribute(attr.name);
+      //     }
+      //   });
+      // });
+      // outerHTML not updating/reflecting when detached.
+
+      // data-rfd-draggable-context-id=":r0:"
+      // data-rfd-draggable-id="0cd50106-6130-4da0-b0a0-39e0496da2ca"
+      // data-board-list-id="category-task-board"
+      // data-draggable-id="0cd50106-6130-4da0-b0a0-39e0496da2ca"
+      // data-draggable-index="5"
+      // data-droppable-id="ba605f3e-b99e-4450-aa0a-ddd0ec22ad71"
+      // data-board-list-id="category-task-board"
+      // data-draggable-handle-id="0cd50106-6130-4da0-b0a0-39e0496da2ca"
+      // data-rfd-drag-handle-draggable-id="0cd50106-6130-4da0-b0a0-39e0496da2ca"
+      // data-rfd-drag-handle-context-id=":r0:"
+
+      let updatedHtmlString = activeDraggable.outerHTML.replace(
+        /\s*data-rfd-[^=]+="(?:[^"\\]|\\.)*"/g,
+        "",
+      );
+      updatedHtmlString = updatedHtmlString.replace(
+        /\s*data-board-list-id="(?:[^"\\]|\\.)*"/g,
+        "",
+      );
+      updatedHtmlString = updatedHtmlString.replace(
+        /\s*data-draggable-[^=]+="(?:[^"\\]|\\.)*"/g,
+        "",
+      );
+      updatedHtmlString = updatedHtmlString.replace(
+        /\s*data-droppable-[^=]+="(?:[^"\\]|\\.)*"/g,
+        "",
+      );
+      // console.log(updatedHtmlString);
 
       const shouldUseMargin =
         typeof _shouldUseMargin === "undefined"
@@ -210,12 +245,14 @@ export const useDragPositionPreview = () => {
         top: 0,
         left: 0,
         opacity: 0.7,
+        pointerEvents: "none",
+        touchAction: "none",
+        userSelect: "none",
         ...offsetStyle,
       };
 
-      let dragPositionPreview = parse(
-        activeDraggableClone.outerHTML,
-      ) as React.ReactElement;
+      // let dragPositionPreview = parse(activeDraggableClone.outerHTML) as React.ReactElement;
+      let dragPositionPreview = parse(updatedHtmlString) as React.ReactElement;
       dragPositionPreview = React.cloneElement(dragPositionPreview, {
         style,
       });

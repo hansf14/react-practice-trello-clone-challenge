@@ -56,10 +56,12 @@
     - **I decided to implement it by myself because...**
       - **1. The @hello-pangea/dnd & react-beautiful-dnd libraries don't support auto scroll buffer zone and scroll speed for multiple scroll containers.**
       - **2. The @hello-pangea/dnd & react-beautiful-dnd libraries don't support auto-scroll for nested scroll containers.** 
-  - **Full mobile support**
+  - **Mobile support**
     - **Responsive design**
     - **DnD, drag position preview and auto-scroll are all also available at mobile.**
   - **Other many little functionalities for better UX**
+- **Edit: Known bugs (2025.01.18 ~)**
+  - **Card in board drag scroll (at mobile devices) not working good.**
 - **Demo: [React Practice Trello Clone Challenge](https://hansf14.github.io/react-practice-trello-clone-challenge)**
 - **Preview Screenshots**
 <p>

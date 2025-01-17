@@ -54,10 +54,11 @@ const BoardCardBase = styled.div.withConfig({
 
 const BoardCardContentTextArea = styled(TextArea)`
   && {
+    overflow: hidden;
+    padding: 4px 6px;
+
     font-weight: bold;
     font-size: 14px;
-
-    padding: 4px 6px;
   }
 `;
 

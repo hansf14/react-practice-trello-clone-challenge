@@ -1,3 +1,7 @@
+* Known bugs
+- Card drop area in board dark effect => Decided to give up fixing it for the moment.
+- Card in board drag scroll (at mobile devices) not working good. => Decided to give up fixing it for the moment.
+
 * 기능 완료
 - board 자체의 순서를 서로 바꿀 수 있는 기능
 - board 수정

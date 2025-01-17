@@ -42,36 +42,43 @@ const BoardMainContentContainer = styled.div`
   // https://github.com/clauderic/dnd-kit/issues/1256
 `;
 
-const BoardMainContent = styled.div`
+type BoardMainContentProps = {
+  isDraggingOver?: boolean;
+};
+
+const BoardMainContent = styled.div.withConfig({
+  shouldForwardProp: (prop) => !["isDraggingOver"].includes(prop),
+})<BoardMainContentProps>`
+  position: relative;
+
   width: 100%;
   height: 100%;
 
   overflow-x: hidden;
   overflow-y: scroll;
 `;
+// ${({ isDraggingOver = false }) => {
+//   return isDraggingOver
+//     ? css`
+//         &::before {
+//           position: absolute;
+//           content: "";
+//           top: 0;
+//           left: 0;
+//           right: 0;
+//           bottom: 0;
+//           background-color: rgba(0, 0, 0, 0.1);
+//         }
+//       `
+//     : "";
+// }}
 
-type BoardMainContentMinusMarginProps = {
-  isDraggingOver?: boolean;
-};
-
-const BoardMainContentMinusMargin = styled.div.withConfig({
-  shouldForwardProp: (prop) => !["isDraggingOver"].includes(prop),
-})<BoardMainContentMinusMarginProps>`
+const BoardMainContentMinusMargin = styled.div`
   margin: -5px 10px -5px 0;
-  height: 100%;
+  height: calc(100% + 10px);
 
   display: flex;
   flex-direction: column;
-
-  ${({ isDraggingOver }) => {
-    return css`
-      ${(isDraggingOver ?? false)
-        ? `
-        background-color: rgba(0, 0, 0, 0.1);
-      `
-        : ""}
-    `;
-  }}
 `;
 
 const ChildItemForm = styled.form`
@@ -439,10 +446,10 @@ export const BoardMain = withMemoAndRef<"div", HTMLDivElement, BoardMainProps>({
                   {...droppableProvided.droppableProps}
                   {...droppableCustomAttributes}
                   {...scrollContainerCustomAttributes}
+                  isDraggingOver={droppableStateSnapshot.isDraggingOver}
                 >
                   <BoardMainContentMinusMargin
                     {...draggablesContainerCustomAttributes}
-                    isDraggingOver={droppableStateSnapshot.isDraggingOver}
                   >
                     {children}
                     {getPlaceholder({
